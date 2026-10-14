@@ -25,7 +25,7 @@ public partial class Preview : Node3D
         string scene = Arg(args, "--scene") ?? "village";
         Vector3 pivot; float dist;
         if (scene == "city") { BuildCity(); pivot = new Vector3(30, 18, 30); dist = 122; }
-        else if (scene == "buildings") { BuildShowcase(); pivot = new Vector3(39, 17, 12); dist = 78; }
+        else if (scene == "buildings") { BuildShowcase(); pivot = new Vector3(60, 17, 12); dist = 112; }
         else { BuildVillage(); pivot = new Vector3(22, 6, 27); dist = 40; }
         if (Arg(args, "--view") == "close") { pivot = scene == "city" ? new Vector3(24, 9, 20) : new Vector3(24, 6, 33); dist = scene == "city" ? 34 : 16; }
 
@@ -148,14 +148,17 @@ public partial class Preview : Node3D
     // ---------- 建物の展示(10 様式を一列に) ----------
     void BuildShowcase()
     {
-        const int W = 76, D = 24;
+        const int W = 120, D = 24;
         byte stone = B("Stone"), plaza = B("Plaza"), road = B("RoadX");
         for (int x = 0; x < W; x++) for (int z = 0; z < D; z++) { _world.Set(x, 0, z, stone); _world.Set(x, 1, z, stone); _world.Set(x, 2, z, z == 17 || z == 18 ? road : plaza); }
         _world.Dirty.Clear();
         int[] floors = { 30, 26, 28, 24, 36, 40, 34, 18, 16, 30 };
         for (int i = 0; i < KitBash.RefStyles; i++)
             _kb.RefBuilding(this, i, 5.5f + i * 7.2f, 3f, 11f, 3.6f, 3.6f, floors[i], 0);
-        for (int i = 0; i < 24; i++) _kb.Humanoid(this, 3f + (float)_rnd.NextDouble() * 70f, 3f, 17f + (float)_rnd.NextDouble() * 2f, _rnd.Next(360), _rnd.NextDouble() < 0.5);
+        int[] lfloors = { 36, 32, 30, 34, 26, 28 };
+        for (int i = 0; i < KitBash.LoftStyles; i++)
+            _kb.LoftBuilding(this, i, 5.5f + (KitBash.RefStyles + i) * 7.2f, 3f, 11f, 3.6f, lfloors[i], 0);
+        for (int i = 0; i < 40; i++) _kb.Humanoid(this, 3f + (float)_rnd.NextDouble() * 112f, 3f, 17f + (float)_rnd.NextDouble() * 2f, _rnd.Next(360), _rnd.NextDouble() < 0.5);
     }
 
     // ---------- 大都市 ----------
@@ -191,7 +194,9 @@ public partial class Preview : Node3D
                     case "downtown":
                         if ((x0, z0) is (15, 8) or (22, 15) or (29, 8))
                             _kb.MegaTower(this, x0 + 3f, Y, z0 + 3f, 3.6f, 3.6f, (x0, z0) == (22, 15) ? 8 : 6, 6, 0);
-                        else if (_rnd.NextDouble() < 0.5)
+                        else if (_rnd.NextDouble() < 0.35)
+                            _kb.LoftBuilding(this, _rnd.Next(KitBash.LoftStyles), x0 + 3f, Y, z0 + 3f, 3.4f, _rnd.Next(20, 44), _rnd.Next(4) * 90);
+                        else if (_rnd.NextDouble() < 0.6)
                             _kb.RefBuilding(this, _rnd.Next(KitBash.RefStyles), x0 + 3f, Y, z0 + 3f, 3.8f, 3.8f, _rnd.Next(20, 44), _rnd.Next(4) * 90);
                         else
                             foreach (var (ox, oz) in new[] { (1.6f, 1.6f), (4.4f, 1.6f), (1.6f, 4.4f), (4.4f, 4.4f) })

@@ -93,6 +93,119 @@ public static class MeshParts
         return st.Commit();
     }
 
+    // ---------- 平面形(閉じた多角形、原点中心、反時計回り) ----------
+    public static Vector2[] RegularPolygon(int n, float r, float phaseDeg = 0)
+    {
+        var pts = new Vector2[n];
+        for (int i = 0; i < n; i++) { float a = Mathf.DegToRad(phaseDeg) + i * Mathf.Tau / n; pts[i] = new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r; }
+        return pts;
+    }
+
+    /// <summary>角を丸めた正多角形。round は角の丸めの割合(0〜0.5)、seg は角ごとの分割。</summary>
+    public static Vector2[] RoundedPolygon(int n, float r, float round, int seg)
+    {
+        var corners = RegularPolygon(n, r);
+        var pts = new System.Collections.Generic.List<Vector2>();
+        for (int i = 0; i < n; i++)
+        {
+            var prev = corners[(i - 1 + n) % n]; var c = corners[i]; var next = corners[(i + 1) % n];
+            var a = c + (prev - c) * round; var b = c + (next - c) * round;
+            for (int k = 0; k <= seg; k++) { float t = (float)k / seg; pts.Add(a.Lerp(c, t).Lerp(c.Lerp(b, t), t)); }
+        }
+        return pts.ToArray();
+    }
+
+    public static Vector2[] RoundedRect(float w, float d, float r, int seg)
+    {
+        var pts = new System.Collections.Generic.List<Vector2>();
+        var centers = new[] { new Vector2(w / 2 - r, d / 2 - r), new Vector2(-w / 2 + r, d / 2 - r), new Vector2(-w / 2 + r, -d / 2 + r), new Vector2(w / 2 - r, -d / 2 + r) };
+        for (int c = 0; c < 4; c++)
+            for (int k = 0; k <= seg; k++) { float a = c * Mathf.Pi / 2 + k * (Mathf.Pi / 2) / seg; pts.Add(centers[c] + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r); }
+        return pts.ToArray();
+    }
+
+    public static Vector2[] Ellipse(float w, float d, int n)
+    {
+        var pts = new Vector2[n];
+        for (int i = 0; i < n; i++) { float a = i * Mathf.Tau / n; pts[i] = new Vector2(Mathf.Cos(a) * w / 2, Mathf.Sin(a) * d / 2); }
+        return pts;
+    }
+
+    /// <summary>レンズ形: 2 つの円弧。w が長径、d が厚み。</summary>
+    public static Vector2[] Lens(float w, float d, int seg)
+    {
+        var pts = new System.Collections.Generic.List<Vector2>();
+        float R = (w * w / 4 + d * d / 4) / d;      // 弧の半径
+        float cy = d / 2 - R;                        // 上弧の中心
+        float half = Mathf.Asin((w / 2) / R);
+        for (int k = 0; k <= seg; k++) { float a = Mathf.Pi / 2 + half - k * 2 * half / seg; pts.Add(new Vector2(Mathf.Cos(a) * R, cy + Mathf.Sin(a) * R)); }
+        for (int k = 0; k <= seg; k++) { float a = -Mathf.Pi / 2 + half - k * 2 * half / seg; pts.Add(new Vector2(Mathf.Cos(a) * R, -cy + Mathf.Sin(a) * R)); }
+        return pts.ToArray();
+    }
+
+    public static Vector2[] Star(int n, float rOut, float rIn)
+    {
+        var pts = new Vector2[n * 2];
+        for (int i = 0; i < n * 2; i++) { float a = i * Mathf.Pi / n; float r = i % 2 == 0 ? rOut : rIn; pts[i] = new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r; }
+        return pts;
+    }
+
+    public static Vector3 LoftPoint(Vector2[] profile, int j, float y, (float scale, float rotDeg, Vector2 offset) xf, float extra = 1f)
+    {
+        var p = profile[j] * xf.scale * extra;
+        p = p.Rotated(Mathf.DegToRad(xf.rotDeg)) + xf.offset;
+        return new Vector3(p.X, y, p.Y);
+    }
+
+    /// <summary>
+    /// ロフト: 平面形を ringY の各高さに xfs の変形で置き、隣り合う環を四角形でつなぐ。
+    /// UV は u = 外周の距離 × uvScale、v = 高さ × uvScale(窓テクスチャの 1 タイル = 1/uvScale m)。
+    /// </summary>
+    public static ArrayMesh Loft(Vector2[] profile, float[] ringY, (float scale, float rotDeg, Vector2 offset)[] xfs, bool capTop, bool capBottom, float uvScale)
+    {
+        int m = profile.Length, rings = ringY.Length;
+        var st = new SurfaceTool();
+        st.Begin(Mesh.PrimitiveType.Triangles);
+        var perim = new float[m + 1];
+        for (int j = 0; j < m; j++) perim[j + 1] = perim[j] + (profile[(j + 1) % m] - profile[j]).Length();
+        for (int i = 0; i < rings - 1; i++)
+            for (int j = 0; j < m; j++)
+            {
+                int j1 = (j + 1) % m;
+                var a = LoftPoint(profile, j, ringY[i], xfs[i]);
+                var b = LoftPoint(profile, j1, ringY[i], xfs[i]);
+                var c = LoftPoint(profile, j1, ringY[i + 1], xfs[i + 1]);
+                var d = LoftPoint(profile, j, ringY[i + 1], xfs[i + 1]);
+                var n = (b - a).Cross(d - a).Normalized();
+                // 外向きに揃える(平面形は反時計回り)
+                var outward = new Vector3(profile[j].X + profile[j1].X, 0, profile[j].Y + profile[j1].Y);
+                outward = new Vector3(Mathf.Cos(Mathf.DegToRad(xfs[i].rotDeg)) * outward.X - Mathf.Sin(Mathf.DegToRad(xfs[i].rotDeg)) * outward.Z, 0, Mathf.Sin(Mathf.DegToRad(xfs[i].rotDeg)) * outward.X + Mathf.Cos(Mathf.DegToRad(xfs[i].rotDeg)) * outward.Z);
+                if (n.Dot(outward) < 0) n = -n;
+                float u0 = perim[j] * uvScale, u1 = perim[j + 1] * uvScale, v0 = ringY[i] * uvScale, v1 = ringY[i + 1] * uvScale;
+                QuadUv(st, a, b, c, d, n, new Vector2(u0, v0), new Vector2(u1, v0), new Vector2(u1, v1), new Vector2(u0, v1));
+            }
+        if (capTop)
+        {
+            int i = rings - 1;
+            var c0 = Vector3.Zero; for (int j = 0; j < m; j++) c0 += LoftPoint(profile, j, ringY[i], xfs[i]); c0 /= m;
+            for (int j = 0; j < m; j++) Tri(st, c0, LoftPoint(profile, j, ringY[i], xfs[i]), LoftPoint(profile, (j + 1) % m, ringY[i], xfs[i]), Vector3.Up);
+        }
+        if (capBottom)
+        {
+            var c0 = Vector3.Zero; for (int j = 0; j < m; j++) c0 += LoftPoint(profile, j, ringY[0], xfs[0]); c0 /= m;
+            for (int j = 0; j < m; j++) Tri(st, c0, LoftPoint(profile, j, ringY[0], xfs[0]), LoftPoint(profile, (j + 1) % m, ringY[0], xfs[0]), Vector3.Down);
+        }
+        return st.Commit();
+    }
+
+    static void QuadUv(SurfaceTool st, Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 n, Vector2 ua, Vector2 ub, Vector2 uc, Vector2 ud)
+    {
+        if ((b - a).Cross(c - a).Dot(n) > 0) { (b, d) = (d, b); (ub, ud) = (ud, ub); }
+        st.SetNormal(n);
+        st.SetUV(ua); st.AddVertex(a); st.SetUV(ub); st.AddVertex(b); st.SetUV(uc); st.AddVertex(c);
+        st.SetUV(ua); st.AddVertex(a); st.SetUV(uc); st.AddVertex(c); st.SetUV(ud); st.AddVertex(d);
+    }
+
     public static ArrayMesh ChamferBox(float c)
     {
         var st = new SurfaceTool();
