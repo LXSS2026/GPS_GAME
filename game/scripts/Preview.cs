@@ -19,6 +19,44 @@ public partial class Preview : Node3D
     StandardMaterial3D _beltStripe = new() { AlbedoColor = new Color(0.20f, 0.20f, 0.22f), Roughness = 0.9f };
 
     byte B(string name) => _blocks.IdOf(name);
+    readonly Dictionary<(ulong, string), StandardMaterial3D> _tinted = new();
+
+    static Color TintFor(string kit) => kit switch
+    {
+        "nature-kit" => new Color(0.36f, 0.44f, 0.38f),
+        "space-kit" => new Color(0.60f, 0.64f, 0.72f),
+        "mini-characters" => new Color(0.55f, 0.56f, 0.62f),
+        "city-kit-industrial" => new Color(0.50f, 0.52f, 0.57f),
+        _ => new Color(0.48f, 0.52f, 0.60f),
+    };
+
+    /// <summary>既製モデルの材質を暗く冷たい色調へ寄せる(材質は共有されるので複製して差し替える)。</summary>
+    void Tint(Node node, string kit)
+    {
+        var tint = TintFor(kit);
+        foreach (var child in node.GetChildren()) Tint(child, kit);
+        if (node is not MeshInstance3D mi || mi.Mesh == null) return;
+        for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
+        {
+            if (mi.GetActiveMaterial(i) is not StandardMaterial3D m) continue;
+            var key = (m.GetInstanceId(), kit);
+            if (!_tinted.TryGetValue(key, out var d))
+            {
+                d = (StandardMaterial3D)m.Duplicate();
+                d.AlbedoColor = m.AlbedoColor * tint;
+                d.Roughness = 0.92f;
+                _tinted[key] = d;
+            }
+            mi.SetSurfaceOverrideMaterial(i, d);
+        }
+    }
+
+    void Beacon(float x, float y, float z, Color color, float radius = 0.14f, bool light = false)
+    {
+        var mat = new StandardMaterial3D { AlbedoColor = color, EmissionEnabled = true, Emission = color, EmissionEnergyMultiplier = 5f };
+        AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = radius, Height = radius * 2 }, MaterialOverride = mat, Position = new Vector3(x, y, z) });
+        if (light) AddChild(new OmniLight3D { Position = new Vector3(x, y, z), LightColor = color, LightEnergy = 2.5f, OmniRange = 5f, ShadowEnabled = false });
+    }
 
     public override void _Ready()
     {
@@ -37,7 +75,7 @@ public partial class Preview : Node3D
 
         _cam = new Camera3D { Fov = 38, Far = 800 };
         AddChild(_cam);
-        float yaw = 0.78f, elev = 0.62f;
+        float yaw = 0.78f, elev = 0.52f;
         _cam.Position = pivot + new Vector3(Mathf.Cos(elev) * Mathf.Sin(yaw), Mathf.Sin(elev), Mathf.Cos(elev) * Mathf.Cos(yaw)) * dist;
         _cam.LookAt(pivot);
     }
@@ -81,6 +119,7 @@ public partial class Preview : Node3D
         n.Position = new Vector3(x, y + yOffset, z);
         n.Scale = scale3 ?? Vector3.One * scale;
         n.RotationDegrees = new Vector3(0, rotDeg, 0);
+        Tint(n, kit);
         AddChild(n);
         return n;
     }
@@ -95,11 +134,7 @@ public partial class Preview : Node3D
         AddChild(root);
     }
 
-    void Person(float x, float y, float z, float rot)
-    {
-        string[] m = { "character-male-a", "character-female-a", "character-male-c", "character-female-d", "character-male-e" };
-        Place("mini-characters", m[_rnd.Next(m.Length)], x, y, z, 2.4f, rot);
-    }
+    void Person(float x, float y, float z, float rot) => Place("space-kit", "astronautB", x, y, z, 1.0f, rot, yOffset: 0.39f);
 
     void Robot(float x, float y, float z, float rot) => Place("space-kit", "astronautA", x, y, z, 1.1f, rot, yOffset: 0.43f);
 
@@ -128,22 +163,30 @@ public partial class Preview : Node3D
         for (int x = 28; x < 31; x++) for (int z = 32; z < 35; z++) SetTop(x, z, ore);
         _world.Dirty.Clear();
 
-        // 家と柵、井戸代わりの樽、人
-        var houses = new[] { ("building-type-a", 9, 14, 0f), ("building-type-c", 13, 13, 90f), ("building-type-f", 10, 18, 0f), ("building-type-g", 15, 17, 180f), ("building-type-b", 7, 10, 90f) };
-        foreach (var (m, x, z, r) in houses) Place("city-kit-suburban", m, x + 1, Top(x, z), z + 1, 2.0f, r);
+        // 入植地: 格納庫・通路モジュール・構造体・通信アンテナ・灯
+        Place("space-kit", "hangar_smallA", 11, Top(10, 14), 15, 1.6f, 0);
+        Place("space-kit", "corridor", 14.5f, Top(14, 14), 14.5f, 1.5f, 90); Place("space-kit", "corridor_end", 16.0f, Top(16, 14), 14.5f, 1.5f, 90);
+        Place("space-kit", "corridor_window", 13.5f, Top(13, 16), 16.5f, 1.5f, 0); Place("space-kit", "corridor_roof", 13.5f, Top(13, 17), 17.5f, 1.5f, 0);
+        Place("space-kit", "structure_detailed", 8.5f, Top(8, 18), 18.5f, 1.5f, 0);
+        Place("space-kit", "satelliteDish_detailed", 16.5f, Top(16, 17), 17.5f, 1.6f, 45);
+        Place("space-kit", "crater", 5.5f, Top(5, 12), 12.5f, 1.8f, 0);
+        Beacon(11, Top(10, 14) + 2.0f, 15, new Color(0.3f, 0.9f, 1.0f), 0.12f, true);
+        Beacon(16.5f, Top(16, 17) + 1.6f, 17.5f, new Color(1.0f, 0.3f, 0.2f), 0.1f);
         for (int i = 0; i < 5; i++) Place("nature-kit", "fence_simple", 6.5f + i, Top(6 + i, 21), 21.5f, 1.0f, 0);
         for (int i = 0; i < 4; i++) Place("nature-kit", "fence_simple", 5.5f, Top(5, 22 + i), 22.5f + i, 1.0f, 90);
         for (int x = 6; x < 11; x++) for (int z = 22; z < 26; z++) Place("nature-kit", "crops_wheatStageB", x + 0.5f, Top(x, z), z + 0.5f, 1.6f, _rnd.Next(4) * 90);
         Place("space-kit", "machine_barrel", 12.5f, Top(12, 16), 16.5f, 1.2f);
         Person(11.5f, Top(11, 16), 16.5f, 120); Person(12.3f, Top(12, 15), 15.2f, -40); Person(16.5f, Top(16, 20), 20.5f, 60); Person(14.0f, Top(14, 21), 21.5f, 200);
         // 木と岩
-        var trees = new[] { (3, 4), (5, 7), (17, 8), (20, 11), (4, 30), (8, 33), (22, 36), (33, 14), (36, 18), (40, 30), (34, 38), (14, 40), (19, 44), (30, 8), (38, 8) };
-        string[] tm = { "tree_default", "tree_pineDefaultA", "tree_oak", "tree_default", "tree_pineTallA" };
+        var trees = new[] { (3, 4), (17, 8), (4, 30), (22, 36), (36, 18), (40, 30), (14, 40), (38, 8) };
+        string[] tm = { "tree_pineDefaultA", "tree_pineTallA", "tree_pineDefaultB" };
         foreach (var (x, z) in trees) Place("nature-kit", tm[_rnd.Next(tm.Length)], x + 0.5f, Top(x, z), z + 0.5f, 1.6f, _rnd.Next(360));
         Place("nature-kit", "rock_largeA", 26.5f, Top(26, 40), 40.5f, 1.5f); Place("nature-kit", "rock_largeB", 9.5f, Top(9, 38), 38.5f, 1.3f);
+        Place("space-kit", "rock_largeA", 33.5f, Top(33, 8), 8.5f, 1.6f); Place("space-kit", "rocks_smallA", 20.5f, Top(20, 11), 11.5f, 1.4f); Place("space-kit", "rock_crystals", 36.5f, Top(36, 40), 40.5f, 1.3f);
         // 工房(小さな工場)と煙突
         Place("city-kit-industrial", "building-f", 29, Top(28, 26), 27, 1.6f, 0);
         Place("city-kit-industrial", "chimney-small", 31.3f, Top(31, 26), 26.5f, 1.6f);
+        Beacon(31.3f, Top(31, 26) + 2.2f, 26.5f, new Color(1.0f, 0.5f, 0.15f), 0.12f, true);
         // 採掘機(やぐら) → ベルト → 機械 → 炉(樽型の機械) → 箱
         Place("space-kit", "machine_wireless", 29.5f, Top(29, 33), 33.5f, 2.2f);
         for (int i = 0; i < 5; i++) Belt(28 - i, Top(28 - i, 33), 33, 90);
@@ -198,7 +241,10 @@ public partial class Preview : Node3D
                         foreach (var (ox, oz) in new[] { (1.5f, 1.5f), (4.5f, 1.5f), (1.5f, 4.5f), (4.5f, 4.5f) })
                         {
                             if (_rnd.NextDouble() < 0.55)
+                            {
                                 Place("city-kit-commercial", $"building-skyscraper-{"abcde"[_rnd.Next(5)]}", x0 + ox, Y, z0 + oz, 2.0f, _rnd.Next(4) * 90);
+                                Beacon(x0 + ox, Y + 5.9f, z0 + oz, new Color(1.0f, 0.25f, 0.2f), 0.12f);
+                            }
                             else
                                 Place("city-kit-commercial", $"low-detail-building-{"abcdefghijklmn"[_rnd.Next(14)]}", x0 + ox, Y, z0 + oz, 2.6f, _rnd.Next(4) * 90);
                         }
@@ -219,6 +265,7 @@ public partial class Preview : Node3D
                     case "industry":
                         Place("city-kit-industrial", $"building-{"abcdeghjk"[_rnd.Next(9)]}", x0 + 2.2f, Y, z0 + 1.6f, 1.8f, 0);
                         Place("city-kit-industrial", "chimney-large", x0 + 5.2f, Y, z0 + 1.2f, 1.5f);
+                        Beacon(x0 + 5.2f, Y + 2.7f, z0 + 1.2f, new Color(1.0f, 0.5f, 0.15f), 0.14f, _rnd.NextDouble() < 0.5);
                         Place("city-kit-industrial", "detail-tank-large", x0 + 1.5f, Y, z0 + 4.8f, 1.5f);
                         Place("city-kit-industrial", $"shipping-container-{"abc"[_rnd.Next(3)]}", x0 + 4.5f, Y, z0 + 4.8f, 1.4f, 90);
                         for (int i = 0; i < 3; i++) Belt(x0 + 3 + i, Y, z0 + 3, 90);
@@ -227,6 +274,7 @@ public partial class Preview : Node3D
                         break;
                     case "military":
                         Place("space-kit", "hangar_smallA", x0 + 3f, Y, z0 + 1.5f, 1.5f, 0);
+                        Beacon(x0 + 3f, Y + 1.6f, z0 + 1.5f, new Color(0.3f, 0.9f, 1.0f), 0.12f, true);
                         for (int i = 0; i < 6; i++) for (int j = 0; j < 3; j++) Robot(x0 + 0.5f + i, Y, z0 + 3.6f + j * 0.9f, 180);
                         Place("space-kit", "turret_single", x0 + 0.6f, Y, z0 + 0.6f, 1.2f, 45);
                         break;
@@ -242,6 +290,7 @@ public partial class Preview : Node3D
             Place("space-kit", "monorail_trackStraight", 21.5f, Y + 3.5f, z + 0.5f, scale3: new Vector3(2.2f, 2.2f, 1.0f));
         }
         Place("space-kit", "monorail_trainFront", 21.5f, Y + 3.7f, 17.5f, scale3: new Vector3(2.2f, 2.2f, 1.0f));
+        Beacon(21.5f, Y + 4.3f, 17.0f, new Color(0.9f, 0.95f, 1.0f), 0.12f, true);
         Place("space-kit", "monorail_trainPassenger", 21.5f, Y + 3.7f, 18.5f, scale3: new Vector3(2.2f, 2.2f, 1.0f));
         Place("space-kit", "monorail_trainPassenger", 21.5f, Y + 3.7f, 19.5f, scale3: new Vector3(2.2f, 2.2f, 1.0f));
         Place("space-kit", "monorail_trainEnd", 21.5f, Y + 3.7f, 20.5f, scale3: new Vector3(2.2f, 2.2f, 1.0f), rotDeg: 180);

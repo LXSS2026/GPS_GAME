@@ -1,6 +1,6 @@
 using Godot;
 
-/// <summary>光と環境(方向光の影・空・SSAO・グロー・霧・トーンマップ)。G8 第 7 節の陰影を軽量な設定で入れる。</summary>
+/// <summary>光と環境。ハード SF 調: 低い夕刻の太陽と冷たい環境光、暗い空、厚めの霧、彩度を落としコントラストを上げる。</summary>
 public static class SceneSetup
 {
     public static Node3D Lighting()
@@ -11,16 +11,17 @@ public static class SceneSetup
             ShadowEnabled = true,
             DirectionalShadowMode = DirectionalLight3D.ShadowMode.Parallel2Splits,
             DirectionalShadowMaxDistance = 220,
-            LightEnergy = 1.6f,
-            LightColor = new Color(1.0f, 0.96f, 0.9f),
-            RotationDegrees = new Vector3(-52, 38, 0),
+            LightEnergy = 1.9f,
+            LightColor = new Color(1.0f, 0.78f, 0.58f),   // 夕刻の暖色
+            RotationDegrees = new Vector3(-28, 52, 0),     // 低い太陽 = 長い影
         });
         var sky = new ProceduralSkyMaterial
         {
-            SkyTopColor = new Color(0.33f, 0.52f, 0.78f),
-            SkyHorizonColor = new Color(0.72f, 0.80f, 0.90f),
-            GroundBottomColor = new Color(0.40f, 0.52f, 0.66f),
-            GroundHorizonColor = new Color(0.62f, 0.74f, 0.86f),
+            SkyTopColor = new Color(0.05f, 0.07f, 0.12f),
+            SkyHorizonColor = new Color(0.36f, 0.30f, 0.30f),
+            GroundBottomColor = new Color(0.08f, 0.09f, 0.12f),
+            GroundHorizonColor = new Color(0.30f, 0.27f, 0.28f),
+            SunAngleMax = 30, SunCurve = 0.2f,
         };
         root.AddChild(new WorldEnvironment
         {
@@ -28,24 +29,38 @@ public static class SceneSetup
             {
                 BackgroundMode = Godot.Environment.BGMode.Sky,
                 Sky = new Sky { SkyMaterial = sky },
-                AmbientLightSource = Godot.Environment.AmbientSource.Sky,
-                AmbientLightSkyContribution = 0.6f,
-                AmbientLightEnergy = 1.0f,
-                TonemapMode = Godot.Environment.ToneMapper.Filmic,
-                TonemapExposure = 1.15f,
+                AmbientLightSource = Godot.Environment.AmbientSource.Color,
+                AmbientLightColor = new Color(0.42f, 0.50f, 0.66f),   // 冷たい環境光
+                AmbientLightEnergy = 0.55f,
+                TonemapMode = Godot.Environment.ToneMapper.Aces,
+                TonemapExposure = 1.0f,
                 SsaoEnabled = true,
-                SsaoRadius = 1.5f,
-                SsaoIntensity = 2.0f,
+                SsaoRadius = 1.8f,
+                SsaoIntensity = 2.6f,
                 GlowEnabled = true,
-                GlowIntensity = 0.5f,
-                GlowBloom = 0.05f,
-                GlowHdrThreshold = 1.0f,
+                GlowIntensity = 0.9f,
+                GlowBloom = 0.08f,
+                GlowHdrThreshold = 0.9f,
                 FogEnabled = true,
-                FogLightColor = new Color(0.72f, 0.80f, 0.90f),
-                FogDensity = 0.0007f,
-                FogSkyAffect = 0.0f,
+                FogLightColor = new Color(0.22f, 0.25f, 0.32f),
+                FogDensity = 0.0024f,
+                FogSkyAffect = 0.3f,
+                AdjustmentEnabled = true,
+                AdjustmentSaturation = 0.68f,
+                AdjustmentContrast = 1.18f,
+                AdjustmentBrightness = 0.98f,
             }
         });
+        // 周辺減光(画面端を暗くする薄い板)
+        var layer = new CanvasLayer();
+        var rect = new ColorRect { AnchorRight = 1, AnchorBottom = 1, MouseFilter = Control.MouseFilterEnum.Ignore };
+        var shader = new Shader
+        {
+            Code = "shader_type canvas_item;\nvoid fragment(){ vec2 d = UV - vec2(0.5); float v = smoothstep(0.35, 0.95, length(d) * 1.45); COLOR = vec4(0.0, 0.0, 0.02, v * 0.55); }"
+        };
+        rect.Material = new ShaderMaterial { Shader = shader };
+        layer.AddChild(rect);
+        root.AddChild(layer);
         return root;
     }
 }

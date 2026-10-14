@@ -54,11 +54,11 @@ def tex(base, seed, amp=0.12, cell=8, detail=0.04):
 
 
 def grass():
-    rows = tex("#6c9a4f", 1, 0.10, 8)
+    rows = tex("#4f5c3a", 1, 0.10, 8)
     r = random.Random(2)
-    for _ in range(40):  # 明るい葉先
+    for _ in range(24):  # 枯れた葉先
         x, y = r.randrange(T), r.randrange(T)
-        rows[y][x] = lerp(rows[y][x], hexrgb("#9ccb6a"), 0.7)
+        rows[y][x] = lerp(rows[y][x], hexrgb("#7a7f4a"), 0.6)
     return rows
 
 
@@ -70,28 +70,28 @@ def grass_side():
         depth = 6 + r.randrange(3)
         for y in range(depth):
             rows[y][x] = g[y][x]
-        rows[depth][x] = lerp(rows[depth][x], hexrgb("#4f7a38"), 0.6)
+        rows[depth][x] = lerp(rows[depth][x], hexrgb("#3a4530"), 0.6)
     return rows
 
 
 def dirt():
-    rows = tex("#8a5a30", 4, 0.12, 8)
+    rows = tex("#4a3626", 4, 0.12, 8)
     r = random.Random(5)
     for _ in range(14):  # 小石
         x, y = r.randrange(T), r.randrange(T)
         for dx in range(2):
             for dy in range(2):
-                rows[(y + dy) % T][(x + dx) % T] = hexrgb("#5e3d1f") if (dx + dy) else hexrgb("#a67648")
+                rows[(y + dy) % T][(x + dx) % T] = hexrgb("#2e2118") if (dx + dy) else hexrgb("#6a5240")
     return rows
 
 
 def stone():
-    rows = tex("#8c8f93", 6, 0.10, 8)
+    rows = tex("#50555b", 6, 0.10, 8)
     r = random.Random(7)
     for _ in range(4):  # ひび
         x, y = r.randrange(T), r.randrange(T)
         for _ in range(10):
-            rows[y % T][x % T] = hexrgb("#5a5d61")
+            rows[y % T][x % T] = hexrgb("#2b2e32")
             x += r.choice((0, 1, 1)); y += r.choice((0, 0, 1))
     return rows
 
@@ -105,26 +105,26 @@ def ore():
             for dy in range(3):
                 if (dx, dy) in ((0, 0), (2, 2), (0, 2), (2, 0)):
                     continue
-                rows[y + dy][x + dx] = hexrgb("#d08a3c") if (dx + dy) % 2 else hexrgb("#a86a2a")
+                rows[y + dy][x + dx] = hexrgb("#d4701e") if (dx + dy) % 2 else hexrgb("#8f4a14")
     return rows
 
 
 def sand():
-    return tex("#d2c08f", 9, 0.06, 8)
+    return tex("#7d745c", 9, 0.06, 8)
 
 
 def water():
-    rows = tex("#3f78b0", 10, 0.05, 8)
+    rows = tex("#1d3a4c", 10, 0.05, 8)
     n = value_noise(11, 4)
     for y in range(T):
         for x in range(T):
             if n[y][x] > 0.68:
-                rows[y][x] = lerp(rows[y][x], hexrgb("#9fd0f0"), 0.6)
+                rows[y][x] = lerp(rows[y][x], hexrgb("#4f8aa6"), 0.6)
     return rows
 
 
 def asphalt():
-    return tex("#3d4146", 12, 0.04, 4, 0.03)
+    return tex("#202327", 12, 0.04, 4, 0.03)
 
 
 def road_x():  # x 方向の車線(白の破線)
@@ -132,7 +132,7 @@ def road_x():  # x 方向の車線(白の破線)
     for x in range(T):
         if x % 12 < 7:
             for y in (15, 16):
-                rows[y][x] = hexrgb("#d9d9d9")
+                rows[y][x] = hexrgb("#8f9aa6")
     return rows
 
 
@@ -141,35 +141,38 @@ def road_y():
     for y in range(T):
         if y % 12 < 7:
             for x in (15, 16):
-                rows[y][x] = hexrgb("#d9d9d9")
+                rows[y][x] = hexrgb("#8f9aa6")
     return rows
 
 
 def concrete():
-    return tex("#9ea4ab", 13, 0.04, 8, 0.02)
+    return tex("#565c63", 13, 0.04, 8, 0.02)
 
 
 def plaza():
-    rows = tex("#aeb4bb", 14, 0.03, 8, 0.02)
+    rows = tex("#454b53", 14, 0.03, 8, 0.02)
     for i in range(T):
-        rows[0][i] = hexrgb("#7f868e"); rows[16][i] = hexrgb("#7f868e")
-        rows[i][0] = hexrgb("#7f868e"); rows[i][16] = hexrgb("#7f868e")
+        rows[0][i] = hexrgb("#2a2f35"); rows[16][i] = hexrgb("#2a2f35")
+        rows[i][0] = hexrgb("#2a2f35"); rows[i][16] = hexrgb("#2a2f35")
+    for i in range(2, 6):  # 金属板の鋲
+        for j in range(2, 6):
+            rows[i][j] = hexrgb("#6a727b"); rows[i + 16][j + 16] = hexrgb("#6a727b")
     return rows
 
 
 def field():
-    rows = tex("#7a4a24", 15, 0.08, 8)
+    rows = tex("#3a2a1c", 15, 0.08, 8)
     for y in range(T):
         for x in range(T):
             if x % 8 in (2, 3):
-                rows[y][x] = lerp(rows[y][x], hexrgb("#5f9a3a"), 0.8)
+                rows[y][x] = lerp(rows[y][x], hexrgb("#4f7a2e"), 0.8)
             elif x % 8 == 6:
-                rows[y][x] = lerp(rows[y][x], hexrgb("#55301a"), 0.6)
+                rows[y][x] = lerp(rows[y][x], hexrgb("#241a10"), 0.6)
     return rows
 
 
 def path():
-    return tex("#b9a27a", 16, 0.07, 8)
+    return tex("#6b6253", 16, 0.07, 8)
 
 
 TEXTURES = [
