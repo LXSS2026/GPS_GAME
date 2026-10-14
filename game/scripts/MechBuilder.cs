@@ -94,7 +94,7 @@ public sealed class MechBuilder
     /// 胸を後ろへ仰け反らせ、背負った翼を水平に展開する。顔は前を向き、腕は肘を折ってライフルを前に構える。(x, y, z) は腰の位置。</summary>
     public Node3D BuildFighter(Node3D parent, Loadout lo, string generation, float x, float y, float z, float rotDeg)
     {
-        const float lean = 35f;   // 胸の仰け反り(鉛直からの角度)
+        const float lean = 55f;   // 胸の仰け反り(鉛直からの角度)。胸の前面(後傾の楔)がほぼ水平になり、正面投影が小さくなる
         const float fold = 90f + lean;   // 腰の折れ(胸に対して)。胸が後ろへ傾く分を足して、腰から下が水平に後ろへ向く
         var mats = Materials(lo, Generations[generation]);
         var root = new Node3D { Name = "fighter", Position = new Vector3(x, y, z), RotationDegrees = new Vector3(0, rotDeg + 180, 0) };
@@ -102,7 +102,7 @@ public sealed class MechBuilder
         var tp = Parts[lo.Torso];
         var torso = Attach(root, lo.Torso, new Vector3(0, 0, -2f), mats);
         torso.RotationDegrees = new Vector3(lean, 0, 0);                                            // 胸を後ろへ仰け反らせる
-        var head = Attach(torso, lo.Head, tp.Sockets["neck"], mats);
+        var head = Attach(torso, lo.Head, tp.Sockets["neck"] + new Vector3(0, -0.5f, 0.25f), mats);   // 頭を胸に沈める
         head.RotationDegrees = new Vector3(-lean, 0, 0);                                            // 顔は前を向く
         Attach(torso, lo.Back, tp.Sockets["back"], mats);
         if (lo.Wing != null) { var wg = Attach(torso, lo.Wing, tp.Sockets["back"] + new Vector3(0, -0.2f, 0.2f), mats); wg.RotationDegrees = new Vector3(-lean, 0, 0); FoldWings(wg, 0); }   // 背負った翼を水平に展開

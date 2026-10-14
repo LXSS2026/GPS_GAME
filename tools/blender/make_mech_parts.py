@@ -354,39 +354,49 @@ def torso(arch):
     revolve("waist", [(0.075 * H * k, 0), (0.09 * H * k, abd_h * 0.25), (0.08 * H * k, abd_h * 0.5), (0.09 * H * k, abd_h * 0.75), (0.085 * H * k, abd_h)], M["frame"], (0, 0, z_abd), 24)
     facet("abdomen_plate", (0, 0.075 * H * k, z_abd + abd_h * 0.05), (0.08 * H * k, 0.03 * H), (0.1 * H * k, 0.03 * H), abd_h * 0.9, M["sub"], bev=bv * 0.5)
     # 胸: 下胸の赤い台形塊(下が狭い) + 左右の胸郭塊(前傾・外開き・上面前方に黄の吸気口) + 中央の芯 + 肩の横梁 + 襟
-    lower = facet("chest_lower", (0, 0.03 * H, z_chest), (0.16 * H * k, 0.13 * H), (0.26 * H * k, 0.17 * H), chest_h * 0.42, M["main"], bev=bv)
-    facet("chest_core", (0, -0.01 * H, z_chest + chest_h * 0.38), (0.12 * H * k, 0.17 * H), (0.11 * H * k, 0.16 * H), chest_h * 0.62, M["sub"], bev=bv * 0.6)
+    if slim:
+        lower = facet("chest_lower", (0, 0.02 * H, z_chest), (0.16 * H * k, 0.11 * H), (0.24 * H * k, 0.12 * H), chest_h * 0.42, M["main"], shift=(0, -0.01 * H), bev=bv)
+    else:
+        lower = facet("chest_lower", (0, 0.03 * H, z_chest), (0.16 * H * k, 0.13 * H), (0.26 * H * k, 0.17 * H), chest_h * 0.42, M["main"], bev=bv)
+    if slim:
+        facet("chest_core", (0, -0.02 * H, z_chest + chest_h * 0.38), (0.12 * H * k, 0.13 * H), (0.1 * H * k, 0.08 * H), chest_h * 0.62, M["sub"], shift=(0, -0.03 * H), bev=bv * 0.6)   # 前面が後傾する楔
+    else:
+        facet("chest_core", (0, -0.01 * H, z_chest + chest_h * 0.38), (0.12 * H * k, 0.17 * H), (0.11 * H * k, 0.16 * H), chest_h * 0.62, M["sub"], bev=bv * 0.6)
     for sx in (-1, 1):
         cx = sx * 0.095 * H * k
         if slim:
-            pec = facet("pectoral", (cx, 0.03 * H, z_chest + chest_h * 0.4), (0.12 * H * k, 0.13 * H), (0.1 * H * k, 0.1 * H), chest_h * 0.42, M["main"],
-                        rot=(0, 0, math.radians(sx * -6)), shift=(sx * 0.005 * H, 0.02 * H), skew=0.004 * H, bev=bv)   # 低く、上へ細る
+            pec = facet("pectoral", (cx, 0.0, z_chest + chest_h * 0.4), (0.12 * H * k, 0.12 * H), (0.1 * H * k, 0.06 * H), chest_h * 0.42, M["main"],
+                        rot=(0, 0, math.radians(sx * -6)), shift=(sx * 0.005 * H, -0.03 * H), bev=bv)   # 低く、上へ細り、前面が後傾する
         else:
             pec = facet("pectoral", (cx, 0.02 * H, z_chest + chest_h * 0.4), (0.12 * H * k, 0.15 * H), (0.14 * H * k, 0.16 * H), chest_h * 0.58, M["sub"],
                         rot=(0, 0, math.radians(sx * -6)), shift=(sx * 0.012 * H, 0.015 * H), skew=0.012 * H, bev=bv)
         # 吸気口: 胸郭塊の前上面に黄の台形を載せ、暗い羽板を刻む
         iz = z_chest + chest_h * (0.5 if slim else 0.62)
         ih = chest_h * (0.22 if slim else 0.34)
-        facet("intake", (cx, 0.085 * H, iz), (0.085 * H * k, 0.05 * H), (0.08 * H * k, 0.07 * H), ih, M["trim"], rot=(math.radians(-10), 0, math.radians(sx * -6)), shift=(0, 0.012 * H), bev=bv * 0.4)
+        iy = 0.055 * H if slim else 0.085 * H
+        irot = (math.radians(-35 if slim else -10), 0, math.radians(sx * -6))   # 高速は吸気口も後傾させる
+        facet("intake", (cx, iy, iz), (0.085 * H * k, 0.05 * H), (0.08 * H * k, 0.07 * H), ih, M["trim"], rot=irot, shift=(0, 0.012 * H), bev=bv * 0.4)
         for i in range(3):
-            facet("intake_slat", (cx, 0.11 * H + i * 0.003 * H, iz + ih * (0.2 + i * 0.27)), (0.065 * H * k, 0.01 * H), (0.065 * H * k, 0.01 * H), 0.012 * H, M["frame"], rot=(math.radians(-10), 0, math.radians(sx * -6)))
+            facet("intake_slat", (cx, iy + 0.025 * H + i * 0.003 * H, iz + ih * (0.2 + i * 0.27)), (0.065 * H * k, 0.01 * H), (0.065 * H * k, 0.01 * H), 0.012 * H, M["frame"], rot=irot)
     br = 0.022 * H if slim else 0.04 * H
     revolve("shoulder_bar", [(br * 0.9, 0), (br, 0.03 * H), (br, 0.33 * H * k), (br * 0.9, 0.36 * H * k)], M["frame"], (-0.18 * H * k, -0.02 * H, z_chest + chest_h * (0.72 if slim else 0.82)), 18, "X")
     cr = 0.75 if slim else 1.0
     revolve("collar", [(0.06 * H * cr, 0), (0.075 * H * cr, 0.015 * H), (0.075 * H * cr, 0.03 * H), (0.055 * H * cr, 0.04 * H)], M["frame"], (0, -0.01 * H, z_chest + chest_h - 0.01 * H), 24)
     if slim:
         # 胸の上の覆い: 襟の前から前上へ細る楔。戦闘機モードでは機首へ流れる面になる
-        facet("chest_fairing", (0, 0.03 * H, z_chest + chest_h * 0.78), (0.2 * H * k, 0.13 * H), (0.07 * H * k, 0.03 * H), chest_h * 0.24, M["main"], shift=(0, 0.04 * H), bev=bv * 0.6)
+        facet("chest_fairing", (0, -0.01 * H, z_chest + chest_h * 0.78), (0.2 * H * k, 0.1 * H), (0.07 * H * k, 0.03 * H), chest_h * 0.24, M["main"], shift=(0, -0.03 * H), bev=bv * 0.6)   # 後傾する斜面
     else:
         facet("collar_plate", (0, 0.02 * H, z_chest + chest_h * 0.9), (0.12 * H * k, 0.1 * H), (0.1 * H * k, 0.08 * H), chest_h * 0.1, M["main"], bev=bv * 0.5)
     # コックピット扉(赤い下胸の中央) とリアクター(青い芯の中央・色が世代)
-    facet("cockpit", (0, 0.095 * H, z_chest + chest_h * 0.05), (0.07 * H * k, 0.02 * H), (0.08 * H * k, 0.025 * H), chest_h * 0.3, M["main"], bev=bv * 0.4)
-    rz = z_chest + chest_h * 0.6
-    revolve("reactor_ring", [(0.04 * H, 0), (0.046 * H, 0.008 * H), (0.046 * H, 0.022 * H), (0.038 * H, 0.03 * H)], M["frame"], (0, 0.095 * H, rz), 28, "Y")   # 環は暗色(リアクターの色を立たせる)
-    revolve("reactor_core", [(0.036 * H, 0), (0.034 * H, 0.006 * H), (0.022 * H, 0.016 * H), (0.008 * H, 0.022 * H)], M["reactor"], (0, 0.118 * H, rz), 28, "Y")
+    cy = 0.075 * H if slim else 0.095 * H
+    facet("cockpit", (0, cy, z_chest + chest_h * 0.05), (0.07 * H * k, 0.02 * H), (0.08 * H * k, 0.025 * H), chest_h * 0.3, M["main"], bev=bv * 0.4)
+    rz = z_chest + chest_h * (0.5 if slim else 0.6)
+    ry = 0.055 * H if slim else 0.095 * H   # 高速は胸が薄いのでリアクターも引っ込める
+    revolve("reactor_ring", [(0.04 * H, 0), (0.046 * H, 0.008 * H), (0.046 * H, 0.022 * H), (0.038 * H, 0.03 * H)], M["frame"], (0, ry, rz), 28, "Y")   # 環は暗色(リアクターの色を立たせる)
+    revolve("reactor_core", [(0.036 * H, 0), (0.034 * H, 0.006 * H), (0.022 * H, 0.016 * H), (0.008 * H, 0.022 * H)], M["reactor"], (0, ry + 0.023 * H, rz), 28, "Y")
     for i in range(4):
         a = i * math.pi / 2 + math.pi / 4
-        facet("reactor_rib", (0.046 * H * math.cos(a), 0.118 * H, rz + 0.046 * H * math.sin(a) - 0.01 * H), (0.006 * H, 0.014 * H), (0.006 * H, 0.014 * H), 0.02 * H, M["frame"], rot=(0, a + math.pi / 2, 0))
+        facet("reactor_rib", (0.046 * H * math.cos(a), ry + 0.023 * H, rz + 0.046 * H * math.sin(a) - 0.01 * H), (0.006 * H, 0.014 * H), (0.006 * H, 0.014 * H), 0.02 * H, M["frame"], rot=(0, a + math.pi / 2, 0))
     # 背面の板
     facet("back", (0, -0.09 * H, z_chest + chest_h * 0.1), (0.22 * H * k, 0.025 * H if slim else 0.04 * H), (0.26 * H * k, 0.025 * H if slim else 0.04 * H), chest_h * 0.8, M["sub"], bev=bv * 0.6)
     if arch == "heavy":
