@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dxe630ode4ubt"
-path="res://.godot/imported/weapon_shield.glb-8b2fe1262f3548da93d1dd520b5cb89f.scn"
+uid="uid://boqo0uq04cclx"
+path="res://.godot/imported/weapon_shield_beam.glb-811c47c862f97e748e49d1f302754eeb.scn"
 
 [deps]
 
-source_file="res://assets/mech/weapon_shield.glb"
-dest_files=["res://.godot/imported/weapon_shield.glb-8b2fe1262f3548da93d1dd520b5cb89f.scn"]
+source_file="res://assets/mech/weapon_shield_beam.glb"
+dest_files=["res://.godot/imported/weapon_shield_beam.glb-811c47c862f97e748e49d1f302754eeb.scn"]
 
 [params]
 

@@ -524,11 +524,22 @@
    "coiled": true
   },
   {
-   "id": "weapon_shield",
+   "id": "weapon_shield_live",
    "slot": "weapon",
    "archetype": "general",
    "sockets": {},
-   "weapon": "shield"
+   "weapon": "shield",
+   "ammo": "live",
+   "melee": false
+  },
+  {
+   "id": "weapon_shield_beam",
+   "slot": "weapon",
+   "archetype": "general",
+   "sockets": {},
+   "weapon": "shield",
+   "ammo": "beam",
+   "melee": false
   }
  ],
  "presets": {
@@ -620,7 +631,7 @@
    "back": "back_general",
    "wing": null,
    "weapon_r": "weapon_rifle_beam",
-   "weapon_l": "weapon_shield",
+   "weapon_l": "weapon_shield_beam",
    "shoulder_l": null,
    "shoulder_r": null,
    "melee_l": "weapon_sword_beam",
@@ -802,6 +813,10 @@
       "shoulder": 0
      }
     }
+   },
+   "shield": {
+    "name": "盾",
+    "limit": null
    }
   },
   "spare": {

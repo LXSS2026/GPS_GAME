@@ -671,12 +671,17 @@ def weapon(kind, ammo):
                 revolve("whip_seg", [(r, 0), (r * 0.9, 0.012 * H), (r, 0.024 * H)], M["steel"], (0, y, z), 10, "Y")
                 revolve("whip_joint", [(r * 0.6, 0), (r * 0.6, 0.008 * H)], M["frame"], (0, y + 0.026 * H, z - 0.002 * H), 8, "Y")
     elif kind == "shield":
-        facet("shield", (-0.05 * H, 0.03 * H, -0.17 * H), (0.17 * H, 0.03 * H), (0.14 * H, 0.03 * H), 0.34 * H, M["main"], rot=(0, math.radians(90), 0), bev=bv * 1.5)
-        facet("rim", (-0.065 * H, 0.03 * H, -0.15 * H), (0.14 * H, 0.008 * H), (0.11 * H, 0.008 * H), 0.3 * H, M["sub"], rot=(0, math.radians(90), 0), bev=bv)
-        facet("emblem", (-0.07 * H, 0.03 * H, 0.04 * H), (0.04 * H, 0.004), (0.03 * H, 0.004), 0.04 * H, M["trim"], rot=(0, math.radians(90), 0))
-        facet("glow", (-0.07 * H, 0.03 * H, -0.09 * H), (0.08 * H, 0.004), (0.07 * H, 0.004), 0.008 * H, bmat, rot=(0, math.radians(90), 0))
-        export("weapon_shield", "weapon", "general", {}, {"weapon": "shield"})
-        return
+        if beam:
+            # ビーム盾: 前腕の外側に発振器の板、そこから発光する面が広がる
+            facet("emitter", (-0.05 * H, 0.03 * H, -0.06 * H), (0.03 * H, 0.08 * H), (0.025 * H, 0.07 * H), 0.12 * H, M["frame"], rot=(0, math.radians(90), 0), bev=bv)
+            for i in range(3):
+                facet("emitter_node", (-0.066 * H, 0.03 * H, -0.04 * H + i * 0.04 * H), (0.012 * H, 0.03 * H), (0.01 * H, 0.025 * H), 0.012 * H, bmat, rot=(0, math.radians(90), 0))
+            facet("field", (-0.075 * H, 0.03 * H, -0.16 * H), (0.2 * H, 0.004), (0.16 * H, 0.004), 0.34 * H, bmat, rot=(0, math.radians(90), 0))
+        else:
+            facet("shield", (-0.05 * H, 0.03 * H, -0.17 * H), (0.17 * H, 0.03 * H), (0.14 * H, 0.03 * H), 0.34 * H, M["main"], rot=(0, math.radians(90), 0), bev=bv * 1.5)
+            facet("rim", (-0.065 * H, 0.03 * H, -0.15 * H), (0.14 * H, 0.008 * H), (0.11 * H, 0.008 * H), 0.3 * H, M["sub"], rot=(0, math.radians(90), 0), bev=bv)
+            facet("emblem", (-0.07 * H, 0.03 * H, 0.04 * H), (0.04 * H, 0.004), (0.03 * H, 0.004), 0.04 * H, M["trim"], rot=(0, math.radians(90), 0))
+            facet("glow", (-0.07 * H, 0.03 * H, -0.09 * H), (0.08 * H, 0.004), (0.07 * H, 0.004), 0.008 * H, bmat, rot=(0, math.radians(90), 0))
     export(f"weapon_{kind}_{ammo}", "weapon", "general", {}, {"weapon": kind, "ammo": ammo, "melee": kind in ("sword", "whip")})
     if kind == "whip":
         # 腰に吊る用の巻いた鞭(握り + 発振部 + 3 巻きの輪)。伸びた形は吊ると向きが崩れるため別部品にする
@@ -701,10 +706,9 @@ if __name__ == "__main__":
             arm(arch, side)
             leg(arch, side)
     wing("fast")
-    for w in ("bazooka", "rifle", "smg", "sword", "whip"):
+    for w in ("bazooka", "rifle", "smg", "sword", "whip", "shield"):
         for am in ("live", "beam"):
             weapon(w, am)
-    weapon("shield", "live")
     JSON_OUT.parent.mkdir(parents=True, exist_ok=True)
     presets = {
         "heavy": {"torso": "torso_heavy", "head": "head_visor", "arm_l": "arm_heavy_l", "arm_r": "arm_heavy_r", "leg_l": "leg_heavy_l", "leg_r": "leg_heavy_r", "back": "back_heavy", "wing": None,
@@ -714,7 +718,7 @@ if __name__ == "__main__":
                  "weapon_r": "weapon_smg_beam", "weapon_l": "weapon_smg_beam", "shoulder_l": None, "shoulder_r": None,
                  "melee_l": "weapon_sword_beam", "melee_r": "weapon_whip_beam", "spare": "weapon_rifle_beam", "colors": {"main": [0.85, 0.2, 0.2], "sub": [0.15, 0.15, 0.18], "trim": [0.95, 0.85, 0.3], "glow": [0.4, 1.0, 0.6]}},
         "general": {"torso": "torso_general", "head": "head_twin", "arm_l": "arm_general_l", "arm_r": "arm_general_r", "leg_l": "leg_general_l", "leg_r": "leg_general_r", "back": "back_general", "wing": None,
-                    "weapon_r": "weapon_rifle_beam", "weapon_l": "weapon_shield", "shoulder_l": None, "shoulder_r": None,
+                    "weapon_r": "weapon_rifle_beam", "weapon_l": "weapon_shield_beam", "shoulder_l": None, "shoulder_r": None,
                     "melee_l": "weapon_sword_beam", "melee_r": "weapon_whip_live", "spare": "weapon_bazooka_live", "colors": {"main": [0.88, 0.9, 0.93], "sub": [0.2, 0.3, 0.55], "trim": [0.95, 0.75, 0.2], "glow": [0.25, 0.85, 1.0]}},
     }
     generations = {   # 世代はリアクターの色で表す(2026-10-14 指示: 赤・橙・黄・黄緑・緑・青・紫。第 0 = 工作機、第 1〜6 が世代。第 5 不完全ステルス、第 6 完全ステルス)
@@ -734,6 +738,7 @@ if __name__ == "__main__":
             "smg": {"name": "サブマシンガン", "limit": {"heavy": {"arm": 2, "shoulder": 0}, "general": {"arm": 2, "shoulder": 0}, "fast": {"arm": 2, "shoulder": 0}}},
             "sword": {"name": "剣", "melee": True, "damage": "speed*weight", "limit": {"heavy": {"arm": 2, "shoulder": 0}, "general": {"arm": 2, "shoulder": 0}, "fast": {"arm": 2, "shoulder": 0}}},
             "whip": {"name": "鞭", "melee": True, "damage": "speed", "limit": {"heavy": {"arm": 2, "shoulder": 0}, "general": {"arm": 2, "shoulder": 0}, "fast": {"arm": 2, "shoulder": 0}}},
+            "shield": {"name": "盾", "limit": None},   # 物理とビームの 2 種(2026-10-14)。装備上限は未指定
         },
         "spare": {"socket": "waist_rear", "count": 1, "counts_toward_limit": False},
         "melee_holsters": {"sockets": ["waist_l", "waist_r"], "count_each": 1},

@@ -86,41 +86,42 @@ public sealed class MechBuilder
 
     public Node3D Build(Node3D parent, string preset, string generation, float x, float y, float z, float rotDeg) => Build(parent, Presets[preset], generation, x, y, z, rotDeg);
 
-    /// <summary>戦闘機モード(高速機の変形。フラッグの変形法を参考)。胴を前へ倒して平たい機体にし、頭は胸の下へ畳む。腕は胴の下に沿わせ、脚は腰から後方へ伸ばして膝を軽く曲げ、足先が尾部の噴射口になる。翼は水平に後退して広げる。(x, y, z) は機体の中心。</summary>
+    /// <summary>戦闘機モード(高速機の変形。フラッグの折り畳み方)。脚を腰から前へ振り上げて膝を深く折り、脛を腿の下へ折り返して膝が機首になる。
+    /// 胴は前傾して腿の上に被さり、頭は胸へ引き込む。腕は体側で後方へ。背部の翼は後方へ水平に広がる。(x, y, z) は機体の中心。</summary>
     public Node3D BuildFighter(Node3D parent, Loadout lo, string generation, float x, float y, float z, float rotDeg)
     {
         var mats = Materials(lo, Generations[generation]);
         var root = new Node3D { Name = "fighter", Position = new Vector3(x, y, z), RotationDegrees = new Vector3(0, rotDeg + 180, 0) };
         parent.AddChild(root);
         var tp = Parts[lo.Torso];
-        var torso = Attach(root, lo.Torso, new Vector3(0, 0, -tp.Sockets["neck"].Y * 0.5f), mats);
-        torso.RotationDegrees = new Vector3(-85, 0, 0);   // 頭側が前(-Z)、胸が下。5 度だけ機首上げ
-        var head = Attach(torso, lo.Head, tp.Sockets["neck"] + new Vector3(0, -0.4f, 0.6f), mats);
-        head.RotationDegrees = new Vector3(70, 0, 0);     // 頭を胸の下へ畳む(顔は下向き)
+        var torso = Attach(root, lo.Torso, new Vector3(0, 0, 1.5f), mats);
+        torso.RotationDegrees = new Vector3(-70, 0, 0);   // 胴を前傾(胸が前下を向く)
+        var head = Attach(torso, lo.Head, tp.Sockets["neck"] + new Vector3(0, -0.5f, 0.4f), mats);
+        head.RotationDegrees = new Vector3(60, 0, 0);     // 頭を胸へ引き込む(顔は下向き)
         Attach(torso, lo.Back, tp.Sockets["back"], mats);
-        if (lo.Wing != null) Attach(torso, lo.Wing, tp.Sockets["back"] + new Vector3(0, -0.2f, 0.2f), mats).RotationDegrees = new Vector3(95, 0, 0);   // 翼を水平に(翼の後方 = 機体の後方、5 度の上反角)
+        if (lo.Wing != null) Attach(torso, lo.Wing, tp.Sockets["back"] + new Vector3(0, -0.2f, 0.2f), mats).RotationDegrees = new Vector3(70, 0, 0);   // 翼の後方 = 機体の後方、尾翼は上
         var legL = Attach(torso, lo.LegL, tp.Sockets["hip_l"], mats);
         var legR = Attach(torso, lo.LegR, tp.Sockets["hip_r"], mats);
-        legL.RotationDegrees = new Vector3(-12, 0, -3); legR.RotationDegrees = new Vector3(-12, 0, 3);   // 腿を後方へ(胴の線より少し上)
-        Knee(legL, 25); Knee(legR, 25);                                                                 // 膝を軽く曲げて脛を機体の線に戻す
+        legL.RotationDegrees = new Vector3(160, 0, -2); legR.RotationDegrees = new Vector3(160, 0, 2);   // 腿を前へ振り上げて水平に(膝が機首)
+        Knee(legL, -150); Knee(legR, -150);                                                             // 脛を腿の下へ折り返す(足は腰の下)
         var armL = Attach(torso, lo.ArmL, tp.Sockets["shoulder_l"], mats);
         var armR = Attach(torso, lo.ArmR, tp.Sockets["shoulder_r"], mats);
-        armL.RotationDegrees = new Vector3(8, 0, 6); armR.RotationDegrees = new Vector3(8, 0, -6);       // 腕を胴の下に沿わせる
-        Bend(armL, 12); Bend(armR, 12);
+        armL.RotationDegrees = new Vector3(0, 0, 4); armR.RotationDegrees = new Vector3(0, 0, -4);       // 腕は体側で後方へ
+        Bend(armL, 0); Bend(armR, 0);
         if (lo.WeaponR != null) Attach(armR.GetNodeOrNull<Node3D>("elbow") ?? armR, lo.WeaponR, Parts[lo.ArmR].Sockets["hand"], mats);
         if (lo.WeaponL != null) Attach(armL.GetNodeOrNull<Node3D>("elbow") ?? armL, lo.WeaponL, Parts[lo.ArmL].Sockets["hand"], mats);
         Holsters(torso, lo, tp, mats);
         return root;
     }
 
-    /// <summary>腰に吊る形。鞭は伸びた形のままでは向きが崩れるので、巻いた部品に差し替える。</summary>
-    static string Stowed(string id) => id.Contains("whip") && !id.EndsWith("_coiled") ? id + "_coiled" : id;
-
     static void Knee(Node3D leg, float deg)
     {
         var k = leg.GetNodeOrNull<Node3D>("knee");
         if (k != null) k.RotationDegrees = new Vector3(deg, 0, 0);
     }
+
+    /// <summary>腰に吊る形。鞭は伸びた形のままでは向きが崩れるので、巻いた部品に差し替える。</summary>
+    static string Stowed(string id) => id.Contains("whip") && !id.EndsWith("_coiled") ? id + "_coiled" : id;
 
     static void Bend(Node3D arm, float deg)
     {
