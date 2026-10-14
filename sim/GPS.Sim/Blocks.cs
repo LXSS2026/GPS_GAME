@@ -4,7 +4,8 @@ namespace GPS.Sim;
 
 public readonly record struct BlockPos(int X, int Y, int Z);
 
-public sealed record BlockDef(byte Id, string Name, string Color);
+/// <summary>Top/Side/Bottom は描画用のテクスチャ名(atlas.json の名前)。計算側は参照しない。</summary>
+public sealed record BlockDef(byte Id, string Name, string Color, string? Top = null, string? Side = null, string? Bottom = null);
 
 /// <summary>ブロック定義。id 0 は常に空気で、データファイルには書かない。</summary>
 public sealed class BlockRegistry

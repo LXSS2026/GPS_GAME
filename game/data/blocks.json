@@ -1,5 +1,15 @@
 [
-  { "id": 1, "name": "Stone", "color": "#8a8a8a" },
-  { "id": 2, "name": "Dirt",  "color": "#8b5a2b" },
-  { "id": 3, "name": "Grass", "color": "#4caf50" }
+  { "id": 1,  "name": "Stone",    "color": "#8a8a8a", "top": "stone",    "side": "stone",      "bottom": "stone" },
+  { "id": 2,  "name": "Dirt",     "color": "#8b5a2b", "top": "dirt",     "side": "dirt",       "bottom": "dirt" },
+  { "id": 3,  "name": "Grass",    "color": "#4caf50", "top": "grass",    "side": "grass_side", "bottom": "dirt" },
+  { "id": 4,  "name": "Water",    "color": "#3f78b0", "top": "water",    "side": "water",      "bottom": "water" },
+  { "id": 5,  "name": "Sand",     "color": "#d2c08f", "top": "sand",     "side": "sand",       "bottom": "sand" },
+  { "id": 6,  "name": "IronOre",  "color": "#a86a2a", "top": "ore",      "side": "ore",        "bottom": "ore" },
+  { "id": 7,  "name": "Asphalt",  "color": "#3d4146", "top": "asphalt",  "side": "concrete",   "bottom": "concrete" },
+  { "id": 8,  "name": "RoadX",    "color": "#3d4146", "top": "road_x",   "side": "concrete",   "bottom": "concrete" },
+  { "id": 9,  "name": "RoadY",    "color": "#3d4146", "top": "road_y",   "side": "concrete",   "bottom": "concrete" },
+  { "id": 10, "name": "Concrete", "color": "#9ea4ab", "top": "concrete", "side": "concrete",   "bottom": "concrete" },
+  { "id": 11, "name": "Plaza",    "color": "#aeb4bb", "top": "plaza",    "side": "concrete",   "bottom": "concrete" },
+  { "id": 12, "name": "Field",    "color": "#7a4a24", "top": "field",    "side": "dirt",       "bottom": "dirt" },
+  { "id": 13, "name": "Path",     "color": "#b9a27a", "top": "path",     "side": "dirt",       "bottom": "dirt" }
 ]

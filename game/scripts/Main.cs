@@ -1,15 +1,12 @@
 using Godot;
 using GPS.Sim;
-using System.Collections.Generic;
 using System.Linq;
 
 /// <summary>Godot 側の唯一の入口。シミュレーションの状態を描き、入力をコマンドに変換して渡すだけ。</summary>
 public partial class Main : Node3D
 {
     Simulation _sim = null!;
-    Color[] _palette = null!;
-    readonly Dictionary<BlockPos, MeshInstance3D> _chunkNodes = new();
-    StandardMaterial3D _mat = null!;
+    TerrainRenderer _terrain = null!;
     Camera3D _cam = null!;
     Label _hud = null!;
 
@@ -22,54 +19,25 @@ public partial class Main : Node3D
     {
         Engine.PhysicsTicksPerSecond = Simulation.TicksPerSecond;
         _sim = new Simulation(BlockRegistry.FromJson(FileAccess.GetFileAsString("res://data/blocks.json")));
-        _palette = new Color[256];
-        foreach (var d in _sim.Blocks.Solid) _palette[d.Id] = Color.FromHtml(d.Color);
         WorldGen.Terrain(_sim.World, _sim.Blocks, 64, 64, 1);
 
-        _mat = new StandardMaterial3D { VertexColorUseAsAlbedo = true };
-        foreach (var c in _sim.World.ChunkCoords.ToList()) Rebuild(c);
+        _terrain = new TerrainRenderer();
+        AddChild(_terrain);
+        _terrain.Init(_sim.World, _sim.Blocks);
+        _terrain.BuildAll();
 
         _cam = new Camera3D { Far = 600 };
         AddChild(_cam);
-        var light = new DirectionalLight3D { ShadowEnabled = true, RotationDegrees = new Vector3(-55, 30, 0) };
-        AddChild(light);
-        AddChild(new WorldEnvironment
-        {
-            Environment = new Godot.Environment
-            {
-                BackgroundMode = Godot.Environment.BGMode.Color,
-                BackgroundColor = new Color(0.62f, 0.76f, 0.9f),
-                AmbientLightSource = Godot.Environment.AmbientSource.Color,
-                AmbientLightColor = Colors.White,
-                AmbientLightEnergy = 0.45f,
-            }
-        });
+        AddChild(SceneSetup.Lighting());
         _hud = new Label { Position = new Vector2(8, 8) };
         AddChild(_hud);
         UpdateCamera();
     }
 
-    void Rebuild(BlockPos c)
-    {
-        var mesh = ChunkMesher.Build(_sim.World, _palette, c);
-        if (_chunkNodes.TryGetValue(c, out var mi))
-        {
-            if (mesh == null) { mi.QueueFree(); _chunkNodes.Remove(c); }
-            else mi.Mesh = mesh;
-            return;
-        }
-        if (mesh == null) return;
-        mi = new MeshInstance3D { Mesh = mesh, MaterialOverride = _mat, Position = new Vector3(c.X, c.Y, c.Z) * Chunk.Size };
-        AddChild(mi);
-        _chunkNodes[c] = mi;
-    }
-
     public override void _PhysicsProcess(double delta)
     {
         _sim.Step();
-        if (_sim.World.Dirty.Count == 0) return;
-        foreach (var c in _sim.World.Dirty) Rebuild(c);
-        _sim.World.Dirty.Clear();
+        _terrain.BuildDirty();
     }
 
     public override void _Process(double delta)

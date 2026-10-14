@@ -43,6 +43,7 @@
   <a href="#G7"><span class="no">G7</span>政治・外交画面</a>
   <a href="#G8"><span class="no">G8</span>デザイン言語</a>
   <a href="#G9"><span class="no">G9</span>大都市のプレビュー</a>
+  <a href="#G10"><span class="no">G10</span>Godot 描画試作</a>
 </nav>
 <main>
 
@@ -70,7 +71,9 @@
   <tr><td>計算本体(世界・工場・都市・戦争・外交)</td><td>エンジン非依存の .NET ライブラリ <code>sim/GPS.Sim</code>。Godot を参照しない。</td></tr>
   <tr><td>検証</td><td><code>sim/GPS.Sim.Tests</code>(xunit)。描画は <code>++ --screenshot &lt;path&gt; [--click x,y] [--rclick x,y]</code> で画面を保存して目視。</td></tr>
   <tr><td>定義データ(ブロック・レシピ・機械・ロボ世代・政策)</td><td><code>game/data/*.json</code>。コードに定数を埋めない。</td></tr>
-  <tr><td>ボクセル描画</td><td>自前のチャンクメッシュ化(隣が空気の面だけ出す)。既製ライブラリは C# 非対応のため使わない。</td></tr>
+  <tr><td>ボクセル描画</td><td>自前のチャンクメッシュ化(隣が空気の面だけ出す) + 頂点 AO。既製ライブラリは C# 非対応のため使わない。</td></tr>
+  <tr><td>物体の描画</td><td>格子は論理、見た目は自由形状。設備・建物・人・ロボットは格子に置く低ポリゴンの 3D モデル。既製品(Kenney の CC0 キット: City Kit 4 種・Space Kit・Nature Kit・Mini Characters)を優先し、本作固有の物だけ同じ作風(面取りした低ポリゴン・単色)で自作する。<code>game/assets/kenney/</code>。</td></tr>
+  <tr><td>地形テクスチャ</td><td>32px/ブロックのアトラス(<code>tools/gen_textures.py</code> で生成、<code>game/assets/textures/</code>)。線形補間 + ミップマップ。見た目の現代性は解像度ではなく陰影(G8 第 7 節)で出す。</td></tr>
 </table>
 
 <h3>3. 守る原則</h3>
@@ -94,6 +97,7 @@
   <tr><td>相手</td><td>同じ地図上の AI 国家(勢力)が複数。</td><td>2026-10-14</td></tr>
   <tr><td>建物内の工場</td><td>建物の中にも工場施設を作れる(Industries of Titan 型)。内部は階ごとの切り取り表示(G9 の工場ビル)。</td><td>2026-10-14</td></tr>
   <tr><td>陰影</td><td>テクスチャに加えて陰影(面の光・接地の環境遮蔽・落ち影・霧・発光)を入れる。軽量の範囲で(G8 第 7 節)。</td><td>2026-10-14</td></tr>
+  <tr><td>物体の形</td><td>格子は論理、見た目は自由形状の低ポリゴンモデル。既製品優先。32px テクスチャ + 実時間の陰影。以後のモックは Godot の描画試作(G10)で判断する。</td><td>2026-10-14</td></tr>
 </table>
 
 <h3>5. 作る順番</h3>
@@ -471,7 +475,7 @@ dotnet build game\GPS.csproj
 
 <section class="page" id="G8">
 <h2>G8 デザイン言語(Phantasy Star シリーズ参照)</h2>
-<p class="muted">2026-10-14 作成。案(承認待ち)。G5〜G7 の画面モックが一般的な Web 管理画面の様式になっている点の指摘を受け、Phantasy Star シリーズの UI を参照してデザイン言語を定める。採用後は G5〜G7 をこの言語で描き直す。参照するのは配色・構図・部品の文法で、ロゴ・アイコン・素材は複製しない。</p>
+<p class="muted">2026-10-14 作成。案(承認待ち)。G5〜G7 の画面モックが一般的な Web 管理画面の様式になっている点の指摘を受け、Phantasy Star シリーズの UI を参照してデザイン言語を定める。採用後は G5〜G7 をこの言語で描き直す。参照するのは配色・構図・部品の文法で、ロゴ・アイコン・素材は複製しない。<b>世界の見た目(地形・物体・陰影)は等角図のモックでは判断せず G10 の Godot 試作で判断する。本節の等角図は UI の配置と部品の確認用。</b></p>
 
 <h3>1. 現状の問題点</h3>
 <ol>
@@ -831,7 +835,7 @@ dotnet build game\GPS.csproj
 
 <section class="page" id="G9">
 <h2>G9 大都市のプレビュー(段階 3〜4・近未来)</h2>
-<p class="muted">2026-10-14 作成。案(承認待ち)。G8 のデザイン言語と同じ様式で、ゲームが進んで大都市になった段階(G4 の 3〜4)の画面。数値は例。</p>
+<p class="muted">2026-10-14 作成。案(承認待ち)。G8 のデザイン言語と同じ様式で、ゲームが進んで大都市になった段階(G4 の 3〜4)の画面。数値は例。<b>世界の見た目は G10 の Godot 試作で判断する。</b></p>
 
 <h3>1. 画面</h3>
 <div class="mock" style="width: 1280px; height: 800px"><div style="width: 1280px; height: 800px"><div style="position: relative; width: 1280px; height: 800px; overflow: hidden; background: #6f8fb0; font-family: 'Zen Kaku Gothic New', 'Yu Gothic UI', sans-serif; color: #f4f8ff; font-size: 14px; line-height: 20px">
@@ -936,6 +940,34 @@ dotnet build game\GPS.csproj
   <li>選択中の窓はロボット工場。入力の精密歯車は品質 80 以上(紫)が必要で、下限の目盛が帯の右寄りにある。</li>
   <li>記録には失業と支持率、ロボットの完成、隣国の動きが並ぶ。都市・工場・軍・政治が同じ画面に現れる。</li>
 </ul>
+</section>
+
+<section class="page" id="G10">
+<h2>G10 Godot 描画試作</h2>
+<p class="muted">2026-10-14 作成。ゲームの計算には触れない描画だけの試作。ボクセル地形(32px テクスチャ + 頂点 AO) + 格子に置く低ポリゴンのモデル(Kenney CC0) + 陰影(方向光の影・SSAO・グロー・霧・フィルミックのトーンマップ)。実機のスクリーンショット。</p>
+
+<h3>1. 村(段階 1)</h3>
+<p>家(Suburban)、柵と小麦畑(Nature)、人(Mini Characters)、工房と煙突(Industrial)、やぐら・発電機・樽型の機械・配管(Space)、自前の簡易ベルト、構造体と足場による上段、川と砂の岸、鉱脈。人型ロボットは宇宙服のモデルで代用。</p>
+<img src="img/preview_village.png" alt="村の描画試作" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
+
+<h3>2. 大都市(段階 3〜4)</h3>
+<p>中心街の高層(Commercial)、住宅街、公園、工場地区(Industrial: 工場・煙突・タンク・コンテナ + ベルトと発電機)、練兵場(Space: 格納庫・砲塔・隊列のロボット)、太陽光パネル、高架の軌道と列車(Space: モノレール)、7 マスごとの道路と 2 車線の大通り、川と橋、路上の市民とロボット。</p>
+<img src="img/preview_city.png" alt="大都市の描画試作" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
+
+<h3>3. 起動</h3>
+<pre><code>cd E:\VSC_Git\GPS\game
+..\.tools\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe --path . --resolution 1600x900 res://scenes/preview.tscn ++ --scene village
+..\.tools\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe --path . --resolution 1600x900 res://scenes/preview.tscn ++ --scene city
+(--screenshot &lt;path&gt; を付けると 40 フレーム後に保存して終了)</code></pre>
+
+<h3>4. 既製品で足りない物(自作の候補)</h3>
+<table>
+  <tr><th>物</th><th>今の代用</th><th>方針</th></tr>
+  <tr><td>人型ロボット</td><td>Space Kit の宇宙服</td><td>Mini Characters と同じ体格の人型を自作。世代ごとに頭部と装甲の形を変える。</td></tr>
+  <tr><td>ベルト・インサータ</td><td>自前の簡易ベルト(板と縞)。インサータは無し</td><td>Conveyor Kit(itch.io 配布)を取得するか、同じ作風で自作。</td></tr>
+  <tr><td>採掘機・炉・組立機</td><td>Space Kit のアンテナ・発電機・樽</td><td>用途が一目で分かる形(やぐらと刃、煙突と火口、歯車)で自作。</td></tr>
+  <tr><td>建物内の工場</td><td>未着手</td><td>建物の器(壁と階)を自作し、内部に同じ設備モデルを置く。切り取り表示は壁を階ごとに非表示にして実現。</td></tr>
+</table>
 </section>
 
 </main>

@@ -1,0 +1,20 @@
+{
+  "tile": 32,
+  "cols": 8,
+  "index": {
+    "grass": 0,
+    "grass_side": 1,
+    "dirt": 2,
+    "stone": 3,
+    "ore": 4,
+    "sand": 5,
+    "water": 6,
+    "asphalt": 7,
+    "road_x": 8,
+    "road_y": 9,
+    "concrete": 10,
+    "plaza": 11,
+    "field": 12,
+    "path": 13
+  }
+}
