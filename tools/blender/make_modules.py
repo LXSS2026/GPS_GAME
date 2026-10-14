@@ -13,7 +13,7 @@ args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT = Path(args[0]) if args else Path("out")
 JSON_OUT = Path(args[1]) if len(args) > 1 else OUT / "modules.json"
 OUT.mkdir(parents=True, exist_ok=True)
-FH = 2.0  # 階高
+FH = 3.0  # 階高(1 セル = 1 m。人 1.7 m、設備 1〜2 m の余裕)
 ENTRIES = []
 
 
@@ -251,8 +251,8 @@ def mod_base(w, d, family="office"):
         for t in [(k + 0.5) / max(2, int(w / 1.2)) - 0.5 for k in range(max(2, int(w / 1.2)))]:
             cols.append(((t * w, sx * d / 2, FH / 2), (0.16, 0.16, FH)))
     add_boxes("int_columns", cols, M["concrete"] if conc else M["steel"], bevel=0.015)
-    add_box("ext_entrance", (0, (d - 0.7) / 2 + 0.02, 0.15 + 0.75), (0.9, 0.06, 1.5), M["rubber"], bevel=0.01)
-    add_box("ext_entrance_glow", (0, (d - 0.7) / 2 + 0.05, 0.15 + 1.52), (0.9, 0.03, 0.05), M["gloworange"] if conc else M["glowcyan"], bevel=0)
+    add_box("ext_entrance", (0, (d - 0.7) / 2 + 0.02, 0.15 + 1.1), (1.2, 0.06, 2.2), M["rubber"], bevel=0.01)
+    add_box("ext_entrance_glow", (0, (d - 0.7) / 2 + 0.05, 0.15 + 2.22), (1.2, 0.03, 0.05), M["gloworange"] if conc else M["glowcyan"], bevel=0)
     add_box("ext_canopy", (0, d / 2 + 0.3, FH - 0.35), (w * 0.6, 0.8, 0.08), M["concrete"] if conc else M["steel"], bevel=0.015)
     add_box("ext_hazard", (0, d / 2 + 0.45, 0.17), (w * 0.5, 0.4, 0.03), M["hazard"], bevel=0)
     ceiling(w, d)
@@ -266,13 +266,13 @@ def mod_standard(w, d, family, cool=False):
     floor_slab(w, d)
     if family == "office":
         columns(w, d, FH - 0.12, 0.12)
-        window_wall(w, d, 0.12, FH - 0.24, 0.5, 0.95, 0.45, lit_mat=M["wincool"] if cool else M["winlit"], lit_pattern=lambda f, c: (f * 3 + c) % 5 != 1)
-        add_box("ext_spandrel", (0, 0, 0.32), (w + 0.04, d + 0.04, 0.3), M["paint"], bevel=0.015)
+        window_wall(w, d, 0.12, FH - 0.24, 0.5, FH * 0.5, FH * 0.22, lit_mat=M["wincool"] if cool else M["winlit"], lit_pattern=lambda f, c: (f * 3 + c) % 5 != 1)
+        add_box("ext_spandrel", (0, 0, 0.12 + FH * 0.11), (w + 0.04, d + 0.04, FH * 0.14), M["paint"], bevel=0.015)
         pipes_back(w, d, 0.12, FH - 0.24)
         add_boxes("ext_vent", [((w / 2 + 0.03, d * 0.3, 1.32 + i * 0.07), (0.06, 0.35, 0.03)) for i in range(5)], M["rubber"], bevel=0)
     elif family == "res":
         columns(w, d, FH - 0.12, 0.12)
-        window_wall(w, d, 0.12, FH - 0.24, 0.45, 0.8, 0.5, lit_mat=M["winlit"], lit_pattern=lambda f, c: (f + c) % 3 != 0)
+        window_wall(w, d, 0.12, FH - 0.24, 0.45, FH * 0.42, FH * 0.25, lit_mat=M["winlit"], lit_pattern=lambda f, c: (f + c) % 3 != 0)
         for face, (nx, ny, tx, ty, dist, length) in enumerate(faces(w, d)):
             dd = dist + 0.3
             add_box(f"ext_balcony{face}", (nx * dd, ny * dd, 0.15), (0.6 if nx != 0 else length * 0.7, length * 0.7 if nx != 0 else 0.6, 0.06), M["concrete"], bevel=0.015)
@@ -284,14 +284,14 @@ def mod_standard(w, d, family, cool=False):
     elif family == "concrete":
         # コンクリート: 深い窓枠、各階の庇、小さめの窓、色は灰
         columns(w, d, FH - 0.12, 0.12, 0.24, M["concrete"])
-        window_wall(w, d, 0.12, FH - 0.24, 0.42, 0.7, 0.55, depth=0.3, lit_mat=M["winlit"], lit_pattern=lambda f, c: (f * 2 + c) % 4 == 0,
+        window_wall(w, d, 0.12, FH - 0.24, 0.42, FH * 0.36, FH * 0.28, depth=0.3, lit_mat=M["winlit"], lit_pattern=lambda f, c: (f * 2 + c) % 4 == 0,
                     wall_mat=M["concrete"], frame_mat=M["concrete"], pitch=0.8)
         add_box("ext_ledge_mid", (0, 0, 0.12 + 0.42), (w + 0.3, d + 0.3, 0.12), M["concrete"], bevel=0.02)
         add_box("ext_ledge_top", (0, 0, FH - 0.08), (w + 0.3, d + 0.3, 0.12), M["concrete"], bevel=0.02)
     elif family == "deco":
         # 縦リブの段状系: 密な縦の柱形、暖色の縦長窓
         columns(w, d, FH - 0.12, 0.12)
-        window_wall(w, d, 0.12, FH - 0.24, 0.32, 1.3, 0.3, lit_mat=M["winlit"], lit_pattern=lambda f, c: (f + c) % 4 != 3, pitch=0.55, frame_mat=M["rust"])
+        window_wall(w, d, 0.12, FH - 0.24, 0.32, FH * 0.68, FH * 0.15, lit_mat=M["winlit"], lit_pattern=lambda f, c: (f + c) % 4 != 3, pitch=0.55, frame_mat=M["rust"])
         ribs = []
         for nx, ny, tx, ty, dist, length in faces(w, d):
             n = int(length / 0.55)
@@ -302,7 +302,7 @@ def mod_standard(w, d, family, cool=False):
     elif family == "exo":
         # 外骨格: 細い内壁と、外側の X 支柱と水平トラス
         columns(w, d, FH - 0.12, 0.12, 0.28)
-        window_wall(w, d, 0.12, FH - 0.24, 0.6, 1.1, 0.4, lit_mat=M["wincool"], lit_pattern=lambda f, c: (f + c) % 3 != 1, depth=0.1)
+        window_wall(w, d, 0.12, FH - 0.24, 0.6, FH * 0.55, FH * 0.2, lit_mat=M["wincool"], lit_pattern=lambda f, c: (f + c) % 3 != 1, depth=0.1)
         for face, (nx, ny, tx, ty, dist, length) in enumerate(faces(w, d)):
             add_box(f"ext_truss{face}", (nx * (dist + 0.22), ny * (dist + 0.22), FH - 0.2), (0.14 if nx != 0 else length + 0.5, length + 0.5 if nx != 0 else 0.14, 0.3), M["steel"], bevel=0.015)
             segs = max(1, int(length / 1.5))
@@ -326,7 +326,7 @@ def mod_standard(w, d, family, cool=False):
     elif family == "svc":
         # 外部設備: 露出配管・ダクト・設備塔の節・ガラスの昇降機
         columns(w, d, FH - 0.12, 0.12)
-        window_wall(w, d, 0.12, FH - 0.24, 0.5, 0.9, 0.45, lit_mat=M["wincool"], lit_pattern=lambda f, c: (f + c) % 2 == 0)
+        window_wall(w, d, 0.12, FH - 0.24, 0.5, FH * 0.46, FH * 0.22, lit_mat=M["wincool"], lit_pattern=lambda f, c: (f + c) % 2 == 0)
         add_cyl("ext_svc_tower", (w / 2 + 0.5, d / 2 + 0.5, FH / 2), 0.42, FH, M["steel"], 24)
         add_cyl("ext_svc_ring", (w / 2 + 0.5, d / 2 + 0.5, 0.1), 0.47, 0.08, M["rust"], 24, bevel=0)
         add_cyl("ext_svc_ring2", (w / 2 + 0.5, d / 2 + 0.5, FH - 0.1), 0.47, 0.08, M["rust"], 24, bevel=0)
@@ -344,7 +344,7 @@ def mod_mech(w, d, family="office"):
     columns(w, d, FH - 0.12, 0.12, 0.24)
     add_box("ext_core", (0, 0, 0.12 + (FH - 0.24) / 2), (w - 0.3, d - 0.3, FH - 0.24), M["concrete"] if family == "concrete" else M["paintdark"], bevel=0.02)
     for face, (nx, ny, tx, ty, dist, length) in enumerate(faces(w, d)):
-        slats = [((nx * (dist - 0.02), ny * (dist - 0.02), 0.42 + i * 0.14), (0.08 if nx != 0 else length - 0.6, length - 0.6 if nx != 0 else 0.08, 0.05)) for i in range(10)]
+        slats = [((nx * (dist - 0.02), ny * (dist - 0.02), 0.42 + i * 0.14), (0.08 if nx != 0 else length - 0.6, length - 0.6 if nx != 0 else 0.08, 0.05)) for i in range(int((FH - 0.9) / 0.14))]
         add_boxes(f"ext_louver{face}", slats, M["steel"], bevel=0)
     pipe("ext_bigpipe", (-w / 2 - 0.25, -d / 2 + 0.4, 0.5), (-w / 2 - 0.25, d / 2 - 0.4, 0.5), 0.12, M["rust"])
     pipe("ext_bigpipe2", (-w / 2 - 0.25, d / 2 - 0.4, 0.5), (-w / 2 - 0.25, d / 2 - 0.4, FH - 0.3), 0.12, M["rust"])
@@ -363,7 +363,7 @@ def mod_transfer(w, d, w2, d2, family="office"):
     plants = [((sx * (w / 2 + 0.05), sy * (d / 2 + 0.05), 0.34), (0.4, 0.4, 0.4)) for sx in (-1, 1) for sy in (-1, 1)]
     add_boxes("ext_deck_plants", plants, M["foliage"], bevel=0.04)
     columns(w2, d2, FH - 0.14, 0.14)
-    window_wall(w2, d2, 0.14, FH - 0.28, 0.5, 0.95, 0.45, lit_mat=M["wincool"], lit_pattern=lambda f, c: (f + c) % 2 == 0,
+    window_wall(w2, d2, 0.14, FH - 0.28, 0.5, FH * 0.5, FH * 0.22, lit_mat=M["wincool"], lit_pattern=lambda f, c: (f + c) % 2 == 0,
                 wall_mat=M["concrete"] if family == "concrete" else None)
     ceiling(w2, d2)
     export(f"transfer_{w}x{d}_{w2}x{d2}_{family}", "transfer", w, d, w2, d2, family)
@@ -406,15 +406,15 @@ def mod_hangar(w, d):
     clear()
     floor_slab(w, d, 0.12, 0.3, M["steel"])
     columns(w, d, FH - 0.12, 0.12, 0.26)
-    cut = cutter("cutter_door", [((0, d / 2, 0.87), (w * 0.6, 0.6, 1.4))])
+    cut = cutter("cutter_door", [((0, d / 2, 0.12 + (FH - 0.5) / 2), (w * 0.6, 0.6, FH - 0.5))])
     add_box("ext_wall", (0, 0, 0.12 + (FH - 0.24) / 2), (w, d, FH - 0.24), M["paintdark"], bevel=0.02, cutters=[cut])
-    add_box("ext_door_glow", (0, d / 2 + 0.02, 1.6), (w * 0.6, 0.04, 0.05), M["gloworange"], bevel=0)
+    add_box("ext_door_glow", (0, d / 2 + 0.02, FH - 0.4), (w * 0.6, 0.04, 0.05), M["gloworange"], bevel=0)
     add_box("ext_door_hazard", (0, d / 2 + 0.06, 0.16), (w * 0.6, 0.1, 0.04), M["hazard"], bevel=0)
     add_box("int_floor_grate", (0, 0, 0.13), (w - 0.5, d - 0.5, 0.02), M["grate"], bevel=0)
     for face, (nx, ny, tx, ty, dist, length) in enumerate(faces(w, d)):
         if face == 1:
             continue
-        add_box(f"ext_stripe{face}", (nx * (dist + 0.01), ny * (dist + 0.01), 1.72), (0.02 if nx != 0 else length * 0.8, length * 0.8 if nx != 0 else 0.02, 0.06), M["gloworange"], bevel=0)
+        add_box(f"ext_stripe{face}", (nx * (dist + 0.01), ny * (dist + 0.01), FH - 0.3), (0.02 if nx != 0 else length * 0.8, length * 0.8 if nx != 0 else 0.02, 0.06), M["gloworange"], bevel=0)
     ceiling(w, d)
     export(f"hangar_{w}x{d}", "hangar", w, d, w, d, "office")
 
@@ -441,10 +441,10 @@ def mod_bridge(length, wide=False):
         ribs = [((-length / 2 + 0.3 + i * (length - 0.6) / max(1, int(length)), 0, 0.25), (0.08, wd + 0.2, 0.5)) for i in range(int(length) + 1)]
         add_boxes("ext_bridge_ribs", ribs, M["steel"], bevel=0.01)
     else:
-        add_box("ext_bridge_glass", (0, 0, 0.75), (length, wd - 0.2, 1.1), M["wincool"], bevel=0.01)
-        add_box("ext_bridge_roof", (0, 0, 1.38), (length + 0.1, wd + 0.1, 0.12), M["steel"], bevel=0.02)
+        add_box("ext_bridge_glass", (0, 0, 1.3), (length, wd - 0.2, 2.2), M["wincool"], bevel=0.01)
+        add_box("ext_bridge_roof", (0, 0, 2.48), (length + 0.1, wd + 0.1, 0.12), M["steel"], bevel=0.02)
         n = max(2, int(length))
-        add_boxes("ext_bridge_ribs", [((-length / 2 + 0.3 + i * (length - 0.6) / (n - 1), 0, 0.75), (0.08, wd + 0.1, 1.3)) for i in range(n)], M["steel"], bevel=0.01)
+        add_boxes("ext_bridge_ribs", [((-length / 2 + 0.3 + i * (length - 0.6) / (n - 1), 0, 1.3), (0.08, wd + 0.1, 2.4)) for i in range(n)], M["steel"], bevel=0.01)
     export(f"bridge{'w' if wide else ''}_{length}", "bridge", 0, 0, 0, 0, "office", length)
 
 

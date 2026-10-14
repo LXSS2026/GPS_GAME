@@ -11,6 +11,7 @@ public sealed partial class KitBash
     readonly Random _rnd;
     public readonly StandardMaterial3D Steel, Rust, Paint, PaintDark, Concrete, Floor, Grate, Rubber, Hazard, GlowCyan, GlowOrange, GlowRed, GlowWhite, Glass, Foliage, Trunk;
     public readonly StandardMaterial3D WinWarm, WinCool, WinMixed, WinDark;   // 窓の格子(住居 = 暖色、商業 = 水色、混在、消灯)
+    public readonly StandardMaterial3D GlowGreen;
     public const float Floor_ = 0.9f;
 
     public KitBash(int seed)
@@ -29,6 +30,7 @@ public sealed partial class KitBash
         GlowOrange = Glow(new Color(1.0f, 0.45f, 0.1f), 5f);
         GlowRed = Glow(new Color(1.0f, 0.15f, 0.1f), 4f);
         GlowWhite = Glow(new Color(0.9f, 0.95f, 1.0f), 3f);
+        GlowGreen = Glow(new Color(0.4f, 1.0f, 0.5f), 4f);
         Glass = new StandardMaterial3D { AlbedoColor = new Color(0.12f, 0.18f, 0.26f), Roughness = 0.15f, Metallic = 0.6f };
         Foliage = new StandardMaterial3D { AlbedoColor = new Color(0.22f, 0.32f, 0.22f), Roughness = 0.95f };
         Trunk = new StandardMaterial3D { AlbedoColor = new Color(0.16f, 0.12f, 0.09f), Roughness = 0.95f };

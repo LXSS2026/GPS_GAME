@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://55ajjemfra3"
-path="res://.godot/imported/robot_g0.glb-614f9b468dcbc42360a01fc96459d768.scn"
+uid="uid://bupjr82rpqtl2"
+path="res://.godot/imported/mech_g0.glb-263f07a53662d76e274655be8d4223d8.scn"
 
 [deps]
 
-source_file="res://assets/characters/robot_g0.glb"
-dest_files=["res://.godot/imported/robot_g0.glb-614f9b468dcbc42360a01fc96459d768.scn"]
+source_file="res://assets/characters/mech_g0.glb"
+dest_files=["res://.godot/imported/mech_g0.glb-263f07a53662d76e274655be8d4223d8.scn"]
 
 [params]
 

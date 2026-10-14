@@ -253,16 +253,6 @@ def humanoid(cid, kind, spec):
 
 
 SPECS = {
-    # 試作機: 骨組みと駆動部が露出、錆、単眼センサー、装甲なし
-    "robot_g0": dict(height=1.7, bulk=1.05, plate=False, exposed=True, inner="rust", joint="steel", accent="rust", glow="gloworange", head="sensor"),
-    # 作業型: 角張った装甲、危険帯、把持部(クランプ)、工具箱、橙のバイザー
-    "robot_g1": dict(height=1.75, bulk=1.15, plate=True, armor="armor", inner="dark", accent="hazard", glow="gloworange", head="visor", clamp=True, back="toolbox", stripes=True),
-    # 兵士型: 全身装甲、肩当て、兜と水色のバイザー、背嚢とアンテナ、小銃
-    "robot_g2": dict(height=1.8, bulk=1.1, plate=True, armor="armor", inner="dark", accent="paint", glow="glowcyan", head="visor", back="pack", rifle=True, ears=True),
-    # 上位型: 細身、重ねた装甲と発光する継ぎ目、細いバイザー、肩の翼
-    "robot_g3": dict(height=1.8, bulk=0.95, plate=True, armor="paint", inner="dark", accent="steel", glow="glowcyan", head="visor", thin_visor=True, seams=True, back="fins"),
-    # 精鋭型: 長身、噴射器と翼の背面装備、赤のバイザーと冠、継ぎ目の発光
-    "robot_g4": dict(height=1.95, bulk=1.05, plate=True, armor="armor", inner="dark", accent="steel", glow="glowred", head="visor", thin_visor=True, seams=True, back="booster", crest=True, ears=True),
     # 市民: 作業服、小さな兜とバイザー、装甲なし
     "citizen": dict(height=1.7, bulk=0.9, plate=False, inner="cloth", joint="cloth", accent="dark", glow="glass", head="human"),
     # 人間の兵士: 作業服の上に胸甲と肩当て、兜、小銃

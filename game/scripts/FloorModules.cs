@@ -40,6 +40,7 @@ public sealed class FloorModules
             ["M_Glass"] = kb.Glass, ["M_WinLit"] = winLit, ["M_WinCool"] = winCool, ["M_GlowCyan"] = glowCyan, ["M_GlowOrange"] = glowOrange,
             ["M_GlowRed"] = kb.GlowRed, ["M_Rubber"] = kb.Rubber, ["M_Hazard"] = kb.Hazard, ["M_Grate"] = kb.Grate, ["M_Foliage"] = kb.Foliage, ["M_Armor"] = armor,
             ["M_Skin"] = new StandardMaterial3D { AlbedoColor = new Color(0.72f, 0.58f, 0.48f), Roughness = 0.7f },
+            ["M_GlowGreen"] = kb.GlowGreen,
             ["M_Cloth"] = new StandardMaterial3D { AlbedoColor = new Color(0.22f, 0.24f, 0.28f), Roughness = 0.95f },
         };
     }
@@ -62,7 +63,7 @@ public sealed class FloorModules
         return n;
     }
 
-    public string RandomRobot() => $"robot_g{_rnd.Next(5)}";
+    public string RandomMech() => $"mech_g{_rnd.Next(5)}";
     public string RandomHuman() => _rnd.NextDouble() < 0.8 ? "citizen" : "soldier";
 
     Node3D Instantiate(string id)
@@ -338,7 +339,7 @@ public sealed class FloorModules
                 for (int i = 0; i < w - 1; i++) _kb.Belt(root, ox - hw + 0.5f + i, y, -hd, 0, i % 2 == 1);
                 break;
             default:
-                for (int i = 0; i < w; i++) Character(root, "robot_g1", ox - hw + i, y, 0.3f, 180);
+                for (int i = 0; i < w; i++) Character(root, i % 3 == 0 ? "soldier" : "citizen", ox - hw + i, y, 0.3f, 180);
                 _kb.Tank(root, ox + hw, y, -hd, 0.3f, 1.1f);
                 break;
         }

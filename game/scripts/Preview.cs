@@ -30,7 +30,7 @@ public partial class Preview : Node3D
         if (scene == "city") { BuildCity(); pivot = new Vector3(30, 18, 30); dist = 122; }
         else if (scene == "buildings") { BuildShowcase(); pivot = new Vector3(60, 17, 12); dist = 112; }
         else if (scene == "modules") { BuildModules(); pivot = new Vector3(48, 14, 16); dist = 100; }
-        else if (scene == "robots") { BuildRobots(); pivot = new Vector3(9.4f, 4.0f, 6); dist = 15.5f; }
+        else if (scene == "robots") { BuildRobots(); pivot = new Vector3(44f, 11f, 20f); dist = 78f; }
         else { BuildVillage(); pivot = new Vector3(22, 6, 27); dist = 40; }
         if (Arg(args, "--pivot") is string pv) { var p = pv.Split(','); pivot = new Vector3(float.Parse(p[0]), float.Parse(p[1]), float.Parse(p[2])); }
         if (Arg(args, "--dist") is string ds) dist = float.Parse(ds);
@@ -45,7 +45,7 @@ public partial class Preview : Node3D
 
         _cam = new Camera3D { Fov = 38, Far = 800 };
         AddChild(_cam);
-        float yaw = scene == "buildings" ? 0.35f : scene == "modules" ? 0.6f : scene == "robots" ? 0.15f : 0.78f, elev = scene == "buildings" ? 0.30f : scene == "modules" ? 0.38f : scene == "robots" ? 0.12f : 0.52f;
+        float yaw = scene == "buildings" ? 0.35f : scene == "modules" ? 0.6f : scene == "robots" ? 0.2f : 0.78f, elev = scene == "buildings" ? 0.30f : scene == "modules" ? 0.38f : scene == "robots" ? 0.16f : 0.52f;
         _cam.Position = pivot + new Vector3(Mathf.Cos(elev) * Mathf.Sin(yaw), Mathf.Sin(elev), Mathf.Cos(elev) * Mathf.Cos(yaw)) * dist;
         _cam.LookAt(pivot);
     }
@@ -125,7 +125,7 @@ public partial class Preview : Node3D
         // 人(市民 4、自警団はロボット 2)
         _fm.Character(this, "citizen", 12.2f, Top(12, 19), 19.4f, 150); _fm.Character(this, "citizen", 13.0f, Top(13, 19), 19.8f, -30);
         _fm.Character(this, "soldier", 16.3f, Top(16, 20), 20.5f, 60); _fm.Character(this, "citizen", 14.0f, Top(14, 22), 22.2f, 200);
-        _fm.Character(this, "robot_g0", 21.3f, Top(21, 35), 35.5f, 30); _fm.Character(this, "robot_g1", 26.5f, Top(26, 31), 31.5f, -90);
+        _fm.Character(this, "soldier", 21.3f, Top(21, 35), 35.5f, 30); _fm.Character(this, "mech_g0", 34f, Top(34, 30), 30f, -60);
         // 木と岩
         foreach (var (x, z) in new[] { (3, 4), (17, 8), (4, 30), (22, 40), (36, 18), (40, 30), (14, 40), (38, 8), (5, 36), (33, 12) })
             _kb.Pine(this, C(x), Top(x, z), C(z), 1.8f + (float)_rnd.NextDouble() * 1.2f);
@@ -152,16 +152,18 @@ public partial class Preview : Node3D
         _kb.Light(this, new Vector3(25, Top(24, 36) + 3.0f, 37), new Color(0.25f, 0.85f, 1.0f), 5f, 1.5f);
     }
 
-    // ---------- 人型の展示(ロボット 5 世代と人間 2 種を一列に) ----------
+    // ---------- 機体の展示(5 世代を一列に、比較用の人間と階モジュールの塔) ----------
     void BuildRobots()
     {
         byte stone = B("Stone"), plaza = B("Plaza");
-        for (int x = 0; x < 20; x++) for (int z = 0; z < 12; z++) { _world.Set(x, 0, z, stone); _world.Set(x, 1, z, stone); _world.Set(x, 2, z, plaza); }
+        for (int x = 0; x < 90; x++) for (int z = 0; z < 40; z++) { _world.Set(x, 0, z, stone); _world.Set(x, 1, z, stone); _world.Set(x, 2, z, plaza); }
         _world.Dirty.Clear();
-        string[] ids = { "robot_g0", "robot_g1", "robot_g2", "robot_g3", "robot_g4", "citizen", "soldier" };
-        for (int i = 0; i < ids.Length; i++) _fm.Character(this, ids[i], 2.5f + i * 2.3f, 3f, 6f, 10);
-        _kb.Light(this, new Vector3(9.5f, 5.5f, 11f), new Color(0.9f, 0.92f, 1.0f), 16f, 2.0f);
-        _kb.Light(this, new Vector3(2f, 5f, 10f), new Color(1.0f, 0.8f, 0.6f), 10f, 1.0f);
+        string[] ids = { "mech_g0", "mech_g1", "mech_g2", "mech_g3", "mech_g4" };
+        for (int i = 0; i < ids.Length; i++) _fm.Character(this, ids[i], 12f + i * 15f, 3f, 20f, 15);
+        _fm.Character(this, "citizen", 6f, 3f, 24f, 20); _fm.Character(this, "soldier", 7.2f, 3f, 24.5f, 0);
+        _fm.Build(this, 84f, 3f, 12f, _fm.Plan("office", 5, 5, 7, false, "heli"), 0);   // 7 階 = 21 m の塔(比較用)
+        _kb.Light(this, new Vector3(45f, 14f, 36f), new Color(0.9f, 0.92f, 1.0f), 50f, 1.6f);
+        _kb.Light(this, new Vector3(10f, 10f, 30f), new Color(1.0f, 0.8f, 0.6f), 30f, 1.0f);
     }
 
     // ---------- 階モジュール方式の確認(系統・床面積・双塔・戦艦) ----------
@@ -203,7 +205,8 @@ public partial class Preview : Node3D
             fm.Build(this, cx + ox, 3, cz + oz, fm.Plan(i % 2 == 0 ? "office" : "exo", 3, 3, 9, false, "mech"), 0);
         }
         fm.SkyNode(this, new Vector3(cx, 0, cz), 5, b.GetRange(b.Count - 4, 4), true);
-        for (int i = 0; i < 30; i++) _fm.Character(this, _rnd.NextDouble() < 0.5 ? _fm.RandomRobot() : _fm.RandomHuman(), 3f + (float)_rnd.NextDouble() * 90f, 3f, 15f + (float)_rnd.NextDouble() * 2f, _rnd.Next(360));
+        for (int i = 0; i < 30; i++) _fm.Character(this, _fm.RandomHuman(), 3f + (float)_rnd.NextDouble() * 90f, 3f, 15f + (float)_rnd.NextDouble() * 2f, _rnd.Next(360));
+        _fm.Character(this, "mech_g2", 30f, 3f, 24f, 40);
     }
 
     // ---------- 建物の展示(10 様式を一列に) ----------
@@ -219,7 +222,7 @@ public partial class Preview : Node3D
         int[] lfloors = { 36, 32, 30, 34, 26, 28 };
         for (int i = 0; i < KitBash.LoftStyles; i++)
             _kb.LoftBuilding(this, i, 5.5f + (KitBash.RefStyles + i) * 7.2f, 3f, 11f, 3.6f, lfloors[i], 0);
-        for (int i = 0; i < 40; i++) _fm.Character(this, _rnd.NextDouble() < 0.5 ? _fm.RandomRobot() : _fm.RandomHuman(), 3f + (float)_rnd.NextDouble() * 112f, 3f, 17f + (float)_rnd.NextDouble() * 2f, _rnd.Next(360));
+        for (int i = 0; i < 40; i++) _fm.Character(this, _fm.RandomHuman(), 3f + (float)_rnd.NextDouble() * 112f, 3f, 17f + (float)_rnd.NextDouble() * 2f, _rnd.Next(360));
     }
 
     // ---------- 大都市 ----------
@@ -286,11 +289,11 @@ public partial class Preview : Node3D
                         _kb.Chest(this, x0 + 5.3f, Y, z0 + 5.2f, 90);
                         for (int i = 0; i < 3; i++) _kb.Belt(this, x0 + 3.5f + i, Y, z0 + 3.6f, 0, i != 1);
                         _kb.Assembler(this, x0 + 2.0f, Y, z0 + 3.6f, 90);
-                        _fm.Character(this, "robot_g1", x0 + 5.5f, Y, z0 + 2.6f, -90);
+                        _fm.Character(this, "citizen", x0 + 5.5f, Y, z0 + 2.6f, -90);
                         break;
                     case "military":
                         _fm.Build(this, x0 + 3f, Y, z0 + 3f, new List<string> { "base_5x5_office", "hangar_5x5", "hangar_5x5", "mech_5x5_office", "roof_5x5_heli_office" }, 0);
-                        for (int i = 0; i < 6; i++) _fm.Character(this, "robot_g2", x0 + 0.5f + i, Y, z0 + 6.4f, 180);
+                        _fm.Character(this, _rnd.NextDouble() < 0.5 ? "mech_g1" : "mech_g2", x0 + 3f, Y, z0 + 8.5f, 180);
                         break;
                     case "solar":
                         for (int i = 0; i < 5; i++) for (int j = 0; j < 3; j++) _kb.Solar(this, x0 + 0.8f + i * 1.1f, Y, z0 + 1.0f + j * 1.8f, 0);
@@ -315,7 +318,7 @@ public partial class Preview : Node3D
             int x = _rnd.Next(1, N - 1), z = _rnd.Next(1, N - 1);
             bool road = x % 7 == 0 || z % 7 == 0 || z == 28 || z == 29;
             if (!road || (x - z >= 16 && x - z <= 17)) continue;
-            _fm.Character(this, _rnd.NextDouble() < 0.5 ? _fm.RandomRobot() : _fm.RandomHuman(), x + (float)_rnd.NextDouble(), Y, z + (float)_rnd.NextDouble(), _rnd.Next(360));
+            _fm.Character(this, _fm.RandomHuman(), x + (float)_rnd.NextDouble(), Y, z + (float)_rnd.NextDouble(), _rnd.Next(360));
         }
         // 橋の欄干
         for (int x = 44; x <= 47; x++) { _kb.Box(this, new Vector3(x + 0.5f, Y + 0.3f, 28.05f), new Vector3(1.0f, 0.04f, 0.04f), _kb.Rust); _kb.Box(this, new Vector3(x + 0.5f, Y + 0.3f, 29.95f), new Vector3(1.0f, 0.04f, 0.04f), _kb.Rust); }
