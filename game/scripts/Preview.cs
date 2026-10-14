@@ -162,15 +162,17 @@ public partial class Preview : Node3D
         byte stone = B("Stone"), plaza = B("Plaza");
         for (int x = 0; x < 100; x++) for (int z = 0; z < 60; z++) { _world.Set(x, 0, z, stone); _world.Set(x, 1, z, stone); _world.Set(x, 2, z, plaza); }
         _world.Dirty.Clear();
+        string? only = Arg(OS.GetCmdlineUserArgs(), "--only");
+        if (only == "fighter") { _mb.BuildFighter(this, _mb.Presets["fast"], "g3", 48f, 20f, 34f, 0); return; }   // 戦闘機モードだけ
         string[] heads = { "head_twin", "head_visor", "head_fast", "head_mono", "head_quad", "head_tall", "head_twin" };   // 顔のレパートリーを兼ねる
         for (int g = 0; g < 7; g++) _mb.Build(this, _mb.Presets["general"].With(head: heads[g]), $"g{g}", 8f + g * 13.5f, 3f, 20f, 10);   // 工作機 + 第 1〜6 世代(リアクターの色)
-        if (Arg(OS.GetCmdlineUserArgs(), "--only") == "gens") return;   // 世代の列だけを描く(前列が隠すため)
+        if (only == "gens") return;   // 世代の列だけを描く(前列が隠すため)
         _mb.Build(this, "heavy", "g2", 18f, 3f, 44f, 0);
         _mb.Build(this, "fast", "g2", 38f, 3f, 44f, 0);
         _mb.Build(this, "general", "g2", 58f, 3f, 44f, 0);
         _mb.BuildFighter(this, _mb.Presets["fast"], "g3", 40f, 24f, 34f, 0);   // 高速機の戦闘機モード(上空)
         // 組み替え例: 汎用の胴と頭に、重装の腕と高速の脚、大砲
-        _mb.Build(this, _mb.Presets["general"].With(arms: "heavy", legs: "fast", back: "back_heavy", weaponR: "weapon_cannon", weaponL: "weapon_blade") with { Main = new Color(0.35f, 0.45f, 0.4f) }, "g6", 78f, 3f, 44f, 0);
+        _mb.Build(this, _mb.Presets["general"].With(arms: "heavy", legs: "fast", back: "back_heavy", weaponR: "weapon_bazooka_beam", weaponL: "weapon_sword_live", spare: "weapon_smg_live") with { Main = new Color(0.35f, 0.45f, 0.4f) }, "g6", 78f, 3f, 44f, 0);
         _fm.Character(this, "citizen", 8f, 3f, 48f, 20); _fm.Character(this, "soldier", 9.2f, 3f, 48.5f, 0);
         _fm.Build(this, 94f, 3f, 16f, _fm.Plan("office", 5, 5, 7, false, "heli"), 0);   // 7 階 = 21 m の塔(比較用)
         _kb.Light(this, new Vector3(48f, 16f, 36f), new Color(0.9f, 0.92f, 1.0f), 60f, 1.6f);

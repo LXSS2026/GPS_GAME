@@ -276,6 +276,26 @@ def wedge(name, center, w, d, h, mat, parent=None, rot=None, bev=0.0, front=True
     return facet(name, center, (w, d), (w, d * 0.15), h, mat, parent, rot, shift=(0, d * 0.42 if front else -d * 0.42), bev=bev)
 
 
+def slab(name, pts, z0, thick, mat, parent=None, bev=0.0):
+    """XY 平面の多角形(pts)を Z 方向に厚み thick で押し出した板。翼・尾翼・刃に。"""
+    n = len(pts)
+    verts = [(x, y, z0) for x, y in pts] + [(x, y, z0 + thick) for x, y in pts]
+    faces = [tuple(range(n))[::-1], tuple(range(n, 2 * n))]
+    for i in range(n):
+        j = (i + 1) % n
+        faces.append((i, j, n + j, n + i))
+    me = bpy.data.meshes.new(name)
+    me.from_pydata(verts, [], faces)
+    bm = bmesh.new(); bm.from_mesh(me)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(me); bm.free()
+    me.update()
+    obj = new_obj(name, me, mat, parent)
+    if bev > 0:
+        b = obj.modifiers.new("bevel", "BEVEL"); b.width = bev; b.segments = 2; b.limit_method = "ANGLE"; b.angle_limit = math.radians(30)
+    return obj
+
+
 def thruster(name, center, r, length, mat, glow, axis="Z", parent=None):
     """鐘形のスラスター(回転体)と奥の発光。"""
     prof = [(r * 0.55, 0), (r * 0.6, length * 0.15), (r * 0.75, length * 0.5), (r * 0.95, length * 0.85), (r, length)]
@@ -369,7 +389,14 @@ def torso(arch):
         "hip_l": (-0.09 * H * (1 + (k - 1) * 0.5), 0, 0),
         "hip_r": (0.09 * H * (1 + (k - 1) * 0.5), 0, 0),
         "back": (0, -0.12 * H, z_chest + chest_h * 0.55),
+        "waist_rear": (0, -0.1 * H, pelvis_h * 0.9),            # 予備の武器 1(装備数の上限に数えない)
+        "waist_l": (-0.15 * H * k, -0.02 * H, pelvis_h * 0.9),   # 近接武器(腰左)
+        "waist_r": (0.15 * H * k, -0.02 * H, pelvis_h * 0.9),    # 近接武器(腰右)
     }
+    if arch == "heavy":   # 肩上のバズーカ架(重装のみ。腕と合わせて左右計 4 本まで)
+        for sx, nm in ((-1, "shoulder_mount_l"), (1, "shoulder_mount_r")):
+            facet("shoulder_rail", (sx * 0.17 * H * k, -0.03 * H, z_chest + chest_h + 0.07 * H), (0.04 * H, 0.1 * H), (0.035 * H, 0.09 * H), 0.03 * H, M["frame"], bev=0.004 * H)
+            sockets[nm] = (sx * 0.17 * H * k, -0.03 * H, z_chest + chest_h + 0.1 * H)
     export(f"torso_{arch}", "torso", arch, sockets)
 
 
@@ -539,20 +566,10 @@ def back(arch):
     if arch == "heavy":
         facet("pack", (0, -0.03 * H, -0.08 * H), (0.22 * H, 0.07 * H), (0.24 * H, 0.08 * H), 0.16 * H, M["sub"], bev=bv)
         for sx in (-1, 1):
-            mx, mz = sx * 0.15 * H, 0.14 * H
-            mount = empty("cannon_mount", (mx, -0.03 * H, mz))
-            revolve("cannon_arm", [(0.02 * H, 0), (0.02 * H, 0.14 * H)], M["frame"], (mx, -0.03 * H, 0), 12)
-            revolve("cannon_barrel", [(0.02 * H, 0), (0.022 * H, 0.1 * H), (0.019 * H, 0.45 * H), (0.025 * H, 0.47 * H), (0.025 * H, 0.52 * H)], M["sub"], (mx, -0.02 * H, mz), 16, "Y", parent=mount)
-            facet("cannon_breech", (mx, -0.16 * H, mz - 0.035 * H), (0.06 * H, 0.14 * H), (0.055 * H, 0.13 * H), 0.07 * H, M["frame"], parent=mount, bev=bv * 0.5)
-            mount.rotation_euler = (math.radians(10), 0, 0)
             thruster("thruster", (sx * 0.05 * H, -0.06 * H, -0.06 * H), 0.03 * H, 0.08 * H, M["frame"], M["glow"], "Z")
+            facet("ammo_box", (sx * 0.09 * H, -0.05 * H, -0.02 * H), (0.05 * H, 0.05 * H), (0.045 * H, 0.045 * H), 0.1 * H, M["frame"], bev=bv * 0.5)
     elif arch == "fast":
         facet("pack", (0, -0.02 * H, -0.07 * H), (0.14 * H, 0.05 * H), (0.16 * H, 0.06 * H), 0.14 * H, M["sub"], bev=bv)
-        for sx in (-1, 1):
-            facet("wing", (sx * 0.07 * H, -0.03 * H, 0.04 * H), (0.03 * H, 0.16 * H), (0.012 * H, 0.05 * H), 0.42 * H, M["main"],
-                  rot=(0, math.radians(sx * -62), 0), shift=(0, -0.09 * H), bev=bv * 0.4)
-            facet("wing_edge", (sx * 0.07 * H, -0.11 * H, 0.04 * H), (0.006 * H, 0.012 * H), (0.004 * H, 0.006 * H), 0.4 * H, M["glow"], rot=(0, math.radians(sx * -62), 0), shift=(0, -0.08 * H))
-        facet("tail_fin", (0, -0.05 * H, 0.06 * H), (0.012 * H, 0.08 * H), (0.008 * H, 0.03 * H), 0.12 * H, M["main"], shift=(0, -0.03 * H), bev=bv * 0.3)
         for sx in (-1, 1):
             for i in range(2):
                 thruster("thruster", (sx * (0.04 + i * 0.045) * H, -0.05 * H, -0.05 * H), 0.028 * H, 0.09 * H, M["frame"], M["glow"], "Z")
@@ -565,34 +582,113 @@ def back(arch):
     export(f"back_{arch}", "back", arch, {})
 
 
+
+# ================= 翼(高速機。フラッグの変形を参考: 主翼は背面の架に付き、人型では畳み、飛行形態では水平に広げる) =================
+def wing(arch):
+    clear()
+    bv = 0.003 * H
+    facet("wing_root", (0, -0.02 * H, -0.03 * H), (0.14 * H, 0.08 * H), (0.12 * H, 0.07 * H), 0.06 * H, M["sub"], bev=bv)
+    for sx in (-1, 1):
+        pts = [(sx * 0.05 * H, 0.02 * H), (sx * 0.05 * H, -0.12 * H), (sx * 0.42 * H, -0.3 * H), (sx * 0.42 * H, -0.24 * H)]
+        if sx < 0:
+            pts = pts[::-1]
+        slab("wing", pts, -0.008 * H, 0.016 * H, M["main"], bev=bv)
+        edge = [(sx * 0.06 * H, 0.02 * H), (sx * 0.06 * H, 0.005 * H), (sx * 0.42 * H, -0.225 * H), (sx * 0.42 * H, -0.24 * H)]
+        if sx < 0:
+            edge = edge[::-1]
+        slab("wing_edge", edge, 0.008 * H, 0.004 * H, M["glow"])
+        facet("wing_pod", (sx * 0.2 * H, -0.14 * H, -0.02 * H), (0.03 * H, 0.1 * H), (0.025 * H, 0.08 * H), 0.04 * H, M["sub"], bev=bv)
+    fin = slab("tail_fin", [(-0.1 * H, 0.0), (-0.26 * H, 0.0), (-0.3 * H, 0.14 * H), (-0.2 * H, 0.14 * H)], -0.006 * H, 0.012 * H, M["main"], bev=bv)
+    fin.rotation_euler = (0, math.radians(-90), 0)   # XY で描いた尾翼を YZ 面(垂直)に立てる
+    fin.location = (0, 0, 0)
+    export(f"wing_{arch}", "wing", arch, {})
+
+
 # ================= 武装 =================
-def weapon(kind):
+def weapon(kind, ammo):
+    """kind: bazooka / rifle / smg / sword / whip / shield。ammo: live(実弾) / beam(ビーム)。原点は握り、銃口は +Y。"""
     clear()
     bv = 0.004 * H
-    if kind == "rifle":
+    beam = ammo == "beam"
+    bmat = M["glow"]
+    if kind == "bazooka":
+        facet("grip", (0, 0, -0.045 * H), (0.02 * H, 0.03 * H), (0.018 * H, 0.028 * H), 0.05 * H, M["frame"], bev=bv * 0.5)
+        r = 0.032 * H if not beam else 0.026 * H
+        revolve("tube", [(r, 0), (r, 0.46 * H), (r * 1.25, 0.47 * H), (r * 1.25, 0.52 * H)], M["sub"], (0, -0.16 * H, 0.05 * H), 18, "Y")
+        if beam:
+            for i in range(3):
+                revolve("coil", [(r * 1.15, 0), (r * 1.15, 0.02 * H)], bmat, (0, 0.04 * H + i * 0.09 * H, 0.05 * H), 18, "Y")
+            revolve("emitter", [(r * 0.6, 0), (r * 0.3, 0.02 * H)], bmat, (0, 0.36 * H, 0.05 * H), 18, "Y")
+        else:
+            facet("magazine", (0, -0.04 * H, -0.03 * H), (0.045 * H, 0.09 * H), (0.04 * H, 0.08 * H), 0.06 * H, M["frame"], bev=bv * 0.5)
+            facet("shell_rack", (0, -0.1 * H, 0.08 * H), (0.03 * H, 0.1 * H), (0.03 * H, 0.1 * H), 0.025 * H, M["steel"], bev=bv * 0.3)
+        facet("sight", (0, 0.08 * H, 0.085 * H), (0.015 * H, 0.05 * H), (0.012 * H, 0.04 * H), 0.03 * H, M["frame"], bev=bv * 0.3)
+        facet("shoulder_rest", (0, -0.14 * H, 0.0), (0.03 * H, 0.08 * H), (0.03 * H, 0.08 * H), 0.03 * H, M["sub"], bev=bv * 0.4)
+    elif kind == "rifle":
         facet("body", (0, -0.03 * H, 0.0), (0.035 * H, 0.26 * H), (0.03 * H, 0.24 * H), 0.05 * H, M["frame"], bev=bv)
-        revolve("barrel", [(0.012 * H, 0), (0.012 * H, 0.2 * H), (0.016 * H, 0.21 * H), (0.016 * H, 0.24 * H)], M["steel"], (0, 0.23 * H, 0.03 * H), 14, "Y")
+        if beam:
+            revolve("barrel", [(0.014 * H, 0), (0.012 * H, 0.18 * H), (0.018 * H, 0.19 * H), (0.018 * H, 0.22 * H)], M["sub"], (0, 0.23 * H, 0.03 * H), 14, "Y")
+            revolve("emitter", [(0.012 * H, 0), (0.005 * H, 0.015 * H)], bmat, (0, 0.44 * H, 0.03 * H), 14, "Y")
+            facet("coil", (0, 0.12 * H, 0.047 * H), (0.014 * H, 0.1 * H), (0.012 * H, 0.09 * H), 0.006 * H, bmat)
+        else:
+            revolve("barrel", [(0.012 * H, 0), (0.012 * H, 0.2 * H), (0.016 * H, 0.21 * H), (0.016 * H, 0.24 * H)], M["steel"], (0, 0.23 * H, 0.03 * H), 14, "Y")
+            facet("magazine", (0, 0.05 * H, -0.06 * H), (0.025 * H, 0.05 * H), (0.022 * H, 0.045 * H), 0.07 * H, M["frame"], bev=bv * 0.4)
         revolve("scope", [(0.012 * H, 0), (0.012 * H, 0.1 * H)], M["sub"], (0, 0.06 * H, 0.06 * H), 12, "Y")
         facet("stock", (0, -0.09 * H, -0.01 * H), (0.03 * H, 0.08 * H), (0.025 * H, 0.07 * H), 0.04 * H, M["sub"], bev=bv)
-        facet("glow", (0, 0.2 * H, 0.047 * H), (0.012 * H, 0.08 * H), (0.01 * H, 0.07 * H), 0.004, M["glow"])
-        export("weapon_rifle", "weapon", "general", {})
-    elif kind == "cannon":
-        facet("body", (0, -0.03 * H, 0.0), (0.05 * H, 0.3 * H), (0.045 * H, 0.28 * H), 0.07 * H, M["frame"], bev=bv)
-        revolve("barrel", [(0.02 * H, 0), (0.02 * H, 0.3 * H), (0.028 * H, 0.31 * H), (0.028 * H, 0.36 * H)], M["sub"], (0, 0.27 * H, 0.04 * H), 16, "Y")
-        revolve("drum", [(0.04 * H, 0), (0.04 * H, 0.08 * H)], M["sub"], (0, 0.04 * H, 0.07 * H), 16, "X")
-        facet("stock", (0, -0.11 * H, -0.01 * H), (0.04 * H, 0.1 * H), (0.035 * H, 0.09 * H), 0.05 * H, M["sub"], bev=bv)
-        export("weapon_cannon", "weapon", "heavy", {})
-    elif kind == "blade":
-        facet("grip", (0, 0, -0.04 * H), (0.02 * H, 0.03 * H), (0.02 * H, 0.03 * H), 0.08 * H, M["frame"], bev=bv * 0.5)
-        facet("blade", (0, 0.01 * H, 0.05 * H), (0.03 * H, 0.012 * H), (0.006 * H, 0.004 * H), 0.42 * H, M["steel"], bev=bv * 0.3)
-        facet("blade_edge", (0, 0.016 * H, 0.07 * H), (0.004, 0.004), (0.002, 0.002), 0.38 * H, M["glow"])
-        export("weapon_blade", "weapon", "fast", {})
+    elif kind == "smg":
+        facet("body", (0, 0.0, 0.0), (0.04 * H, 0.14 * H), (0.035 * H, 0.13 * H), 0.05 * H, M["frame"], bev=bv)
+        if beam:
+            revolve("barrel", [(0.012 * H, 0), (0.012 * H, 0.07 * H)], M["sub"], (0, 0.07 * H, 0.03 * H), 12, "Y")
+            revolve("emitter", [(0.01 * H, 0), (0.004 * H, 0.012 * H)], bmat, (0, 0.14 * H, 0.03 * H), 12, "Y")
+            revolve("cell", [(0.02 * H, 0), (0.02 * H, 0.04 * H)], bmat, (0, 0.01 * H, -0.03 * H), 12, "Y")
+        else:
+            revolve("barrel", [(0.011 * H, 0), (0.011 * H, 0.08 * H)], M["steel"], (0, 0.07 * H, 0.03 * H), 12, "Y")
+            revolve("drum", [(0.03 * H, 0), (0.03 * H, 0.035 * H)], M["sub"], (-0.0175 * H, 0.02 * H, -0.02 * H), 16, "X")
+        facet("foregrip", (0, 0.06 * H, -0.03 * H), (0.015 * H, 0.02 * H), (0.015 * H, 0.02 * H), 0.03 * H, M["frame"])
+        facet("stock", (0, -0.08 * H, 0.01 * H), (0.02 * H, 0.04 * H), (0.02 * H, 0.04 * H), 0.02 * H, M["sub"], bev=bv * 0.4)
+    elif kind == "sword":
+        facet("grip", (0, 0, -0.07 * H), (0.02 * H, 0.03 * H), (0.02 * H, 0.03 * H), 0.08 * H, M["frame"], bev=bv * 0.5)
+        facet("guard", (0, 0, 0.01 * H), (0.07 * H, 0.03 * H), (0.06 * H, 0.025 * H), 0.015 * H, M["sub"], bev=bv * 0.4)
+        if beam:
+            facet("emitter", (0, 0, 0.025 * H), (0.03 * H, 0.015 * H), (0.025 * H, 0.012 * H), 0.03 * H, M["frame"], bev=bv * 0.3)
+            facet("blade", (0, 0, 0.05 * H), (0.028 * H, 0.012 * H), (0.008 * H, 0.004 * H), 0.42 * H, bmat)
+        else:
+            facet("blade", (0, 0, 0.025 * H), (0.035 * H, 0.012 * H), (0.008 * H, 0.004 * H), 0.42 * H, M["steel"], bev=bv * 0.3)
+            facet("fuller", (0, 0.0065 * H, 0.06 * H), (0.008 * H, 0.002), (0.004 * H, 0.002), 0.3 * H, M["frame"])
+    elif kind == "whip":
+        facet("grip", (0, 0, -0.07 * H), (0.02 * H, 0.03 * H), (0.02 * H, 0.03 * H), 0.08 * H, M["frame"], bev=bv * 0.5)
+        facet("emitter", (0, 0, 0.01 * H), (0.03 * H, 0.03 * H), (0.025 * H, 0.025 * H), 0.03 * H, M["sub"], bev=bv * 0.4)
+        # 鞭: 握りから前へ出て垂れる 14 節(放物線)。ビームは発光する節、実弾(物理)は金属の節と継ぎ目
+        n = 14
+        for i in range(n):
+            t = i / (n - 1)
+            y = 0.04 * H + t * 0.4 * H
+            z = 0.04 * H - t * t * 0.42 * H
+            r = (0.012 - 0.006 * t) * H
+            if beam:
+                revolve("whip_seg", [(r * 0.8, 0), (r * 0.8, 0.026 * H)], bmat, (0, y, z), 10, "Y")
+            else:
+                revolve("whip_seg", [(r, 0), (r * 0.9, 0.012 * H), (r, 0.024 * H)], M["steel"], (0, y, z), 10, "Y")
+                revolve("whip_joint", [(r * 0.6, 0), (r * 0.6, 0.008 * H)], M["frame"], (0, y + 0.026 * H, z - 0.002 * H), 8, "Y")
     elif kind == "shield":
         facet("shield", (-0.05 * H, 0.03 * H, -0.17 * H), (0.17 * H, 0.03 * H), (0.14 * H, 0.03 * H), 0.34 * H, M["main"], rot=(0, math.radians(90), 0), bev=bv * 1.5)
         facet("rim", (-0.065 * H, 0.03 * H, -0.15 * H), (0.14 * H, 0.008 * H), (0.11 * H, 0.008 * H), 0.3 * H, M["sub"], rot=(0, math.radians(90), 0), bev=bv)
         facet("emblem", (-0.07 * H, 0.03 * H, 0.04 * H), (0.04 * H, 0.004), (0.03 * H, 0.004), 0.04 * H, M["trim"], rot=(0, math.radians(90), 0))
-        facet("glow", (-0.07 * H, 0.03 * H, -0.09 * H), (0.08 * H, 0.004), (0.07 * H, 0.004), 0.008 * H, M["glow"], rot=(0, math.radians(90), 0))
-        export("weapon_shield", "weapon", "heavy", {})
+        facet("glow", (-0.07 * H, 0.03 * H, -0.09 * H), (0.08 * H, 0.004), (0.07 * H, 0.004), 0.008 * H, bmat, rot=(0, math.radians(90), 0))
+        export("weapon_shield", "weapon", "general", {}, {"weapon": "shield"})
+        return
+    export(f"weapon_{kind}_{ammo}", "weapon", "general", {}, {"weapon": kind, "ammo": ammo, "melee": kind in ("sword", "whip")})
+    if kind == "whip":
+        # 腰に吊る用の巻いた鞭(握り + 発振部 + 3 巻きの輪)。伸びた形は吊ると向きが崩れるため別部品にする
+        clear()
+        bmat = M["glow"]   # clear() で材質が作り直されるため取り直す
+        facet("grip", (0, 0, -0.07 * H), (0.02 * H, 0.03 * H), (0.02 * H, 0.03 * H), 0.08 * H, M["frame"], bev=bv * 0.5)
+        facet("emitter", (0, 0, 0.01 * H), (0.03 * H, 0.03 * H), (0.025 * H, 0.025 * H), 0.03 * H, M["sub"], bev=bv * 0.4)
+        R, r = 0.05 * H, 0.008 * H
+        ring = [(R + r * math.cos(a), r * math.sin(a)) for a in [i * 2 * math.pi / 10 for i in range(11)]]
+        for i in range(3):
+            revolve("coil", ring, bmat if beam else M["steel"], (0, 0.01 * H + i * 0.018 * H, 0.09 * H), 20, "Y")
+        export(f"weapon_{kind}_{ammo}_coiled", "weapon", "general", {}, {"weapon": kind, "ammo": ammo, "melee": True, "coiled": True})
 
 
 if __name__ == "__main__":
@@ -604,16 +700,22 @@ if __name__ == "__main__":
         for side in ("l", "r"):
             arm(arch, side)
             leg(arch, side)
-    for w in ("rifle", "cannon", "blade", "shield"):
-        weapon(w)
+    wing("fast")
+    for w in ("bazooka", "rifle", "smg", "sword", "whip"):
+        for am in ("live", "beam"):
+            weapon(w, am)
+    weapon("shield", "live")
     JSON_OUT.parent.mkdir(parents=True, exist_ok=True)
     presets = {
-        "heavy": {"torso": "torso_heavy", "head": "head_visor", "arm_l": "arm_heavy_l", "arm_r": "arm_heavy_r", "leg_l": "leg_heavy_l", "leg_r": "leg_heavy_r", "back": "back_heavy",
-                  "weapon_r": "weapon_cannon", "weapon_l": "weapon_shield", "colors": {"main": [0.3, 0.33, 0.3], "sub": [0.18, 0.2, 0.2], "trim": [0.85, 0.6, 0.15], "glow": [1.0, 0.45, 0.1]}},
-        "fast": {"torso": "torso_fast", "head": "head_fast", "arm_l": "arm_fast_l", "arm_r": "arm_fast_r", "leg_l": "leg_fast_l", "leg_r": "leg_fast_r", "back": "back_fast",
-                 "weapon_r": "weapon_rifle", "weapon_l": "weapon_blade", "colors": {"main": [0.85, 0.2, 0.2], "sub": [0.15, 0.15, 0.18], "trim": [0.95, 0.85, 0.3], "glow": [0.4, 1.0, 0.6]}},
-        "general": {"torso": "torso_general", "head": "head_twin", "arm_l": "arm_general_l", "arm_r": "arm_general_r", "leg_l": "leg_general_l", "leg_r": "leg_general_r", "back": "back_general",
-                    "weapon_r": "weapon_rifle", "weapon_l": "weapon_shield", "colors": {"main": [0.88, 0.9, 0.93], "sub": [0.2, 0.3, 0.55], "trim": [0.95, 0.75, 0.2], "glow": [0.25, 0.85, 1.0]}},
+        "heavy": {"torso": "torso_heavy", "head": "head_visor", "arm_l": "arm_heavy_l", "arm_r": "arm_heavy_r", "leg_l": "leg_heavy_l", "leg_r": "leg_heavy_r", "back": "back_heavy", "wing": None,
+                  "weapon_r": "weapon_bazooka_live", "weapon_l": "weapon_bazooka_beam", "shoulder_l": "weapon_bazooka_live", "shoulder_r": "weapon_bazooka_beam",
+                  "melee_l": "weapon_sword_live", "melee_r": "weapon_whip_live", "spare": "weapon_rifle_live", "colors": {"main": [0.3, 0.33, 0.3], "sub": [0.18, 0.2, 0.2], "trim": [0.85, 0.6, 0.15], "glow": [1.0, 0.45, 0.1]}},
+        "fast": {"torso": "torso_fast", "head": "head_fast", "arm_l": "arm_fast_l", "arm_r": "arm_fast_r", "leg_l": "leg_fast_l", "leg_r": "leg_fast_r", "back": "back_fast", "wing": "wing_fast",
+                 "weapon_r": "weapon_smg_beam", "weapon_l": "weapon_smg_beam", "shoulder_l": None, "shoulder_r": None,
+                 "melee_l": "weapon_sword_beam", "melee_r": "weapon_whip_beam", "spare": "weapon_rifle_beam", "colors": {"main": [0.85, 0.2, 0.2], "sub": [0.15, 0.15, 0.18], "trim": [0.95, 0.85, 0.3], "glow": [0.4, 1.0, 0.6]}},
+        "general": {"torso": "torso_general", "head": "head_twin", "arm_l": "arm_general_l", "arm_r": "arm_general_r", "leg_l": "leg_general_l", "leg_r": "leg_general_r", "back": "back_general", "wing": None,
+                    "weapon_r": "weapon_rifle_beam", "weapon_l": "weapon_shield", "shoulder_l": None, "shoulder_r": None,
+                    "melee_l": "weapon_sword_beam", "melee_r": "weapon_whip_live", "spare": "weapon_bazooka_live", "colors": {"main": [0.88, 0.9, 0.93], "sub": [0.2, 0.3, 0.55], "trim": [0.95, 0.75, 0.2], "glow": [0.25, 0.85, 1.0]}},
     }
     generations = {   # 世代はリアクターの色で表す(2026-10-14 指示: 赤・橙・黄・黄緑・緑・青・紫。第 0 = 工作機、第 1〜6 が世代。第 5 不完全ステルス、第 6 完全ステルス)
         "g0": {"name": "工作機", "reactor": [1.0, 0.2, 0.15]},
@@ -624,5 +726,17 @@ if __name__ == "__main__":
         "g5": {"name": "第 5 世代", "reactor": [0.25, 0.5, 1.0]},
         "g6": {"name": "第 6 世代", "reactor": [0.75, 0.35, 1.0]},
     }
-    JSON_OUT.write_text(json.dumps({"height": H, "parts": PARTS, "presets": presets, "generations": generations}, ensure_ascii=False, indent=1), encoding="utf-8")
+    weapons = {   # 2026-10-14 指示。装備数の上限(腕 = 左右の手、肩 = 重装の肩上)。予備 1(腰背部)は上限に数えない。近接武器は腰左右に 1 つずつ
+        "ammo": ["live", "beam"],
+        "kinds": {
+            "bazooka": {"name": "バズーカ", "limit": {"heavy": {"arm": 2, "shoulder": 2}, "general": {"arm": 1, "shoulder": 0}, "fast": {"arm": 0, "shoulder": 0}}},
+            "rifle": {"name": "ライフル", "limit": {"heavy": {"arm": 2, "shoulder": 0}, "general": {"arm": 2, "shoulder": 0}, "fast": {"arm": 1, "shoulder": 0}}},
+            "smg": {"name": "サブマシンガン", "limit": {"heavy": {"arm": 2, "shoulder": 0}, "general": {"arm": 2, "shoulder": 0}, "fast": {"arm": 2, "shoulder": 0}}},
+            "sword": {"name": "剣", "melee": True, "damage": "speed*weight", "limit": {"heavy": {"arm": 2, "shoulder": 0}, "general": {"arm": 2, "shoulder": 0}, "fast": {"arm": 2, "shoulder": 0}}},
+            "whip": {"name": "鞭", "melee": True, "damage": "speed", "limit": {"heavy": {"arm": 2, "shoulder": 0}, "general": {"arm": 2, "shoulder": 0}, "fast": {"arm": 2, "shoulder": 0}}},
+        },
+        "spare": {"socket": "waist_rear", "count": 1, "counts_toward_limit": False},
+        "melee_holsters": {"sockets": ["waist_l", "waist_r"], "count_each": 1},
+    }
+    JSON_OUT.write_text(json.dumps({"height": H, "parts": PARTS, "presets": presets, "generations": generations, "weapons": weapons}, ensure_ascii=False, indent=1), encoding="utf-8")
     print("parts:", len(PARTS))

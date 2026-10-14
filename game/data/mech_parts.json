@@ -71,6 +71,31 @@
      0,
      3.9695,
      2.04
+    ],
+    "waist_rear": [
+     0,
+     1.071,
+     1.7
+    ],
+    "waist_l": [
+     -3.1875,
+     1.071,
+     0.34
+    ],
+    "waist_r": [
+     3.1875,
+     1.071,
+     0.34
+    ],
+    "shoulder_mount_l": [
+     -3.6125,
+     6.97,
+     0.51
+    ],
+    "shoulder_mount_r": [
+     3.6125,
+     6.97,
+     0.51
     ]
    }
   },
@@ -176,6 +201,21 @@
      0,
      3.9695,
      2.04
+    ],
+    "waist_rear": [
+     0,
+     1.071,
+     1.7
+    ],
+    "waist_l": [
+     -2.1675,
+     1.071,
+     0.34
+    ],
+    "waist_r": [
+     2.1675,
+     1.071,
+     0.34
     ]
    }
   },
@@ -281,6 +321,21 @@
      0,
      3.9695,
      2.04
+    ],
+    "waist_rear": [
+     0,
+     1.071,
+     1.7
+    ],
+    "waist_l": [
+     -2.55,
+     1.071,
+     0.34
+    ],
+    "waist_r": [
+     2.55,
+     1.071,
+     0.34
     ]
    }
   },
@@ -353,28 +408,127 @@
    "length": 8.415
   },
   {
-   "id": "weapon_rifle",
-   "slot": "weapon",
-   "archetype": "general",
-   "sockets": {}
-  },
-  {
-   "id": "weapon_cannon",
-   "slot": "weapon",
-   "archetype": "heavy",
-   "sockets": {}
-  },
-  {
-   "id": "weapon_blade",
-   "slot": "weapon",
+   "id": "wing_fast",
+   "slot": "wing",
    "archetype": "fast",
    "sockets": {}
   },
   {
+   "id": "weapon_bazooka_live",
+   "slot": "weapon",
+   "archetype": "general",
+   "sockets": {},
+   "weapon": "bazooka",
+   "ammo": "live",
+   "melee": false
+  },
+  {
+   "id": "weapon_bazooka_beam",
+   "slot": "weapon",
+   "archetype": "general",
+   "sockets": {},
+   "weapon": "bazooka",
+   "ammo": "beam",
+   "melee": false
+  },
+  {
+   "id": "weapon_rifle_live",
+   "slot": "weapon",
+   "archetype": "general",
+   "sockets": {},
+   "weapon": "rifle",
+   "ammo": "live",
+   "melee": false
+  },
+  {
+   "id": "weapon_rifle_beam",
+   "slot": "weapon",
+   "archetype": "general",
+   "sockets": {},
+   "weapon": "rifle",
+   "ammo": "beam",
+   "melee": false
+  },
+  {
+   "id": "weapon_smg_live",
+   "slot": "weapon",
+   "archetype": "general",
+   "sockets": {},
+   "weapon": "smg",
+   "ammo": "live",
+   "melee": false
+  },
+  {
+   "id": "weapon_smg_beam",
+   "slot": "weapon",
+   "archetype": "general",
+   "sockets": {},
+   "weapon": "smg",
+   "ammo": "beam",
+   "melee": false
+  },
+  {
+   "id": "weapon_sword_live",
+   "slot": "weapon",
+   "archetype": "general",
+   "sockets": {},
+   "weapon": "sword",
+   "ammo": "live",
+   "melee": true
+  },
+  {
+   "id": "weapon_sword_beam",
+   "slot": "weapon",
+   "archetype": "general",
+   "sockets": {},
+   "weapon": "sword",
+   "ammo": "beam",
+   "melee": true
+  },
+  {
+   "id": "weapon_whip_live",
+   "slot": "weapon",
+   "archetype": "general",
+   "sockets": {},
+   "weapon": "whip",
+   "ammo": "live",
+   "melee": true
+  },
+  {
+   "id": "weapon_whip_live_coiled",
+   "slot": "weapon",
+   "archetype": "general",
+   "sockets": {},
+   "weapon": "whip",
+   "ammo": "live",
+   "melee": true,
+   "coiled": true
+  },
+  {
+   "id": "weapon_whip_beam",
+   "slot": "weapon",
+   "archetype": "general",
+   "sockets": {},
+   "weapon": "whip",
+   "ammo": "beam",
+   "melee": true
+  },
+  {
+   "id": "weapon_whip_beam_coiled",
+   "slot": "weapon",
+   "archetype": "general",
+   "sockets": {},
+   "weapon": "whip",
+   "ammo": "beam",
+   "melee": true,
+   "coiled": true
+  },
+  {
    "id": "weapon_shield",
    "slot": "weapon",
-   "archetype": "heavy",
-   "sockets": {}
+   "archetype": "general",
+   "sockets": {},
+   "weapon": "shield"
   }
  ],
  "presets": {
@@ -386,8 +540,14 @@
    "leg_l": "leg_heavy_l",
    "leg_r": "leg_heavy_r",
    "back": "back_heavy",
-   "weapon_r": "weapon_cannon",
-   "weapon_l": "weapon_shield",
+   "wing": null,
+   "weapon_r": "weapon_bazooka_live",
+   "weapon_l": "weapon_bazooka_beam",
+   "shoulder_l": "weapon_bazooka_live",
+   "shoulder_r": "weapon_bazooka_beam",
+   "melee_l": "weapon_sword_live",
+   "melee_r": "weapon_whip_live",
+   "spare": "weapon_rifle_live",
    "colors": {
     "main": [
      0.3,
@@ -419,8 +579,14 @@
    "leg_l": "leg_fast_l",
    "leg_r": "leg_fast_r",
    "back": "back_fast",
-   "weapon_r": "weapon_rifle",
-   "weapon_l": "weapon_blade",
+   "wing": "wing_fast",
+   "weapon_r": "weapon_smg_beam",
+   "weapon_l": "weapon_smg_beam",
+   "shoulder_l": null,
+   "shoulder_r": null,
+   "melee_l": "weapon_sword_beam",
+   "melee_r": "weapon_whip_beam",
+   "spare": "weapon_rifle_beam",
    "colors": {
     "main": [
      0.85,
@@ -452,8 +618,14 @@
    "leg_l": "leg_general_l",
    "leg_r": "leg_general_r",
    "back": "back_general",
-   "weapon_r": "weapon_rifle",
+   "wing": null,
+   "weapon_r": "weapon_rifle_beam",
    "weapon_l": "weapon_shield",
+   "shoulder_l": null,
+   "shoulder_r": null,
+   "melee_l": "weapon_sword_beam",
+   "melee_r": "weapon_whip_live",
+   "spare": "weapon_bazooka_live",
    "colors": {
     "main": [
      0.88,
@@ -534,6 +706,115 @@
     0.35,
     1.0
    ]
+  }
+ },
+ "weapons": {
+  "ammo": [
+   "live",
+   "beam"
+  ],
+  "kinds": {
+   "bazooka": {
+    "name": "バズーカ",
+    "limit": {
+     "heavy": {
+      "arm": 2,
+      "shoulder": 2
+     },
+     "general": {
+      "arm": 1,
+      "shoulder": 0
+     },
+     "fast": {
+      "arm": 0,
+      "shoulder": 0
+     }
+    }
+   },
+   "rifle": {
+    "name": "ライフル",
+    "limit": {
+     "heavy": {
+      "arm": 2,
+      "shoulder": 0
+     },
+     "general": {
+      "arm": 2,
+      "shoulder": 0
+     },
+     "fast": {
+      "arm": 1,
+      "shoulder": 0
+     }
+    }
+   },
+   "smg": {
+    "name": "サブマシンガン",
+    "limit": {
+     "heavy": {
+      "arm": 2,
+      "shoulder": 0
+     },
+     "general": {
+      "arm": 2,
+      "shoulder": 0
+     },
+     "fast": {
+      "arm": 2,
+      "shoulder": 0
+     }
+    }
+   },
+   "sword": {
+    "name": "剣",
+    "melee": true,
+    "damage": "speed*weight",
+    "limit": {
+     "heavy": {
+      "arm": 2,
+      "shoulder": 0
+     },
+     "general": {
+      "arm": 2,
+      "shoulder": 0
+     },
+     "fast": {
+      "arm": 2,
+      "shoulder": 0
+     }
+    }
+   },
+   "whip": {
+    "name": "鞭",
+    "melee": true,
+    "damage": "speed",
+    "limit": {
+     "heavy": {
+      "arm": 2,
+      "shoulder": 0
+     },
+     "general": {
+      "arm": 2,
+      "shoulder": 0
+     },
+     "fast": {
+      "arm": 2,
+      "shoulder": 0
+     }
+    }
+   }
+  },
+  "spare": {
+   "socket": "waist_rear",
+   "count": 1,
+   "counts_toward_limit": false
+  },
+  "melee_holsters": {
+   "sockets": [
+    "waist_l",
+    "waist_r"
+   ],
+   "count_each": 1
   }
  }
 }
