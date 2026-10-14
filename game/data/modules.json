@@ -742,7 +742,37 @@
    "length": 0
   },
   {
+   "id": "bridge_2",
+   "kind": "bridge",
+   "family": "office",
+   "w": 0,
+   "d": 0,
+   "topW": 0,
+   "topD": 0,
+   "length": 2
+  },
+  {
+   "id": "bridgew_2",
+   "kind": "bridge",
+   "family": "office",
+   "w": 0,
+   "d": 0,
+   "topW": 0,
+   "topD": 0,
+   "length": 2
+  },
+  {
    "id": "bridge_3",
+   "kind": "bridge",
+   "family": "office",
+   "w": 0,
+   "d": 0,
+   "topW": 0,
+   "topD": 0,
+   "length": 3
+  },
+  {
+   "id": "bridgew_3",
    "kind": "bridge",
    "family": "office",
    "w": 0,
@@ -760,6 +790,106 @@
    "topW": 0,
    "topD": 0,
    "length": 4
+  },
+  {
+   "id": "bridgew_4",
+   "kind": "bridge",
+   "family": "office",
+   "w": 0,
+   "d": 0,
+   "topW": 0,
+   "topD": 0,
+   "length": 4
+  },
+  {
+   "id": "bridge_5",
+   "kind": "bridge",
+   "family": "office",
+   "w": 0,
+   "d": 0,
+   "topW": 0,
+   "topD": 0,
+   "length": 5
+  },
+  {
+   "id": "bridgew_5",
+   "kind": "bridge",
+   "family": "office",
+   "w": 0,
+   "d": 0,
+   "topW": 0,
+   "topD": 0,
+   "length": 5
+  },
+  {
+   "id": "bridge_6",
+   "kind": "bridge",
+   "family": "office",
+   "w": 0,
+   "d": 0,
+   "topW": 0,
+   "topD": 0,
+   "length": 6
+  },
+  {
+   "id": "bridgew_6",
+   "kind": "bridge",
+   "family": "office",
+   "w": 0,
+   "d": 0,
+   "topW": 0,
+   "topD": 0,
+   "length": 6
+  },
+  {
+   "id": "bridge_7",
+   "kind": "bridge",
+   "family": "office",
+   "w": 0,
+   "d": 0,
+   "topW": 0,
+   "topD": 0,
+   "length": 7
+  },
+  {
+   "id": "bridgew_7",
+   "kind": "bridge",
+   "family": "office",
+   "w": 0,
+   "d": 0,
+   "topW": 0,
+   "topD": 0,
+   "length": 7
+  },
+  {
+   "id": "bridge_8",
+   "kind": "bridge",
+   "family": "office",
+   "w": 0,
+   "d": 0,
+   "topW": 0,
+   "topD": 0,
+   "length": 8
+  },
+  {
+   "id": "bridgew_8",
+   "kind": "bridge",
+   "family": "office",
+   "w": 0,
+   "d": 0,
+   "topW": 0,
+   "topD": 0,
+   "length": 8
+  },
+  {
+   "id": "sky_node",
+   "kind": "node",
+   "family": "office",
+   "w": 2,
+   "d": 2,
+   "topW": 2,
+   "topD": 2,
+   "length": 2
   },
   {
    "id": "ship_mid_5x3",

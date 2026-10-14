@@ -419,15 +419,56 @@ def mod_hangar(w, d):
     export(f"hangar_{w}x{d}", "hangar", w, d, w, d, "office")
 
 
-def mod_bridge(length):
-    """双塔をつなぐ渡り廊下(長さ length セル、x 方向)。原点は中央、床面。"""
+def mod_bridge(length, wide=False):
+    """空中の渡り廊下(長さ length セル、x 方向)。原点は中央、床面。wide は広幅(植栽と街灯)。"""
     clear()
-    add_box("ext_bridge_floor", (0, 0, 0.1), (length, 1.4, 0.2), M["steel"], bevel=0.02)
-    add_box("ext_bridge_glass", (0, 0, 0.2 + 0.55), (length, 1.2, 1.1), M["wincool"], bevel=0.01)
-    add_box("ext_bridge_roof", (0, 0, 1.38), (length + 0.1, 1.5, 0.12), M["steel"], bevel=0.02)
-    add_boxes("ext_bridge_ribs", [((-length / 2 + 0.3 + i * (length - 0.6) / 4, 0, 0.75), (0.08, 1.5, 1.3)) for i in range(5)], M["steel"], bevel=0.01)
-    add_box("ext_bridge_glow", (0, 0, 0.0), (length, 1.0, 0.03), M["glowcyan"], bevel=0)
-    export(f"bridge_{length}", "bridge", 0, 0, 0, 0, "office", length)
+    wd = 2.4 if wide else 1.4
+    add_box("ext_bridge_floor", (0, 0, 0.1), (length, wd, 0.2), M["steel"], bevel=0.02)
+    add_box("ext_bridge_under", (0, 0, -0.08), (length - 0.2, wd - 0.3, 0.16), M["paintdark"], bevel=0.02)
+    add_box("ext_bridge_glow", (0, 0, -0.17), (length, wd * 0.7, 0.03), M["glowcyan"], bevel=0)
+    if wide:
+        rail = []
+        for sy in (-1, 1):
+            rail.append(((0, sy * (wd / 2 - 0.05), 0.65), (length, 0.03, 0.03)))
+            for i in range(int(length) * 2 + 1):
+                rail.append(((-length / 2 + i * 0.5, sy * (wd / 2 - 0.05), 0.42), (0.03, 0.03, 0.45)))
+        add_boxes("ext_bridge_rail", rail, M["rust"], bevel=0)
+        add_boxes("ext_bridge_plants", [((-length / 2 + 0.6 + i * 1.2, 0, 0.38), (0.5, 0.5, 0.36)) for i in range(int((length - 0.6) / 1.2))], M["foliage"], bevel=0.03)
+        for i in range(max(1, int(length / 2))):
+            x = -length / 2 + 1.0 + i * 2.0
+            add_box(f"ext_lamp{i}", (x, wd / 2 - 0.2, 0.9), (0.05, 0.05, 1.4), M["steel"], bevel=0)
+            add_box(f"ext_lamp_glow{i}", (x, wd / 2 - 0.2, 1.62), (0.14, 0.14, 0.06), M["wincool"], bevel=0)
+        ribs = [((-length / 2 + 0.3 + i * (length - 0.6) / max(1, int(length)), 0, 0.25), (0.08, wd + 0.2, 0.5)) for i in range(int(length) + 1)]
+        add_boxes("ext_bridge_ribs", ribs, M["steel"], bevel=0.01)
+    else:
+        add_box("ext_bridge_glass", (0, 0, 0.75), (length, wd - 0.2, 1.1), M["wincool"], bevel=0.01)
+        add_box("ext_bridge_roof", (0, 0, 1.38), (length + 0.1, wd + 0.1, 0.12), M["steel"], bevel=0.02)
+        n = max(2, int(length))
+        add_boxes("ext_bridge_ribs", [((-length / 2 + 0.3 + i * (length - 0.6) / (n - 1), 0, 0.75), (0.08, wd + 0.1, 1.3)) for i in range(n)], M["steel"], bevel=0.01)
+    export(f"bridge{'w' if wide else ''}_{length}", "bridge", 0, 0, 0, 0, "office", length)
+
+
+def mod_sky_node():
+    """空中の結節点: 2.2 角の台。周囲に手すり、四隅に街灯、中央に小屋。渡り廊下を放射状につなぐ。"""
+    clear()
+    s = 2.2
+    add_box("ext_node_floor", (0, 0, 0.1), (s, s, 0.2), M["steel"], bevel=0.02)
+    add_box("ext_node_under", (0, 0, -0.2), (s - 0.4, s - 0.4, 0.4), M["paintdark"], bevel=0.03)
+    add_box("ext_node_glow", (0, 0, -0.41), (s - 0.6, s - 0.6, 0.03), M["glowcyan"], bevel=0)
+    rail = []
+    for sx in (-1, 1):
+        rail.append(((sx * (s / 2 - 0.04), 0, 0.65), (0.03, s, 0.03)))
+        rail.append(((0, sx * (s / 2 - 0.04), 0.65), (s, 0.03, 0.03)))
+        for k in range(-2, 3):
+            rail.append(((sx * (s / 2 - 0.04), k * s / 5, 0.42), (0.03, 0.03, 0.45)))
+            rail.append(((k * s / 5, sx * (s / 2 - 0.04), 0.42), (0.03, 0.03, 0.45)))
+    add_boxes("ext_node_rail", rail, M["rust"], bevel=0)
+    for i, (sx, sy) in enumerate(((-1, -1), (1, -1), (-1, 1), (1, 1))):
+        add_box(f"ext_node_lamp{i}", (sx * (s / 2 - 0.15), sy * (s / 2 - 0.15), 0.9), (0.05, 0.05, 1.4), M["steel"], bevel=0)
+        add_box(f"ext_node_lamp_glow{i}", (sx * (s / 2 - 0.15), sy * (s / 2 - 0.15), 1.62), (0.14, 0.14, 0.06), M["wincool"], bevel=0)
+    add_box("ext_node_kiosk", (0, 0, 0.65), (0.8, 0.8, 0.9), M["paintdark"], bevel=0.02)
+    add_box("ext_node_kiosk_glow", (0, 0.41, 0.7), (0.5, 0.02, 0.3), M["gloworange"], bevel=0)
+    export("sky_node", "node", 2, 2, 2, 2, "office", 2)
 
 
 # ---------- 戦艦の船体部品(x 方向に並べる。幅 W、高さ 2、長さ L) ----------
@@ -539,8 +580,10 @@ if __name__ == "__main__":
     mod_transfer(5, 5, 4, 6)
     mod_transfer(3, 3, 2, 2, "concrete")
     mod_transfer(5, 5, 3, 3, "concrete")
-    mod_bridge(3)
-    mod_bridge(4)
+    for L in range(2, 9):
+        mod_bridge(L)
+        mod_bridge(L, wide=True)
+    mod_sky_node()
     for (W, L) in ((5, 3), (7, 4)):
         ship_mid(W, L)
         ship_bow(W, L + 2)

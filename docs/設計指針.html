@@ -62,6 +62,7 @@
   <li>開始は一つの村と自警団。人口と支持率で段階が進む(G3)。</li>
   <li>建物の中にも工場施設を作れる(Industries of Titan 型)。建物は階を持つ器で、内部を階ごとに切り取り表示して設備を置く。屋外の工場と同じ設備・同じ計算で動く。</li>
   <li>戦艦を建造でき、戦艦も小さな都市のように内部を組み立てられる。人型ロボットは戦艦または地上施設から出撃する。</li>
+  <li>建物どうしを空中の渡り廊下(物流路。中にベルト)で接続し、生産物を隣の建物へ運べる。</li>
   <li>軽量に作る。過度なグラフィックは不要。見た目は色付きの立方体と最小限の印で足りる範囲に留め、描画より計算量と規模を優先する。</li>
 </ul>
 
@@ -100,6 +101,7 @@
   <tr><td>陰影</td><td>テクスチャに加えて陰影(面の光・接地の環境遮蔽・落ち影・霧・発光)を入れる。軽量の範囲で(G8 第 7 節)。</td><td>2026-10-14</td></tr>
   <tr><td>物体の形</td><td>格子は論理、見た目は自由形状。建物は階モジュール方式(Blender 生成の部品を積む)。有償キットは予算の制約で不採用、AI 3D 生成は最後に検討。以後のモックは Godot の描画試作(G10)で判断する。</td><td>2026-10-14</td></tr>
   <tr><td>戦艦</td><td>Industries of Titan のように戦艦を建造でき、戦艦は小さな都市のように内部を組み立てられる(建物内工場と同じ「階を持つ器」の仕組みを船体に適用)。人型ロボットは戦艦または地上施設から出撃する。</td><td>2026-10-14</td></tr>
+  <tr><td>空中の接続</td><td>メガタワーのように建物どうしを空中で接続できる。渡り廊下は人の通路ではなく物流路で、中にベルトを通して隣の建物へ生産物を運ぶ。両端はそれぞれの階の内部格子に接続する。3 棟以上は空中の結節点を介して放射状につなぐ。</td><td>2026-10-14</td></tr>
 </table>
 
 <h3>5. 作る順番</h3>
@@ -959,10 +961,13 @@ dotnet build game\GPS.csproj
   <tr><td>切り取り表示</td><td>指定階より下の外装(名前が ext_ の部品)を隠し、床板と柱(int_)を残して内部に設備を置く。建物内工場の表示はこれで成立する。</td></tr>
   <tr><td>部品の作り方</td><td>Blender 4.5 LTS(D:\software\Blender_latest)の無人実行。箱の集合に面取り、窓はブーリアンで凹みを切り、奥にガラス、方立と庇を付ける。材質は名前だけ(M_Steel など)を持ち、Godot で PBR 材質に差し替える。生成: <code>blender.exe -b -P tools/blender/make_modules.py -- game/assets/modules</code>。</td></tr>
   <tr><td>戦艦</td><td>船体部品(艦尾 = 推進器、中央 = 装甲板と甲板の格子、格納庫 = 側面の大扉、砲塔、艦橋 = 塔と窓と電探、艦首 = 先細りの衝角と発光)を x 方向に並べる(<code>Ship</code>)。幅 7 と 5 の 2 種。甲板の内部格子に設備を置ける。切り取り表示は区画単位。</td></tr>
+  <tr><td>空中の接続(物流路)</td><td>渡り廊下は長さ 2〜8 セル × 2 種(普通幅 = ガラスの箱、広幅 = 手すり・植栽・街灯の露天)。任意の 2 棟について、指定した階の向き合う面の取り付き点を床面積から求め(<code>Connect</code>)、長さに最も近い部品を伸縮して架け(<code>Bridge</code>)、中に 1 セルごとのベルト(広幅は往復 2 列)を通す。3 棟以上は空中の結節点(<code>SkyNode</code>: 台・手すり・街灯・小屋)から放射状に。自動接続(<code>AutoConnect</code>)は距離 13 以内の 2 棟を、他の建物の足元を横切らない経路に限り、1 棟あたり 2 本まで結ぶ。大都市では 85 棟に 14 本。</td></tr>
   <tr><td>場面</td><td><code>--scene modules</code>: 奥に系統ごとの塔 6 棟(事務所・縦リブ・外骨格・外部設備・コンクリート・住居)、双塔、格納庫塔の切り取り表示、手前に戦艦 2 隻(大型は中央区画を切り取り表示)。大都市(<code>--scene city</code>)の建物は全て階モジュールに置き換え、練兵場に戦艦を係留。</td></tr>
 </table>
 <img src="img/preview_modules.png" alt="階モジュール方式の 3 棟" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
-<p>大都市(全建物を階モジュールに置き換え、練兵場に戦艦)。</p>
+<p>空中の接続の近景(縦リブの塔と外骨格の塔の間に広幅の渡り廊下、右に普通幅)。</p>
+<img src="img/preview_bridges.png" alt="渡り廊下の近景" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
+<p>大都市(全建物を階モジュールに置き換え、練兵場に戦艦、近い建物どうしを空中の物流路で接続)。</p>
 <img src="img/preview_city.png" alt="階モジュールの大都市" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
 <p>以下の節(16 様式・部品メッシュ方式・キットバッシュ)は経緯の記録で、建物は階モジュール方式に置き換えた。</p>
 <h3>0000. 名建築を参考にした建物 16 様式(廃止予定)</h3>
@@ -1041,7 +1046,7 @@ dotnet build game\GPS.csproj
 <pre><code>cd E:\VSC_Git\GPS\game
 ..\.tools\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe --path . --resolution 1600x900 res://scenes/preview.tscn ++ --scene village
 ..\.tools\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe --path . --resolution 1600x900 res://scenes/preview.tscn ++ --scene city
-(--screenshot &lt;path&gt; を付けると 40 フレーム後に保存して終了。--view close で近景、--scene buildings で建物 16 様式の一列、--scene modules で階モジュールの 3 棟)</code></pre>
+(--screenshot &lt;path&gt; を付けると 40 フレーム後に保存して終了。--view close で近景、--scene buildings で建物 16 様式の一列、--scene modules で階モジュールの展示、--pivot x,y,z と --dist d でカメラ指定)</code></pre>
 
 <h3>4. 未着手の物</h3>
 <table>

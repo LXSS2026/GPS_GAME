@@ -70,6 +70,17 @@ public sealed class FloorModules
         if (node is Node3D n3 && node.Name.ToString().StartsWith("ext_")) n3.Visible = visible;
     }
 
+    /// <summary>建てた建物の情報: 中心、階ごとの床面積(渡り廊下の取り付き位置に使う)。</summary>
+    public sealed class BuildingInfo
+    {
+        public Vector3 Center;              // 基壇の中心(世界座標)
+        public List<(int w, int d)> Floors = new();   // 階ごとの床面積(屋上は含まない)
+        public int Bridges;                 // 取り付いた渡り廊下の数
+        public int Count => Floors.Count;
+        public (int w, int d) At(int floor) => Floors[Math.Clamp(floor, 0, Floors.Count - 1)];
+    }
+    public readonly List<BuildingInfo> Buildings = new();
+
     // ---------- 積み上げ ----------
     public Node3D Build(Node3D parent, float x, float y, float z, IList<string> stack, float rotDeg = 0, int cutawayBelow = -1)
     {
@@ -78,9 +89,12 @@ public sealed class FloorModules
         (int w, int d) expect = (-1, -1);
         float cy = 0;
         int maxW = 0, maxD = 0;
+        var info = new BuildingInfo { Center = root.GlobalPosition };
+        Buildings.Add(info);
         for (int f = 0; f < stack.Count; f++)
         {
             var def = Defs[stack[f]];
+            if (def.Kind != "roof") info.Floors.Add((def.W, def.D));
             if (expect.w >= 0 && (def.W, def.D) != expect) throw new InvalidOperationException($"{stack[f]}: {def.W}x{def.D} != expected {expect.w}x{expect.d}");
             expect = (def.TopW, def.TopD);
             maxW = Math.Max(maxW, def.W); maxD = Math.Max(maxD, def.D);
@@ -144,9 +158,119 @@ public sealed class FloorModules
         float off = (3 + gap) / 2f;
         Build(root, -off, 0, 0, Plan(family, 3, 3, floors, false, "spire"));
         Build(root, off, 0, 0, Plan(family, 3, 3, floors, false, "spire"));
-        var b = Instantiate($"bridge_{gap}");
-        b.Position = new Vector3(0, bridgeFloor * FloorHeight + 0.14f, 0);
-        root.AddChild(b);
+        Connect(parent, Buildings[^2], Buildings[^1], bridgeFloor, false);
+    }
+
+    // ---------- 空中の接続(物流路: 中にベルトを通し、両端は階の内部格子につながる) ----------
+    /// <summary>a から b へ渡り廊下を架ける(世界座標、床面の高さ)。長さに最も近い部品を選び、x 方向に伸縮して合わせる。中にベルトを通す。</summary>
+    public Node3D Bridge(Node3D parent, Vector3 a, Vector3 b, bool wide)
+    {
+        var dlt = b - a; dlt.Y = 0;
+        float len = dlt.Length();
+        int L = Math.Clamp((int)MathF.Round(len), 2, 8);
+        var n = Instantiate($"bridge{(wide ? "w" : "")}_{L}");
+        float yaw = MathF.Atan2(-dlt.Z, dlt.X);   // 部品の x 軸を a → b の向きへ
+        n.Position = (a + b) / 2;
+        n.Rotation = new Vector3(0, yaw, 0);
+        n.Scale = new Vector3(len / L, 1, 1);
+        parent.AddChild(n);
+        // ベルト: 1 セルごと。広幅は 2 列(往復)
+        var dir = dlt / len;
+        var side = new Vector3(-dir.Z, 0, dir.X);
+        int cells = Math.Max(1, (int)MathF.Round(len));
+        float yawDeg = Mathf.RadToDeg(yaw);
+        for (int i = 0; i < cells; i++)
+        {
+            var c = a + dir * ((i + 0.5f) * len / cells);
+            if (wide)
+            {
+                _kb.Belt(parent, c.X + side.X * 0.55f - 0.5f, c.Y + 0.2f, c.Z + side.Z * 0.55f - 0.5f, yawDeg, i % 2 == 0);
+                _kb.Belt(parent, c.X - side.X * 0.55f - 0.5f, c.Y + 0.2f, c.Z - side.Z * 0.55f - 0.5f, yawDeg + 180, i % 2 == 1);
+            }
+            else _kb.Belt(parent, c.X - 0.5f, c.Y + 0.2f, c.Z - 0.5f, yawDeg, i % 2 == 0);
+        }
+        return n;
+    }
+
+    /// <summary>2 棟の向き合う面どうしを floor 階で結ぶ。取り付き位置はその階の床面積から求める。</summary>
+    public bool Connect(Node3D parent, BuildingInfo A, BuildingInfo B, int floor, bool wide)
+    {
+        if (floor >= A.Count || floor >= B.Count) return false;
+        var pa = Anchor(A, B.Center, floor);
+        var pb = Anchor(B, A.Center, floor);
+        var dlt = pb - pa; dlt.Y = 0;
+        if (dlt.Length() < 1.5f || dlt.Length() > 8.6f) return false;
+        Bridge(parent, pa, pb, wide);
+        A.Bridges++; B.Bridges++;
+        return true;
+    }
+
+    /// <summary>建物の外周上で、target の方向に最も近い点(床の高さ)。</summary>
+    Vector3 Anchor(BuildingInfo bi, Vector3 target, int floor)
+    {
+        var (w, d) = bi.At(floor);
+        var dir = target - bi.Center; dir.Y = 0; dir = dir.Normalized();
+        float tx = MathF.Abs(dir.X) < 1e-4f ? float.MaxValue : (w / 2f) / MathF.Abs(dir.X);
+        float tz = MathF.Abs(dir.Z) < 1e-4f ? float.MaxValue : (d / 2f) / MathF.Abs(dir.Z);
+        float t = MathF.Min(tx, tz) + 0.05f;
+        return bi.Center + dir * t + new Vector3(0, floor * FloorHeight + 0.14f, 0);
+    }
+
+    /// <summary>空中の結節点: 台を置き、各建物から台へ渡り廊下を架ける(3 棟以上の接続)。</summary>
+    public void SkyNode(Node3D parent, Vector3 center, int floor, IEnumerable<BuildingInfo> targets, bool wide = false)
+    {
+        var n = Instantiate("sky_node");
+        var pos = new Vector3(center.X, floor * FloorHeight + 0.14f, center.Z);
+        n.Position = pos;
+        parent.AddChild(n);
+        foreach (var bi in targets)
+        {
+            if (floor >= bi.Count) continue;
+            var pa = Anchor(bi, center, floor);
+            var dir = pa - pos; dir.Y = 0;
+            if (dir.Length() < 1.2f) continue;
+            var pn = pos + dir.Normalized() * 1.1f;
+            Bridge(parent, pn, pa, wide);
+            bi.Bridges++;
+        }
+    }
+
+    /// <summary>線分 a-b が建物 skip 以外の足元の矩形を横切るか(自動接続の経路判定)。</summary>
+    public bool Crosses(Vector3 a, Vector3 b, BuildingInfo skipA, BuildingInfo skipB)
+    {
+        foreach (var bi in Buildings)
+        {
+            if (bi == skipA || bi == skipB) continue;
+            var (w, d) = bi.At(0);
+            float hw = w / 2f + 0.4f, hd = d / 2f + 0.4f;
+            for (int i = 0; i <= 10; i++)
+            {
+                var p = a.Lerp(b, i / 10f);
+                if (MathF.Abs(p.X - bi.Center.X) < hw && MathF.Abs(p.Z - bi.Center.Z) < hd) return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>自動接続: 近い建物どうしを、他を横切らない範囲で渡り廊下で結ぶ。</summary>
+    public int AutoConnect(Node3D parent, Random rnd, float maxDist = 13f, int maxPerBuilding = 2, double chance = 0.6)
+    {
+        int made = 0;
+        for (int i = 0; i < Buildings.Count; i++)
+            for (int j = i + 1; j < Buildings.Count; j++)
+            {
+                var A = Buildings[i]; var B = Buildings[j];
+                if (A.Bridges >= maxPerBuilding || B.Bridges >= maxPerBuilding) continue;
+                var dlt = B.Center - A.Center; dlt.Y = 0;
+                if (dlt.Length() > maxDist || rnd.NextDouble() > chance) continue;
+                int maxFloor = Math.Min(A.Count, B.Count) - 2;
+                if (maxFloor < 3) continue;
+                int floor = rnd.Next(2, maxFloor + 1);
+                var pa = Anchor(A, B.Center, floor); var pb = Anchor(B, A.Center, floor);
+                if (Crosses(pa, pb, A, B)) continue;
+                if (Connect(parent, A, B, floor, rnd.NextDouble() < 0.3)) made++;
+            }
+        return made;
     }
 
     /// <summary>戦艦: 船体部品を x 方向(艦尾 → 艦首)に並べる。幅 W。stern/mid/hangar/turret/bridge/bow の id を順に。</summary>
