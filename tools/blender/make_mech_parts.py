@@ -625,13 +625,13 @@ def weapon(kind, ammo):
         facet("sight", (0, 0.08 * H, 0.085 * H), (0.015 * H, 0.05 * H), (0.012 * H, 0.04 * H), 0.03 * H, M["frame"], bev=bv * 0.3)
         facet("shoulder_rest", (0, -0.14 * H, 0.0), (0.03 * H, 0.08 * H), (0.03 * H, 0.08 * H), 0.03 * H, M["sub"], bev=bv * 0.4)
     elif kind == "rifle":
-        facet("body", (0, -0.03 * H, 0.0), (0.035 * H, 0.26 * H), (0.03 * H, 0.24 * H), 0.05 * H, M["frame"], bev=bv)
+        facet("body", (0, 0.02 * H, 0.0), (0.035 * H, 0.32 * H), (0.03 * H, 0.3 * H), 0.05 * H, M["frame"], bev=bv)   # 握りから銃身の付け根まで切れ目なく
         if beam:
-            revolve("barrel", [(0.014 * H, 0), (0.012 * H, 0.18 * H), (0.018 * H, 0.19 * H), (0.018 * H, 0.22 * H)], M["sub"], (0, 0.23 * H, 0.03 * H), 14, "Y")
-            revolve("emitter", [(0.012 * H, 0), (0.005 * H, 0.015 * H)], bmat, (0, 0.44 * H, 0.03 * H), 14, "Y")
+            revolve("barrel", [(0.014 * H, 0), (0.012 * H, 0.22 * H), (0.018 * H, 0.23 * H), (0.018 * H, 0.26 * H)], M["sub"], (0, 0.17 * H, 0.03 * H), 14, "Y")
+            revolve("emitter", [(0.012 * H, 0), (0.005 * H, 0.015 * H)], bmat, (0, 0.42 * H, 0.03 * H), 14, "Y")
             facet("coil", (0, 0.12 * H, 0.047 * H), (0.014 * H, 0.1 * H), (0.012 * H, 0.09 * H), 0.006 * H, bmat)
         else:
-            revolve("barrel", [(0.012 * H, 0), (0.012 * H, 0.2 * H), (0.016 * H, 0.21 * H), (0.016 * H, 0.24 * H)], M["steel"], (0, 0.23 * H, 0.03 * H), 14, "Y")
+            revolve("barrel", [(0.012 * H, 0), (0.012 * H, 0.24 * H), (0.016 * H, 0.25 * H), (0.016 * H, 0.28 * H)], M["steel"], (0, 0.17 * H, 0.03 * H), 14, "Y")
             facet("magazine", (0, 0.05 * H, -0.06 * H), (0.025 * H, 0.05 * H), (0.022 * H, 0.045 * H), 0.07 * H, M["frame"], bev=bv * 0.4)
         revolve("scope", [(0.012 * H, 0), (0.012 * H, 0.1 * H)], M["sub"], (0, 0.06 * H, 0.06 * H), 12, "Y")
         facet("stock", (0, -0.09 * H, -0.01 * H), (0.03 * H, 0.08 * H), (0.025 * H, 0.07 * H), 0.04 * H, M["sub"], bev=bv)
@@ -715,7 +715,7 @@ if __name__ == "__main__":
                   "weapon_r": "weapon_bazooka_live", "weapon_l": "weapon_bazooka_beam", "shoulder_l": "weapon_bazooka_live", "shoulder_r": "weapon_bazooka_beam",
                   "melee_l": "weapon_sword_live", "melee_r": "weapon_whip_live", "spare": "weapon_rifle_live", "colors": {"main": [0.3, 0.33, 0.3], "sub": [0.18, 0.2, 0.2], "trim": [0.85, 0.6, 0.15], "glow": [1.0, 0.45, 0.1]}},
         "fast": {"torso": "torso_fast", "head": "head_fast", "arm_l": "arm_fast_l", "arm_r": "arm_fast_r", "leg_l": "leg_fast_l", "leg_r": "leg_fast_r", "back": "back_fast", "wing": "wing_fast",
-                 "weapon_r": "weapon_smg_beam", "weapon_l": "weapon_smg_beam", "shoulder_l": None, "shoulder_r": None,
+                 "weapon_r": "weapon_rifle_beam", "weapon_l": None, "shoulder_l": None, "shoulder_r": None,
                  "melee_l": "weapon_sword_beam", "melee_r": "weapon_whip_beam", "spare": "weapon_rifle_beam", "colors": {"main": [0.85, 0.2, 0.2], "sub": [0.15, 0.15, 0.18], "trim": [0.95, 0.85, 0.3], "glow": [0.4, 1.0, 0.6]}},
         "general": {"torso": "torso_general", "head": "head_twin", "arm_l": "arm_general_l", "arm_r": "arm_general_r", "leg_l": "leg_general_l", "leg_r": "leg_general_r", "back": "back_general", "wing": None,
                     "weapon_r": "weapon_rifle_beam", "weapon_l": "weapon_shield_beam", "shoulder_l": None, "shoulder_r": None,

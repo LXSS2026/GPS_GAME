@@ -67,8 +67,8 @@ public sealed class MechBuilder
         var armR = Attach(torso, lo.ArmR, torsoPart.Sockets["shoulder_r"], mats);
         armL.RotationDegrees = new Vector3(lo.WeaponL != null ? -8 : 10, 0, 12); armR.RotationDegrees = new Vector3(-18, 0, -12);   // 武器を持つ腕は少し前へ
         Bend(armL, 22); Bend(armR, 30);
-        if (lo.WeaponR != null) Attach(armR.GetNodeOrNull<Node3D>("elbow") ?? armR, lo.WeaponR, Parts[lo.ArmR].Sockets["hand"], mats);
-        if (lo.WeaponL != null) Attach(armL.GetNodeOrNull<Node3D>("elbow") ?? armL, lo.WeaponL, Parts[lo.ArmL].Sockets["hand"], mats);
+        if (lo.WeaponR != null) Hold(armR, lo.ArmR, lo.WeaponR, mats);
+        if (lo.WeaponL != null) Hold(armL, lo.ArmL, lo.WeaponL, mats);
         if (lo.Wing != null) Attach(torso, lo.Wing, torsoPart.Sockets["back"] + new Vector3(0, -0.6f, -0.3f), mats).RotationDegrees = new Vector3(35, 0, 0);   // 人型では翼を背面に沿って下げる
         Holsters(torso, lo, torsoPart, mats);
         return root;
@@ -77,41 +77,50 @@ public sealed class MechBuilder
     /// <summary>腰の武装: 近接武器を腰左右に柄を上にして吊り、予備を腰背部に銃口を上にして格納。重装は肩上の架にバズーカ。</summary>
     void Holsters(Node3D torso, Loadout lo, Part tp, Dictionary<string, Material> mats, bool fighter = false)
     {
-        if (lo.MeleeL != null) Attach(torso, Stowed(lo.MeleeL), tp.Sockets["waist_l"], mats).RotationDegrees = new Vector3(180, 0, 10);
-        if (lo.MeleeR != null) Attach(torso, Stowed(lo.MeleeR), tp.Sockets["waist_r"], mats).RotationDegrees = new Vector3(180, 0, -10);
-        if (lo.Spare != null) Attach(torso, lo.Spare, tp.Sockets["waist_rear"], mats).RotationDegrees = new Vector3(fighter ? -90 : 90, 0, 0);   // 人型は銃口を上に、戦闘機モードは機体に沿って後ろに
+        float hang = fighter ? 45 : 180;   // 人型は刃を下に、戦闘機モードは脚に沿って後ろに(刃は +Y なので 45 度で後ろ向き)
+        if (lo.MeleeL != null) Attach(torso, Stowed(lo.MeleeL), tp.Sockets["waist_l"], mats).RotationDegrees = new Vector3(hang, 0, 10);
+        if (lo.MeleeR != null) Attach(torso, Stowed(lo.MeleeR), tp.Sockets["waist_r"], mats).RotationDegrees = new Vector3(hang, 0, -10);
+        if (lo.Spare != null) Attach(torso, lo.Spare, tp.Sockets["waist_rear"], mats).RotationDegrees = new Vector3(fighter ? 135 : 90, 0, 0);   // 人型は銃口を上に、戦闘機モードは脚に沿って後ろに
         if (lo.ShoulderL != null && tp.Sockets.ContainsKey("shoulder_mount_l")) Attach(torso, lo.ShoulderL, tp.Sockets["shoulder_mount_l"] + new Vector3(0, -0.6f, -1.5f), mats);
         if (lo.ShoulderR != null && tp.Sockets.ContainsKey("shoulder_mount_r")) Attach(torso, lo.ShoulderR, tp.Sockets["shoulder_mount_r"] + new Vector3(0, -0.6f, -1.5f), mats);
     }
 
     public Node3D Build(Node3D parent, string preset, string generation, float x, float y, float z, float rotDeg) => Build(parent, Presets[preset], generation, x, y, z, rotDeg);
 
-    /// <summary>戦闘機モード(高速機の変形。フラッグの変形法: 腕を前へ揃えて伸ばし手先が機首、脚を後方へ伸ばして尾部、胴は前傾、頭は胸へ引き込む、翼は後方へ水平)。
-    /// 手の武器は腕に沿って前を向き、腰背部の予備は機体に沿って後ろを向く。(x, y, z) は機体の中心。</summary>
+    /// <summary>戦闘機モード(高速機の変形。フラッグの変形法 2026-10-14 指示): 立ち姿から股関節で脚を 90 度後ろへ折って水平に伸ばし、
+    /// 胸を後ろへ仰け反らせ、背負った翼を水平に展開する。顔は前を向き、腕は肘を折ってライフルを前に構える。(x, y, z) は腰の位置。</summary>
     public Node3D BuildFighter(Node3D parent, Loadout lo, string generation, float x, float y, float z, float rotDeg)
     {
+        const float lean = 45f;   // 胸の仰け反り(鉛直からの角度)
         var mats = Materials(lo, Generations[generation]);
         var root = new Node3D { Name = "fighter", Position = new Vector3(x, y, z), RotationDegrees = new Vector3(0, rotDeg + 180, 0) };
         parent.AddChild(root);
         var tp = Parts[lo.Torso];
-        var torso = Attach(root, lo.Torso, new Vector3(0, 0, 0), mats);
-        torso.RotationDegrees = new Vector3(-75, 0, 0);   // 胴を前傾(胸が前下を向く)
-        var head = Attach(torso, lo.Head, tp.Sockets["neck"] + new Vector3(0, -0.5f, 0.3f), mats);
-        head.RotationDegrees = new Vector3(70, 0, 0);     // 頭を胸へ引き込み、顔は前を向く
+        var torso = Attach(root, lo.Torso, new Vector3(0, 0, -2f), mats);
+        torso.RotationDegrees = new Vector3(lean, 0, 0);                                            // 胸を後ろへ仰け反らせる
+        var head = Attach(torso, lo.Head, tp.Sockets["neck"], mats);
+        head.RotationDegrees = new Vector3(-lean, 0, 0);                                            // 顔は前を向く
         Attach(torso, lo.Back, tp.Sockets["back"], mats);
-        if (lo.Wing != null) Attach(torso, lo.Wing, tp.Sockets["back"] + new Vector3(0, -0.2f, 0.2f), mats).RotationDegrees = new Vector3(75, 0, 0);   // 翼の後方 = 機体の後方、尾翼は上
+        if (lo.Wing != null) Attach(torso, lo.Wing, tp.Sockets["back"] + new Vector3(0, -0.2f, 0.2f), mats).RotationDegrees = new Vector3(-lean, 0, 0);   // 背負った翼を水平に展開
         var legL = Attach(torso, lo.LegL, tp.Sockets["hip_l"], mats);
         var legR = Attach(torso, lo.LegR, tp.Sockets["hip_r"], mats);
-        legL.RotationDegrees = new Vector3(-15, 0, -2); legR.RotationDegrees = new Vector3(-15, 0, 2);   // 脚を後方へ水平に伸ばす(尾部)
-        Knee(legL, -8); Knee(legR, -8);
+        legL.RotationDegrees = new Vector3(-90 - lean, 0, -2); legR.RotationDegrees = new Vector3(-90 - lean, 0, 2);   // 股関節で 90 度後ろへ折る(腰の傾き分を足して水平に)
+        Knee(legL, 0); Knee(legR, 0);
         var armL = Attach(torso, lo.ArmL, tp.Sockets["shoulder_l"], mats);
         var armR = Attach(torso, lo.ArmR, tp.Sockets["shoulder_r"], mats);
-        armL.RotationDegrees = new Vector3(165, 0, 12); armR.RotationDegrees = new Vector3(165, 0, -12);   // 腕を前へ振り上げて水平に揃え、手先を内へ寄せて機首にする
-        Bend(armL, 0); Bend(armR, 0);
-        if (lo.WeaponR != null) Attach(armR.GetNodeOrNull<Node3D>("elbow") ?? armR, lo.WeaponR, Parts[lo.ArmR].Sockets["hand"], mats).RotationDegrees = new Vector3(-90, 0, 0);   // 銃口を腕の先(機首)へ
-        if (lo.WeaponL != null) Attach(armL.GetNodeOrNull<Node3D>("elbow") ?? armL, lo.WeaponL, Parts[lo.ArmL].Sockets["hand"], mats).RotationDegrees = new Vector3(-90, 0, 0);
+        armL.RotationDegrees = new Vector3(30, 0, 10); armR.RotationDegrees = new Vector3(30, 0, -10);   // 上腕を前下へ
+        Bend(armL, -30); Bend(armR, -30);                                                              // 肘を折って前腕を前へ
+        if (lo.WeaponR != null) Hold(armR, lo.ArmR, lo.WeaponR, mats).RotationDegrees = new Vector3(-60, 0, 0);   // 銃口を機体の前へ(描画で確かめた角度)
+        if (lo.WeaponL != null) Hold(armL, lo.ArmL, lo.WeaponL, mats).RotationDegrees = new Vector3(-60, 0, 0);
         Holsters(torso, lo, tp, mats, fighter: true);
         return root;
+    }
+
+    /// <summary>手に武器を持たせる。手のひらの節(palm)の子にして、その中心から握りの位置へ少しずらす(肘の節の座標で計算すると肘を曲げた分ずれるため)。</summary>
+    Node3D Hold(Node3D arm, string armId, string weaponId, Dictionary<string, Material> mats)
+    {
+        var palm = arm.FindChild("palm", true, false) as Node3D;
+        return palm != null ? Attach(palm, weaponId, new Vector3(0, -0.17f, 0.34f), mats) : Attach(arm, weaponId, Parts[armId].Sockets["hand"], mats);
     }
 
     static void Knee(Node3D leg, float deg)
