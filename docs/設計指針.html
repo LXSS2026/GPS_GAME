@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GPS 設計指針</title>
+<style>
+  :root { --fg: #222; --bg: #fff; --line: #ccc; --muted: #666; --head: #f3f3f3; }
+  @media (prefers-color-scheme: dark) { :root { --fg: #ddd; --bg: #1e1e1e; --line: #444; --muted: #999; --head: #2a2a2a; } }
+  body { font-family: "Yu Gothic UI", "Meiryo", sans-serif; color: var(--fg); background: var(--bg); max-width: 960px; margin: 0 auto; padding: 24px 16px; line-height: 1.7; }
+  h1 { font-size: 1.6em; border-bottom: 2px solid var(--line); padding-bottom: 6px; }
+  h2 { font-size: 1.25em; margin-top: 2em; border-left: 5px solid var(--line); padding-left: 10px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+  th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--head); }
+  code { background: var(--head); padding: 1px 5px; border-radius: 3px; }
+  .muted { color: var(--muted); }
+</style>
+</head>
+<body>
+<h1>GPS 設計指針</h1>
+<p class="muted">置き場: E:\VSC_Git\GPS 。方針の変更はこの文書を更新してから実装する。</p>
+
+<h2>1. ゲームの柱</h2>
+<ul>
+  <li>ボクセル世界の上で、都市運営(SimCity 型)・立体工場(上下方向にも組める)・ロボット製造(世代別)・戦争または外交を一つの経済で回す。</li>
+  <li>視点は俯瞰の管理視点。一人称で掘る遊びは含めない。</li>
+  <li>軍人は都市の内政で徴用する。戦争か外交かはプレイヤーが選ぶ。</li>
+</ul>
+
+<h2>2. 技術構成</h2>
+<table>
+  <tr><th>部分</th><th>手段</th></tr>
+  <tr><td>描画・入力・UI</td><td>Godot 4.7 (.NET 版) + C#。<code>game/</code> 配下。エンジン実体は <code>.tools/</code>(git 管理外)。</td></tr>
+  <tr><td>計算本体(世界・工場・都市・戦争・外交)</td><td>エンジン非依存の .NET ライブラリ <code>sim/GPS.Sim</code>。Godot を参照しない。</td></tr>
+  <tr><td>検証</td><td><code>sim/GPS.Sim.Tests</code>(xunit)。描画は <code>++ --screenshot &lt;path&gt; [--click x,y] [--rclick x,y]</code> で画面を保存して目視。</td></tr>
+  <tr><td>定義データ(ブロック・レシピ・機械・ロボ世代・政策)</td><td><code>game/data/*.json</code>。コードに定数を埋めない。</td></tr>
+  <tr><td>ボクセル描画</td><td>自前のチャンクメッシュ化(隣が空気の面だけ出す)。既製ライブラリは C# 非対応のため使わない。</td></tr>
+</table>
+
+<h2>3. 守る原則</h2>
+<ul>
+  <li>入力は全てコマンド(<code>ICommand</code>)として投入し、固定ティック(60/秒)で順に適用する。同じコマンド列は同じ結果になる(決定論)。これがマルチプレイ(ロックステップ)の前提。マルチプレイ自体は最初の実装では作らない。</li>
+  <li>Godot 側は「状態を読んで描く」「入力をコマンドに変換して渡す」だけ。ゲームの判断を Godot のノードに書かない。</li>
+  <li>四つのサブシステムは一つのティックループと一つの資源台帳を共有する。</li>
+</ul>
+
+<h2>4. 確定している要件</h2>
+<table>
+  <tr><th>項目</th><th>内容</th><th>決定日</th></tr>
+  <tr><td>製品の品質と歩留まり</td><td>工場の生産物には歩留まりと品質のばらつきがある。一定以上のレベルや世代のロボットを作るには、一定以上の品質の製品が必要。製品は品質値を持つ個体として流れ、レシピは入力の品質下限を持つ方向で手順 2 の設計時に具体化する。</td><td>2026-10-14</td></tr>
+</table>
+
+<h2>5. 作る順番</h2>
+<table>
+  <tr><th>手順</th><th>内容</th><th>状態</th></tr>
+  <tr><td>1</td><td>ボクセル世界にブロックを置ける(描画・カメラ・設置と撤去)</td><td>完了 2026-10-14</td></tr>
+  <tr><td>2</td><td>工場の核(ベルト・インサータ・機械を上下方向にも組める)。品質・歩留まりを含む</td><td>未着手</td></tr>
+  <tr><td>3</td><td>工場の産出物からロボットを世代別に製造する</td><td>未着手</td></tr>
+  <tr><td>4</td><td>都市(人口・雇用・税)。労働力と徴兵を工場・軍に供給する</td><td>未着手</td></tr>
+  <tr><td>5</td><td>戦争(同じボクセル地図上の RTS)、その後に外交</td><td>未着手</td></tr>
+</table>
+
+<h2>6. 操作(現状)</h2>
+<table>
+  <tr><th>操作</th><th>動作</th></tr>
+  <tr><td>左クリック</td><td>選択中のブロックを設置</td></tr>
+  <tr><td>右クリック</td><td>ブロックを撤去</td></tr>
+  <tr><td>中ボタンドラッグ</td><td>視点を回す</td></tr>
+  <tr><td>ホイール</td><td>拡大縮小</td></tr>
+  <tr><td>W A S D</td><td>平行移動</td></tr>
+  <tr><td>1 から 9</td><td>設置するブロックを選ぶ</td></tr>
+</table>
+
+<h2>7. 起動と検証</h2>
+<pre><code>cd E:\VSC_Git\GPS
+dotnet test sim\GPS.Sim.Tests
+dotnet build game\GPS.csproj
+.tools\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe --path game</code></pre>
+</body>
+</html>

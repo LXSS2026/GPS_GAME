@@ -1,0 +1,7 @@
+.tools/
+.godot/
+bin/
+obj/
+*.user
+.vs/
+*.png
