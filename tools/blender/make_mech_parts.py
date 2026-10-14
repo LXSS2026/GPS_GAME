@@ -43,7 +43,6 @@ def clear():
         "main": material("M_Main", (0.85, 0.87, 0.9), 0.35, 0.45),   # Godot で機体ごとの色に差し替える
         "sub": material("M_Sub", (0.2, 0.3, 0.55), 0.35, 0.5),
         "trim": material("M_Trim", (0.95, 0.75, 0.2), 0.3, 0.5),
-        "trim2": material("M_Trim2", (0.8, 0.15, 0.15), 0.3, 0.5),   # 差し色 2(赤系)。Godot で機体ごとの色に差し替える
         "frame": material("M_Frame", (0.12, 0.13, 0.15), 0.8, 0.55),
         "steel": material("M_Steel", (0.6, 0.62, 0.66), 0.9, 0.5),
         "rubber": material("M_Rubber", (0.08, 0.08, 0.09), 0, 0.95),
@@ -333,7 +332,7 @@ def torso(arch):
     revolve("waist", [(0.075 * H * k, 0), (0.09 * H * k, abd_h * 0.25), (0.08 * H * k, abd_h * 0.5), (0.09 * H * k, abd_h * 0.75), (0.085 * H * k, abd_h)], M["frame"], (0, 0, z_abd), 24)
     facet("abdomen_plate", (0, 0.075 * H * k, z_abd + abd_h * 0.05), (0.08 * H * k, 0.03 * H), (0.1 * H * k, 0.03 * H), abd_h * 0.9, M["sub"], bev=bv * 0.5)
     # 胸: 下胸の赤い台形塊(下が狭い) + 左右の胸郭塊(前傾・外開き・上面前方に黄の吸気口) + 中央の芯 + 肩の横梁 + 襟
-    lower = facet("chest_lower", (0, 0.03 * H, z_chest), (0.16 * H * k, 0.13 * H), (0.26 * H * k, 0.17 * H), chest_h * 0.42, M["trim2"], bev=bv)
+    lower = facet("chest_lower", (0, 0.03 * H, z_chest), (0.16 * H * k, 0.13 * H), (0.26 * H * k, 0.17 * H), chest_h * 0.42, M["main"], bev=bv)
     facet("chest_core", (0, -0.01 * H, z_chest + chest_h * 0.38), (0.12 * H * k, 0.17 * H), (0.11 * H * k, 0.16 * H), chest_h * 0.62, M["sub"], bev=bv * 0.6)
     for sx in (-1, 1):
         cx = sx * 0.095 * H * k
@@ -362,7 +361,7 @@ def torso(arch):
             facet("chest_armor2", (sx * 0.1 * H * k, 0.1 * H, z_chest + chest_h * 0.05), (0.1 * H * k, 0.02 * H), (0.12 * H * k, 0.025 * H), chest_h * 0.32, M["main"], bev=bv * 0.5)
     if arch == "fast":
         for sx in (-1, 1):
-            facet("chest_fin", (sx * 0.16 * H * k, 0.0, z_chest + chest_h * 0.7), (0.05 * H, 0.015 * H), (0.03 * H, 0.012 * H), chest_h * 0.4, M["trim"], rot=(0, 0, math.radians(sx * -25)), bev=bv * 0.3)
+            facet("chest_fin", (sx * 0.16 * H * k, 0.0, z_chest + chest_h * 0.7), (0.05 * H, 0.015 * H), (0.03 * H, 0.012 * H), chest_h * 0.4, M["sub"], rot=(0, 0, math.radians(sx * -25)), bev=bv * 0.3)
     sockets = {
         "neck": (0, 0.0, z_chest + chest_h + 0.02 * H),
         "shoulder_l": (-0.19 * H * k, 0, z_chest + chest_h - 0.035 * H),
@@ -389,21 +388,21 @@ def head(arch):
         facet("eye", (sx * 0.016 * H, 0.057 * H, hh * 0.5), (0.017 * H, 0.004), (0.014 * H, 0.004), hh * 0.08, M["glow"])
         facet("cheek", (sx * w * 0.42, 0.025 * H, hh * 0.15), (0.025 * H, 0.05 * H), (0.03 * H, 0.055 * H), hh * 0.45, M["main"], rot=(0, 0, math.radians(sx * -8)), bev=bv * 0.6)
         facet("cheek_vent", (sx * w * 0.42, 0.052 * H, hh * 0.3), (0.012 * H, 0.004), (0.012 * H, 0.004), hh * 0.1, M["frame"])
-    facet("chin", (0, 0.035 * H, hh * 0.0), (w * 0.4, 0.04 * H), (w * 0.5, 0.045 * H), hh * 0.18, M["trim2"], bev=bv * 0.5)
+    facet("chin", (0, 0.035 * H, hh * 0.0), (w * 0.4, 0.04 * H), (w * 0.5, 0.045 * H), hh * 0.18, M["frame"], bev=bv * 0.5)
     facet("mouth_vent", (0, 0.058 * H, hh * 0.26), (0.03 * H, 0.004), (0.026 * H, 0.004), hh * 0.08, M["frame"])
     # V 字の角(黄)と基部(赤)
     if arch != "heavy":
-        fl = 0.085 * H if arch == "fast" else 0.07 * H
+        fl = 0.045 * H if arch == "fast" else 0.035 * H
         for sx in (-1, 1):
-            facet("vfin", (sx * 0.012 * H, 0.045 * H, hh * 0.86), (fl, 0.008 * H), (fl * 0.6, 0.005 * H), 0.012 * H, M["trim"],
-                  rot=(0, math.radians(sx * -30), math.radians(sx * -8)), shift=(sx * fl * 0.1, 0), bev=bv * 0.3)
-        facet("vfin_base", (0, 0.045 * H, hh * 0.82), (0.025 * H, 0.015 * H), (0.02 * H, 0.012 * H), 0.03 * H, M["trim2"], bev=bv * 0.4)
+            facet("sensor_blade", (sx * 0.012 * H, 0.04 * H, hh * 0.84), (fl, 0.006 * H), (fl * 0.5, 0.004 * H), 0.008 * H, M["sub"],
+                  rot=(0, math.radians(sx * -15), math.radians(sx * -20)), shift=(sx * fl * 0.1, 0), bev=bv * 0.3)
+        facet("sensor_base", (0, 0.04 * H, hh * 0.8), (0.025 * H, 0.015 * H), (0.02 * H, 0.012 * H), 0.03 * H, M["frame"], bev=bv * 0.4)
     else:
-        facet("crest", (0, 0.02 * H, hh * 0.95), (0.012 * H, 0.07 * H), (0.008 * H, 0.05 * H), 0.03 * H, M["trim"], bev=bv * 0.3)
+        facet("crest", (0, 0.02 * H, hh * 0.95), (0.012 * H, 0.07 * H), (0.008 * H, 0.05 * H), 0.03 * H, M["sub"], bev=bv * 0.3)
         for sx in (-1, 1):
             revolve("sensor", [(0.012 * H, 0), (0.016 * H, 0.01 * H), (0.012 * H, 0.02 * H)], M["trim"], (sx * w * 0.6, 0.0, hh * 0.55), 12, "X")
     if arch == "fast":
-        facet("rear_fin", (0, -0.05 * H, hh * 0.6), (0.012 * H, 0.05 * H), (0.008 * H, 0.03 * H), hh * 0.5, M["trim"], shift=(0, -0.015 * H), bev=bv * 0.3)
+        facet("rear_fin", (0, -0.05 * H, hh * 0.6), (0.012 * H, 0.05 * H), (0.008 * H, 0.03 * H), hh * 0.5, M["sub"], shift=(0, -0.015 * H), bev=bv * 0.3)
     for sx in (-1, 1):
         revolve("vulcan", [(0.006 * H, 0), (0.006 * H, 0.02 * H)], M["frame"], (sx * w * 0.32, 0.045 * H, hh * 0.78), 10, "Y")
     export(f"head_{arch}", "head", arch, {})
@@ -466,7 +465,7 @@ def leg(arch, side):
     sx = -1 if side == "l" else 1
     k = {"heavy": 1.2, "fast": 0.88, "general": 1.0}[arch]
     lk = {"heavy": 0.95, "fast": 1.15, "general": 1.0}[arch]
-    thigh_h, shin_h = 0.215 * H * lk, 0.215 * H * lk
+    thigh_h, shin_h = 0.235 * H * lk, 0.235 * H * lk
     foot_h = 0.045 * H
     bv = 0.007 * H
     dome("hip_joint", (0, 0, 0), 0.045 * H, M["frame"], cut_z=-0.06 * H)
@@ -578,11 +577,11 @@ if __name__ == "__main__":
     JSON_OUT.parent.mkdir(parents=True, exist_ok=True)
     presets = {
         "heavy": {"torso": "torso_heavy", "head": "head_heavy", "arm_l": "arm_heavy_l", "arm_r": "arm_heavy_r", "leg_l": "leg_heavy_l", "leg_r": "leg_heavy_r", "back": "back_heavy",
-                  "weapon_r": "weapon_cannon", "weapon_l": "weapon_shield", "colors": {"main": [0.3, 0.33, 0.3], "sub": [0.18, 0.2, 0.2], "trim": [0.85, 0.6, 0.15], "trim2": [0.55, 0.2, 0.15], "glow": [1.0, 0.45, 0.1]}},
+                  "weapon_r": "weapon_cannon", "weapon_l": "weapon_shield", "colors": {"main": [0.3, 0.33, 0.3], "sub": [0.18, 0.2, 0.2], "trim": [0.85, 0.6, 0.15], "glow": [1.0, 0.45, 0.1]}},
         "fast": {"torso": "torso_fast", "head": "head_fast", "arm_l": "arm_fast_l", "arm_r": "arm_fast_r", "leg_l": "leg_fast_l", "leg_r": "leg_fast_r", "back": "back_fast",
-                 "weapon_r": "weapon_rifle", "weapon_l": "weapon_blade", "colors": {"main": [0.85, 0.2, 0.2], "sub": [0.15, 0.15, 0.18], "trim": [0.95, 0.85, 0.3], "trim2": [0.12, 0.12, 0.15], "glow": [0.4, 1.0, 0.6]}},
+                 "weapon_r": "weapon_rifle", "weapon_l": "weapon_blade", "colors": {"main": [0.85, 0.2, 0.2], "sub": [0.15, 0.15, 0.18], "trim": [0.95, 0.85, 0.3], "glow": [0.4, 1.0, 0.6]}},
         "general": {"torso": "torso_general", "head": "head_general", "arm_l": "arm_general_l", "arm_r": "arm_general_r", "leg_l": "leg_general_l", "leg_r": "leg_general_r", "back": "back_general",
-                    "weapon_r": "weapon_rifle", "weapon_l": "weapon_shield", "colors": {"main": [0.88, 0.9, 0.93], "sub": [0.2, 0.3, 0.55], "trim": [0.95, 0.75, 0.2], "trim2": [0.85, 0.15, 0.15], "glow": [0.25, 0.85, 1.0]}},
+                    "weapon_r": "weapon_rifle", "weapon_l": "weapon_shield", "colors": {"main": [0.88, 0.9, 0.93], "sub": [0.2, 0.3, 0.55], "trim": [0.95, 0.75, 0.2], "glow": [0.25, 0.85, 1.0]}},
     }
     generations = {   # 世代はリアクターの色で表す(品質の階級色と揃える)
         "g0": {"name": "工作機", "reactor": [1.0, 0.5, 0.1]},
