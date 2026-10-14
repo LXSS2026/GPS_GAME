@@ -9,7 +9,7 @@ public sealed class MechBuilder
 {
     public sealed record Part(string Id, string Slot, string Archetype, Dictionary<string, Vector3> Sockets, float Length);
     public sealed record Loadout(string Torso, string Head, string ArmL, string ArmR, string LegL, string LegR, string Back, string? WeaponR, string? WeaponL,
-                                 Color Main, Color Sub, Color Trim, Color Glow)
+                                 Color Main, Color Sub, Color Trim, Color Trim2, Color Glow)
     {
         public Loadout With(string? torso = null, string? head = null, string? arms = null, string? legs = null, string? back = null, string? weaponR = null, string? weaponL = null)
             => this with { Torso = torso ?? Torso, Head = head ?? Head, ArmL = arms != null ? $"arm_{arms}_l" : ArmL, ArmR = arms != null ? $"arm_{arms}_r" : ArmR,
@@ -38,7 +38,7 @@ public sealed class MechBuilder
         {
             var v = pr.Value; var c = v.GetProperty("colors");
             Presets[pr.Name] = new Loadout(S(v, "torso"), S(v, "head"), S(v, "arm_l"), S(v, "arm_r"), S(v, "leg_l"), S(v, "leg_r"), S(v, "back"), S(v, "weapon_r"), S(v, "weapon_l"),
-                                           C(c, "main"), C(c, "sub"), C(c, "trim"), C(c, "glow"));
+                                           C(c, "main"), C(c, "sub"), C(c, "trim"), C(c, "trim2"), C(c, "glow"));
         }
         foreach (var g in doc.RootElement.GetProperty("generations").EnumerateObject()) Generations[g.Name] = C(g.Value, "reactor");
         static string S(JsonElement e, string k) => e.GetProperty(k).GetString()!;
@@ -104,8 +104,9 @@ public sealed class MechBuilder
         ["M_Main"] = Paint(lo.Main, 0.35f, 0.45f),
         ["M_Sub"] = Paint(lo.Sub, 0.35f, 0.5f),
         ["M_Trim"] = Paint(lo.Trim, 0.3f, 0.5f),
+        ["M_Trim2"] = Paint(lo.Trim2, 0.3f, 0.5f),
         ["M_GlowMech"] = Glow(lo.Glow, 1.2f),
-        ["M_Reactor"] = Glow(reactor, 1.3f),   // 世代の色が読めるようグローで白飛びしない強さ
+        ["M_Reactor"] = Glow(reactor, 0.7f),   // 世代の色が読めるようグローで白飛びしない強さ
     };
 
     static StandardMaterial3D Paint(Color c, float metallic, float rough) => new() { AlbedoColor = c, Metallic = metallic, Roughness = rough };
