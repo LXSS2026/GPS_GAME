@@ -24,9 +24,10 @@ public partial class Preview : Node3D
         var args = OS.GetCmdlineUserArgs();
         string scene = Arg(args, "--scene") ?? "village";
         Vector3 pivot; float dist;
-        if (scene == "city") { BuildCity(); pivot = new Vector3(32, 4, 34); dist = 72; }
+        if (scene == "city") { BuildCity(); pivot = new Vector3(32, 12, 34); dist = 98; }
         else { BuildVillage(); pivot = new Vector3(22, 6, 27); dist = 40; }
 
+        _kb.Flush(this);
         var tr = new TerrainRenderer();
         AddChild(tr);
         tr.Init(_world, _blocks);
@@ -173,16 +174,16 @@ public partial class Preview : Node3D
                 switch (d)
                 {
                     case "downtown":
-                        if (_rnd.NextDouble() < 0.35)
-                            _kb.Tower(this, x0 + 3f, Y, z0 + 3f, 3.6f, 3.6f, _rnd.Next(8, 14), _rnd.Next(4) * 90);
+                        if (_rnd.NextDouble() < 0.4)
+                            _kb.Tower(this, x0 + 3f, Y, z0 + 3f, 3.8f, 3.8f, _rnd.Next(24, 49), _rnd.Next(4) * 90);
                         else
                             foreach (var (ox, oz) in new[] { (1.6f, 1.6f), (4.4f, 1.6f), (1.6f, 4.4f), (4.4f, 4.4f) })
-                                _kb.Tower(this, x0 + ox, Y, z0 + oz, 2.0f, 2.0f, _rnd.Next(4, 11), _rnd.Next(4) * 90);
+                                _kb.Tower(this, x0 + ox, Y, z0 + oz, 2.2f, 2.2f, _rnd.Next(8, 26), _rnd.Next(4) * 90);
                         break;
                     case "residential":
                         foreach (var (ox, oz) in new[] { (1.6f, 1.6f), (4.4f, 1.6f), (1.6f, 4.4f), (4.4f, 4.4f) })
                         {
-                            if (_rnd.NextDouble() < 0.8) _kb.Tower(this, x0 + ox, Y, z0 + oz, 2.0f, 2.0f, _rnd.Next(2, 5), _rnd.Next(4) * 90);
+                            if (_rnd.NextDouble() < 0.8) _kb.Building(this, x0 + ox, Y, z0 + oz, 2.2f, 2.2f, _rnd.Next(3, 10), _rnd.NextDouble() < 0.6 ? KitBash.Style.Slab : KitBash.Style.Podium, _rnd.Next(4) * 90);
                             else _kb.Pine(this, x0 + ox, Y, z0 + oz, 2.2f);
                         }
                         break;

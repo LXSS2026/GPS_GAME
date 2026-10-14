@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using System.Collections.Generic;
 
 /// <summary>
 /// 自前のキットバッシュ生成器。箱・円柱・配管・発光帯などの基本部品を PBR 素材(Poly Haven CC0, 三平面投影)で組み、
@@ -75,12 +76,29 @@ public sealed class KitBash
     }
 
     // ---------- 基本部品 ----------
-    public MeshInstance3D Box(Node3D p, Vector3 center, Vector3 size, Material m, Vector3? rotDeg = null)
+    // ---------- 一括描画: 同じ材質の箱は 1 つの MultiMesh にまとめる(窓や庇が数万個になるため) ----------
+    readonly Dictionary<Material, List<Transform3D>> _batch = new();
+    readonly BoxMesh _unit = new() { Size = Vector3.One };
+
+    public void Box(Node3D p, Vector3 center, Vector3 size, Material m, Vector3? rotDeg = null)
     {
-        var mi = new MeshInstance3D { Mesh = new BoxMesh { Size = size }, MaterialOverride = m, Position = center };
-        if (rotDeg != null) mi.RotationDegrees = rotDeg.Value;
-        p.AddChild(mi);
-        return mi;
+        var basis = rotDeg == null ? Basis.Identity : Basis.FromEuler(rotDeg.Value * (Mathf.Pi / 180f));
+        basis = new Basis(basis.X * size.X, basis.Y * size.Y, basis.Z * size.Z);
+        var global = p.GlobalTransform * new Transform3D(basis, center);
+        if (!_batch.TryGetValue(m, out var list)) _batch[m] = list = new List<Transform3D>();
+        list.Add(global);
+    }
+
+    /// <summary>溜めた箱を MultiMesh として親に追加する。シーン構築の最後に 1 回呼ぶ。</summary>
+    public void Flush(Node3D parent)
+    {
+        foreach (var (m, list) in _batch)
+        {
+            var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = _unit, InstanceCount = list.Count };
+            for (int i = 0; i < list.Count; i++) mm.SetInstanceTransform(i, list[i]);
+            parent.AddChild(new MultiMeshInstance3D { Multimesh = mm, MaterialOverride = m });
+        }
+        _batch.Clear();
     }
 
     public MeshInstance3D Cyl(Node3D p, Vector3 center, float r, float h, Material m, Vector3? rotDeg = null, float topR = -1, int seg = 12)
@@ -245,44 +263,188 @@ public sealed class KitBash
     }
 
     // ---------- 建物 ----------
-    /// <summary>高層: 角張った箱の段積み。窓は細い発光帯、角に柱、屋上に機器とアンテナ。</summary>
+    // ---------- 建物(SimCity 風の造形: 基壇・店舗階・胴体・段差・屋上機器・冠) ----------
+    public enum Style { Podium, Slab, Glass, Tiered, Octagon }
+    const float Fh = 0.9f;   // 階高
+
     public Node3D Tower(Node3D parent, float x, float y, float z, float w, float d, int floors, float rot = 0)
+        => Building(parent, x, y, z, w, d, floors, (Style)_rnd.Next(5), rot);
+
+    public Node3D Building(Node3D parent, float x, float y, float z, float w, float d, int floors, Style style, float rot = 0)
     {
         var n = Root(parent, x, y, z, rot);
-        const float fh = 0.9f;
-        float h = floors * fh;
-        Box(n, new Vector3(0, 0.1f, 0), new Vector3(w + 0.3f, 0.2f, d + 0.3f), Concrete);
         var body = _rnd.NextDouble() < 0.5 ? Paint : PaintDark;
-        Box(n, new Vector3(0, 0.2f + h / 2, 0), new Vector3(w, h, d), body);
-        for (int sx = -1; sx <= 1; sx += 2) for (int sz = -1; sz <= 1; sz += 2)
-            Box(n, new Vector3(sx * w / 2, 0.2f + h / 2, sz * d / 2), new Vector3(0.12f, h + 0.1f, 0.12f), Steel);
-        for (int f = 0; f < floors; f++)
+        // 基壇と店舗階(発光帯・庇・入口)
+        Box(n, new Vector3(0, 0.1f, 0), new Vector3(w + 0.5f, 0.2f, d + 0.5f), Concrete);
+        float gh = 1.3f;
+        Box(n, new Vector3(0, 0.2f + gh / 2, 0), new Vector3(w, gh, d), Concrete);
+        Strip(n, new Vector3(0, 0.2f + gh * 0.55f, d / 2 + 0.01f), new Vector3(w * 0.8f, gh * 0.5f, 0.02f), _rnd.NextDouble() < 0.5 ? GlowWhite : GlowCyan);
+        Box(n, new Vector3(0, 0.2f + gh + 0.05f, d / 2 + 0.3f), new Vector3(w * 0.9f, 0.08f, 0.6f), Steel);
+        Box(n, new Vector3(0, 0.2f + gh * 0.4f, d / 2 + 0.02f), new Vector3(0.6f, gh * 0.8f, 0.04f), Rubber);
+        float y0 = 0.2f + gh;
+        int remain = Math.Max(1, floors - 1);
+        switch (style)
         {
-            float fy = 0.2f + f * fh + fh * 0.55f;
-            foreach (var (nx, nz) in new[] { (0, 1), (0, -1), (1, 0), (-1, 0) })
+            case Style.Podium:
             {
-                int cols = nx == 0 ? (int)(w / 0.35f) : (int)(d / 0.35f);
-                for (int c = 0; c < cols; c++)
+                int pf = Math.Clamp(remain / 4, 2, 4);
+                float top = Block(n, y0, w, d, pf, body, 0, 0, ledges: true);
+                Parapet(n, top, w, d, 0, 0);
+                float tw = w * 0.62f, td = d * 0.62f, ox = -w * 0.1f, oz = -d * 0.1f;
+                int left = remain - pf;
+                while (left > 0)
                 {
-                    if (_rnd.NextDouble() > 0.55) continue;
-                    float t = (c + 0.5f) / cols - 0.5f;
-                    var pos = nx == 0 ? new Vector3(t * w, fy, nz * (d / 2 + 0.01f)) : new Vector3(nx * (w / 2 + 0.01f), fy, t * d);
-                    var size = nx == 0 ? new Vector3(0.22f, 0.3f, 0.02f) : new Vector3(0.02f, 0.3f, 0.22f);
-                    Box(n, pos, size, _rnd.NextDouble() < 0.8 ? GlowWhite : GlowCyan);
+                    int tier = Math.Min(left, 12);
+                    top = Block(n, top, tw, td, tier, body, ox, oz, ledges: false, mullions: _rnd.NextDouble() < 0.5);
+                    left -= tier;
+                    if (left > 0) { Parapet(n, top, tw, td, ox, oz); tw *= 0.85f; td *= 0.85f; }
                 }
+                Roof(n, top, tw, td, ox, oz, _rnd.Next(3));
+                break;
+            }
+            case Style.Slab:
+            {
+                float top = Block(n, y0, w, d, remain, body, 0, 0, ledges: true, balconies: true);
+                Roof(n, top, w, d, 0, 0, _rnd.Next(2));
+                break;
+            }
+            case Style.Glass:
+            {
+                float top = Block(n, y0, w, d, remain, Glass, 0, 0, ledges: false, mullions: true, windows: false);
+                Crown(n, top, w, d, 0, 0);
+                Roof(n, top, w, d, 0, 0, 2);
+                break;
+            }
+            case Style.Tiered:
+            {
+                float top = y0; float tw = w, td = d;
+                int[] parts = { remain / 2, remain * 3 / 10, remain - remain / 2 - remain * 3 / 10 };
+                for (int i = 0; i < 3; i++)
+                {
+                    if (parts[i] <= 0) continue;
+                    top = Block(n, top, tw, td, parts[i], body, 0, 0, ledges: i == 0);
+                    Parapet(n, top, tw, td, 0, 0);
+                    if (i < 2) { tw *= 0.76f; td *= 0.76f; }
+                }
+                Roof(n, top, tw, td, 0, 0, 1);
+                break;
+            }
+            case Style.Octagon:
+            {
+                float h = remain * Fh, r = Math.Max(w, d) / 2;
+                Cyl(n, new Vector3(0, y0 + h / 2, 0), r, h, body, seg: 8);
+                for (int f = 0; f < remain; f += 3) Cyl(n, new Vector3(0, y0 + f * Fh + Fh * 0.5f, 0), r + 0.02f, 0.06f, GlowCyan, seg: 8);
+                for (int f = 0; f < remain; f++) Cyl(n, new Vector3(0, y0 + f * Fh, 0), r + 0.05f, 0.05f, Steel, seg: 8);
+                float top = y0 + h;
+                Cyl(n, new Vector3(0, top + 0.15f, 0), r * 0.7f, 0.3f, PaintDark, seg: 8);
+                Cyl(n, new Vector3(0, top + 1.2f, 0), 0.03f, 2.0f, Steel, seg: 6);
+                Strip(n, new Vector3(0, top + 2.25f, 0), new Vector3(0.12f, 0.12f, 0.12f), GlowRed);
+                break;
             }
         }
-        // 側面の配管と設備
-        for (int i = 0; i < 2; i++) Pipe(n, new Vector3(-w / 2 - 0.08f, 0.3f, -d / 2 + 0.25f + i * 0.3f), new Vector3(-w / 2 - 0.08f, h - 0.3f, -d / 2 + 0.25f + i * 0.3f), 0.05f, Rust);
-        Greeble(n, new Vector3(-w / 2 - 0.02f, 0.2f + h / 2, 0), new Vector3(h * 0.9f, d * 0.8f, 0), Vector3.Left, 10, Rust);
-        // 段差と屋上
-        float tw = w * 0.6f, td = d * 0.6f, th = fh * 1.3f;
-        Box(n, new Vector3(w * 0.15f, 0.2f + h + th / 2, -d * 0.15f), new Vector3(tw, th, td), body);
-        Box(n, new Vector3(-w * 0.25f, 0.2f + h + 0.25f, d * 0.25f), new Vector3(0.5f, 0.5f, 0.4f), Steel);
-        Cyl(n, new Vector3(-w * 0.3f, 0.2f + h + 0.35f, -d * 0.3f), 0.18f, 0.7f, Rust, seg: 10);
-        Cyl(n, new Vector3(w * 0.15f, 0.2f + h + th + 0.6f, -d * 0.15f), 0.02f, 1.2f, Steel, seg: 6);
-        Strip(n, new Vector3(w * 0.15f, 0.2f + h + th + 1.2f, -d * 0.15f), new Vector3(0.1f, 0.1f, 0.1f), GlowRed);
+        // 裏面の配管と機器
+        for (int i = 0; i < 2; i++) Pipe(n, new Vector3(-w / 2 - 0.08f, y0 + 0.2f, -d / 2 + 0.3f + i * 0.35f), new Vector3(-w / 2 - 0.08f, y0 + Math.Min(remain, 6) * Fh, -d / 2 + 0.3f + i * 0.35f), 0.05f, Rust);
+        Greeble(n, new Vector3(0, y0 + Fh * 1.5f, -d / 2 - 0.02f), new Vector3(w * 0.8f, Fh * 2, 0), Vector3.Forward, 6, Rust);
         return n;
+    }
+
+    /// <summary>胴体の 1 区画: 箱 + 窓(発光帯と暗いガラス) + 任意で庇・縦桟・ベランダ。上端の y を返す。</summary>
+    float Block(Node3D n, float yBase, float w, float d, int floors, Material mat, float ox, float oz, bool ledges = false, bool mullions = false, bool balconies = false, bool windows = true)
+    {
+        float h = floors * Fh;
+        Box(n, new Vector3(ox, yBase + h / 2, oz), new Vector3(w, h, d), mat);
+        if (!ReferenceEquals(mat, Glass))
+            for (int sx = -1; sx <= 1; sx += 2) for (int sz = -1; sz <= 1; sz += 2)
+                Box(n, new Vector3(ox + sx * w / 2, yBase + h / 2, oz + sz * d / 2), new Vector3(0.12f, h + 0.05f, 0.12f), Steel);
+        var sides = new[] { (0, 1), (0, -1), (1, 0), (-1, 0) };
+        for (int f = 0; f < floors; f++)
+        {
+            float fy = yBase + f * Fh;
+            if (ledges) Box(n, new Vector3(ox, fy + 0.02f, oz), new Vector3(w + 0.14f, 0.06f, d + 0.14f), Concrete);
+            foreach (var (nx, nz) in sides)
+            {
+                float len = nx == 0 ? w : d;
+                int cols = Math.Max(1, (int)(len / 0.45f));
+                for (int c = 0; c < cols; c++)
+                {
+                    float t = (c + 0.5f) / cols - 0.5f;
+                    if (windows)
+                    {
+                        bool lit = _rnd.NextDouble() < 0.55;
+                        var m = lit ? (_rnd.NextDouble() < 0.85 ? GlowWhite : GlowCyan) : Glass;
+                        var pos = nx == 0 ? new Vector3(ox + t * w, fy + Fh * 0.55f, oz + nz * (d / 2 + 0.01f)) : new Vector3(ox + nx * (w / 2 + 0.01f), fy + Fh * 0.55f, oz + t * d);
+                        var size = nx == 0 ? new Vector3(0.26f, 0.42f, 0.02f) : new Vector3(0.02f, 0.42f, 0.26f);
+                        Box(n, pos, size, m);
+                    }
+                    if (mullions && f == 0)
+                    {
+                        float tb = (float)c / cols - 0.5f;
+                        var pos = nx == 0 ? new Vector3(ox + tb * w, yBase + h / 2, oz + nz * (d / 2 + 0.02f)) : new Vector3(ox + nx * (w / 2 + 0.02f), yBase + h / 2, oz + tb * d);
+                        var size = nx == 0 ? new Vector3(0.04f, h, 0.04f) : new Vector3(0.04f, h, 0.04f);
+                        Box(n, pos, size, Steel);
+                    }
+                }
+                if (mullions)
+                {
+                    var pos = nx == 0 ? new Vector3(ox, fy, oz + nz * (d / 2 + 0.02f)) : new Vector3(ox + nx * (w / 2 + 0.02f), fy, oz);
+                    var size = nx == 0 ? new Vector3(w, 0.04f, 0.04f) : new Vector3(0.04f, 0.04f, d);
+                    Box(n, pos, size, Steel);
+                }
+            }
+            if (balconies && f % 2 == 1)
+            {
+                Box(n, new Vector3(ox, fy + 0.03f, oz + d / 2 + 0.2f), new Vector3(w * 0.7f, 0.06f, 0.4f), Concrete);
+                Box(n, new Vector3(ox, fy + 0.25f, oz + d / 2 + 0.39f), new Vector3(w * 0.7f, 0.02f, 0.02f), Rust);
+                for (int k = -2; k <= 2; k++) Box(n, new Vector3(ox + k * w * 0.17f, fy + 0.15f, oz + d / 2 + 0.39f), new Vector3(0.02f, 0.26f, 0.02f), Rust);
+            }
+        }
+        return yBase + h;
+    }
+
+    void Parapet(Node3D n, float top, float w, float d, float ox, float oz)
+    {
+        Box(n, new Vector3(ox, top + 0.03f, oz), new Vector3(w + 0.16f, 0.06f, d + 0.16f), Steel);
+        Box(n, new Vector3(ox, top + 0.15f, oz + d / 2), new Vector3(w + 0.1f, 0.25f, 0.06f), Concrete);
+        Box(n, new Vector3(ox, top + 0.15f, oz - d / 2), new Vector3(w + 0.1f, 0.25f, 0.06f), Concrete);
+        Box(n, new Vector3(ox + w / 2, top + 0.15f, oz), new Vector3(0.06f, 0.25f, d + 0.1f), Concrete);
+        Box(n, new Vector3(ox - w / 2, top + 0.15f, oz), new Vector3(0.06f, 0.25f, d + 0.1f), Concrete);
+    }
+
+    void Crown(Node3D n, float top, float w, float d, float ox, float oz)
+    {
+        Strip(n, new Vector3(ox, top + 0.04f, oz + d / 2), new Vector3(w, 0.06f, 0.06f), GlowCyan);
+        Strip(n, new Vector3(ox, top + 0.04f, oz - d / 2), new Vector3(w, 0.06f, 0.06f), GlowCyan);
+        Strip(n, new Vector3(ox + w / 2, top + 0.04f, oz), new Vector3(0.06f, 0.06f, d), GlowCyan);
+        Strip(n, new Vector3(ox - w / 2, top + 0.04f, oz), new Vector3(0.06f, 0.06f, d), GlowCyan);
+    }
+
+    /// <summary>屋上: 機械室、空調機、給水塔、アンテナと赤灯。kind 0 = 機械室、1 = 尖塔、2 = ヘリポート。</summary>
+    void Roof(Node3D n, float top, float w, float d, float ox, float oz, int kind)
+    {
+        Parapet(n, top, w, d, ox, oz);
+        Box(n, new Vector3(ox - w * 0.2f, top + 0.35f, oz - d * 0.2f), new Vector3(w * 0.4f, 0.7f, d * 0.4f), PaintDark);
+        for (int i = 0; i < 3; i++) Box(n, new Vector3(ox + w * 0.25f, top + 0.18f, oz - d * 0.3f + i * d * 0.25f), new Vector3(0.3f, 0.3f, 0.3f), Steel);
+        Cyl(n, new Vector3(ox + w * 0.25f, top + 0.9f, oz + d * 0.25f), 0.22f, 0.5f, Rust, seg: 10);
+        for (int sx = -1; sx <= 1; sx += 2) for (int sz = -1; sz <= 1; sz += 2) Box(n, new Vector3(ox + w * 0.25f + sx * 0.15f, top + 0.33f, oz + d * 0.25f + sz * 0.15f), new Vector3(0.04f, 0.66f, 0.04f), Steel);
+        switch (kind)
+        {
+            case 1:
+                Cyl(n, new Vector3(ox, top + 1.0f, oz), 0.25f, 1.2f, Steel, topR: 0.08f, seg: 8);
+                Cyl(n, new Vector3(ox, top + 2.6f, oz), 0.03f, 2.4f, Steel, seg: 6);
+                Strip(n, new Vector3(ox, top + 3.85f, oz), new Vector3(0.14f, 0.14f, 0.14f), GlowRed);
+                break;
+            case 2:
+                Cyl(n, new Vector3(ox - w * 0.15f, top + 0.72f, oz + d * 0.15f), Math.Min(w, d) * 0.32f, 0.08f, Concrete, seg: 12);
+                Cyl(n, new Vector3(ox - w * 0.15f, top + 0.78f, oz + d * 0.15f), Math.Min(w, d) * 0.33f, 0.02f, GlowCyan, seg: 12);
+                Cyl(n, new Vector3(ox - w * 0.15f, top + 0.78f, oz + d * 0.15f), Math.Min(w, d) * 0.28f, 0.03f, Concrete, seg: 12);
+                Cyl(n, new Vector3(ox + w * 0.3f, top + 1.2f, oz - d * 0.3f), 0.025f, 1.6f, Steel, seg: 6);
+                Strip(n, new Vector3(ox + w * 0.3f, top + 2.05f, oz - d * 0.3f), new Vector3(0.12f, 0.12f, 0.12f), GlowRed);
+                break;
+            default:
+                Cyl(n, new Vector3(ox + w * 0.3f, top + 1.0f, oz - d * 0.3f), 0.025f, 1.4f, Steel, seg: 6);
+                Strip(n, new Vector3(ox + w * 0.3f, top + 1.75f, oz - d * 0.3f), new Vector3(0.12f, 0.12f, 0.12f), GlowRed);
+                break;
+        }
     }
 
     /// <summary>工場棟: 低く長い箱、鋸屋根風の通気、配管、煙突、扉の発光。</summary>
