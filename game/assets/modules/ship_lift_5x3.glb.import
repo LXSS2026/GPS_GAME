@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://devpqic44pqf5"
-path="res://.godot/imported/ship_bow_7x6.glb-f84c5fb22b518c2650aa4e1b9ad4a4fd.scn"
+uid="uid://bde7muy80nrj3"
+path="res://.godot/imported/ship_lift_5x3.glb-1f4b35be92e1f29b1f51cb7553ae65f4.scn"
 
 [deps]
 
-source_file="res://assets/modules/ship_bow_7x6.glb"
-dest_files=["res://.godot/imported/ship_bow_7x6.glb-f84c5fb22b518c2650aa4e1b9ad4a4fd.scn"]
+source_file="res://assets/modules/ship_lift_5x3.glb"
+dest_files=["res://.godot/imported/ship_lift_5x3.glb-1f4b35be92e1f29b1f51cb7553ae65f4.scn"]
 
 [params]
 

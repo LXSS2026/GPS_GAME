@@ -32,8 +32,8 @@ public sealed class FloorModules
         var winCool = new StandardMaterial3D { AlbedoColor = new Color(0.55f, 0.85f, 1.0f), EmissionEnabled = true, Emission = new Color(0.55f, 0.85f, 1.0f), EmissionEnergyMultiplier = 1.8f, Roughness = 0.2f };
         var armor = (StandardMaterial3D)kb.Paint.Duplicate(); armor.AlbedoColor = new Color(0.42f, 0.45f, 0.5f); armor.Metallic = 0.6f;
         // 部品の発光帯は数が多いので控えめにする(グローで白飛びしないように)
-        var glowCyan = (StandardMaterial3D)kb.GlowCyan.Duplicate(); glowCyan.EmissionEnergyMultiplier = 1.6f;
-        var glowOrange = (StandardMaterial3D)kb.GlowOrange.Duplicate(); glowOrange.EmissionEnergyMultiplier = 2.2f;
+        var glowCyan = (StandardMaterial3D)kb.GlowCyan.Duplicate(); glowCyan.EmissionEnergyMultiplier = 0.9f;
+        var glowOrange = (StandardMaterial3D)kb.GlowOrange.Duplicate(); glowOrange.EmissionEnergyMultiplier = 1.6f;
         _mats = new()
         {
             ["M_Steel"] = kb.Steel, ["M_Concrete"] = kb.Concrete, ["M_PaintDark"] = kb.PaintDark, ["M_Paint"] = kb.Paint, ["M_Rust"] = kb.Rust,
@@ -290,12 +290,13 @@ public sealed class FloorModules
             if (i == cutawayIndex)
             {
                 SetExteriorVisible(n, false);
-                Interior(root, 0.45f, def.Length, def.W, 1, cursor + def.Length / 2f);
+                Interior(root, 1.4f + 0.16f, def.Length, def.W, 1, cursor + def.Length / 2f);          // 下甲板
+                Interior(root, 1.4f + 1.9f + 0.08f, def.Length, def.W, 2, cursor + def.Length / 2f);   // 上甲板
             }
             cursor += def.Length;
         }
-        // 船底の支持(地上に据える台)
-        for (float sx = -total / 2 + 2; sx < total / 2 - 1; sx += 4) _kb.Box(root, new Vector3(sx, -0.3f, 0), new Vector3(0.8f, 0.6f, Defs[segments[1]].W + 1.0f), _kb.Concrete);
+        // 航空戦艦: 空中に浮かぶ。下面の噴射口の光を地面側へ
+        _kb.Light(root, new Vector3(0, -0.5f, 0), new Color(0.25f, 0.85f, 1.0f), total * 0.6f, 1.5f);
         return root;
     }
 

@@ -28,7 +28,7 @@ public partial class Preview : Node3D
         Vector3 pivot; float dist;
         if (scene == "city") { BuildCity(); pivot = new Vector3(30, 18, 30); dist = 122; }
         else if (scene == "buildings") { BuildShowcase(); pivot = new Vector3(60, 17, 12); dist = 112; }
-        else if (scene == "modules") { BuildModules(); pivot = new Vector3(48, 12, 16); dist = 96; }
+        else if (scene == "modules") { BuildModules(); pivot = new Vector3(48, 14, 16); dist = 100; }
         else { BuildVillage(); pivot = new Vector3(22, 6, 27); dist = 40; }
         if (Arg(args, "--pivot") is string pv) { var p = pv.Split(','); pivot = new Vector3(float.Parse(p[0]), float.Parse(p[1]), float.Parse(p[2])); }
         if (Arg(args, "--dist") is string ds) dist = float.Parse(ds);
@@ -171,8 +171,9 @@ public partial class Preview : Node3D
         var hangarTower = new List<string> { "base_5x5_office", "hangar_5x5", "office_5x5", "office_5x5_c", "mech_5x5_office", "office_5x5", "transfer_5x5_3x3_office", "office_3x3_c", "office_3x3", "roof_3x3_heli_office" };
         fm.Build(this, xx + 1, 3, 8, hangarTower, 0, cutawayBelow: 4);
         // 手前: 戦艦(艦尾 → 艦首)。中央の 1 区画を切り取り表示
-        fm.Ship(this, 40, 3.6f, 22, new List<string> { "ship_stern_7x4", "ship_turret_7x4", "ship_mid_7x4", "ship_hangar_7x4", "ship_bridge_7x4", "ship_mid_7x4", "ship_turret_7x4", "ship_bow_7x6" }, 0, cutawayIndex: 2);
-        fm.Ship(this, 18, 3.6f, 26, new List<string> { "ship_stern_5x3", "ship_mid_5x3", "ship_bridge_5x3", "ship_turret_5x3", "ship_bow_5x5" }, 0);
+        // 航空戦艦 2 隻を上空に(大型は中央区画を切り取り表示)
+        fm.Ship(this, 40, 24f, 24, new List<string> { "ship_stern_7x4", "ship_turret_7x4", "ship_lift_7x4", "ship_mid_7x4", "ship_hangar_7x4", "ship_bridge_7x4", "ship_lift_7x4", "ship_turret_7x4", "ship_bow_7x7" }, 0, cutawayIndex: 3);
+        fm.Ship(this, 18, 16f, 27, new List<string> { "ship_stern_5x3", "ship_lift_5x3", "ship_mid_5x3", "ship_bridge_5x3", "ship_turret_5x3", "ship_bow_5x6" }, 0);
         // 空中の接続: 奥の塔どうしを異なる階で結び(普通幅と広幅)、4 棟の中心に結節点を置いて放射状に結ぶ
         var b = fm.Buildings;
         fm.Connect(this, b[0], b[1], 5, false);
@@ -275,7 +276,6 @@ public partial class Preview : Node3D
                         _kb.Humanoid(this, x0 + 5.5f, Y, z0 + 2.6f, -90, true);
                         break;
                     case "military":
-                        if (z0 >= 43) break;   // 戦艦の係留場所を空ける
                         _fm.Build(this, x0 + 3f, Y, z0 + 3f, new List<string> { "base_5x5_office", "hangar_5x5", "hangar_5x5", "mech_5x5_office", "roof_5x5_heli_office" }, 0);
                         for (int i = 0; i < 6; i++) _kb.Humanoid(this, x0 + 0.5f + i, Y, z0 + 6.4f, 180, true);
                         break;
@@ -285,7 +285,8 @@ public partial class Preview : Node3D
                 }
             }
         // メガタワー間の空中回廊(2 層目のデッキ高さ)
-        _fm.Ship(this, 28.5f, Y + 0.6f, 50.5f, new List<string> { "ship_stern_7x4", "ship_turret_7x4", "ship_mid_7x4", "ship_hangar_7x4", "ship_bridge_7x4", "ship_turret_7x4", "ship_bow_7x6" }, 90);
+        _fm.Ship(this, 28.5f, Y + 22f, 46f, new List<string> { "ship_stern_7x4", "ship_turret_7x4", "ship_lift_7x4", "ship_mid_7x4", "ship_hangar_7x4", "ship_bridge_7x4", "ship_lift_7x4", "ship_turret_7x4", "ship_bow_7x7" }, 90);
+        _fm.Ship(this, 48f, Y + 14f, 20f, new List<string> { "ship_stern_5x3", "ship_lift_5x3", "ship_mid_5x3", "ship_bridge_5x3", "ship_turret_5x3", "ship_bow_5x6" }, 30);
         // 空中の物流路: 近い建物どうしを自動で結ぶ
         _fm.AutoConnect(this, _rnd);
         // 高架の軌道(x = 21 の道路上)と列車

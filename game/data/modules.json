@@ -902,14 +902,24 @@
    "length": 3
   },
   {
-   "id": "ship_bow_5x5",
+   "id": "ship_lift_5x3",
    "kind": "ship",
    "family": "ship",
    "w": 5,
-   "d": 5,
+   "d": 3,
    "topW": 5,
-   "topD": 5,
-   "length": 5
+   "topD": 3,
+   "length": 3
+  },
+  {
+   "id": "ship_bow_5x6",
+   "kind": "ship",
+   "family": "ship",
+   "w": 5,
+   "d": 6,
+   "topW": 5,
+   "topD": 6,
+   "length": 6
   },
   {
    "id": "ship_stern_5x3",
@@ -962,14 +972,24 @@
    "length": 4
   },
   {
-   "id": "ship_bow_7x6",
+   "id": "ship_lift_7x4",
    "kind": "ship",
    "family": "ship",
    "w": 7,
-   "d": 6,
+   "d": 4,
    "topW": 7,
-   "topD": 6,
-   "length": 6
+   "topD": 4,
+   "length": 4
+  },
+  {
+   "id": "ship_bow_7x7",
+   "kind": "ship",
+   "family": "ship",
+   "w": 7,
+   "d": 7,
+   "topW": 7,
+   "topD": 7,
+   "length": 7
   },
   {
    "id": "ship_stern_7x4",
