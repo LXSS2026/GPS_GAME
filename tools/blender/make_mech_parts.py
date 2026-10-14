@@ -340,14 +340,15 @@ def torso(arch):
     z_abd = pelvis_h
     z_chest = pelvis_h + abd_h
     bv = 0.008 * H
-    # 腰: 台形塊(上が広い) + 股の楔 + 前後左右の腰装甲(外へ傾く台形板)
-    facet("pelvis", (0, 0, 0), (0.17 * H * k, 0.12 * H), (0.22 * H * k, 0.14 * H), pelvis_h, M["frame"], bev=bv)
-    facet("crotch", (0, 0.06 * H, -0.03 * H), (0.06 * H, 0.04 * H), (0.09 * H * k, 0.05 * H), pelvis_h * 1.0, M["main"], bev=bv * 0.6)
+    # 腰: 節 waist(骨盤の上端)の子に骨盤・股・腰装甲を置く。変形時はこの節で腰から下を後ろへ折る
+    waist = empty("waist", (0, 0, pelvis_h))
+    facet("pelvis", (0, 0, 0), (0.17 * H * k, 0.12 * H), (0.22 * H * k, 0.14 * H), pelvis_h, M["frame"], parent=waist, bev=bv)
+    facet("crotch", (0, 0.06 * H, -0.03 * H), (0.06 * H, 0.04 * H), (0.09 * H * k, 0.05 * H), pelvis_h * 1.0, M["main"], parent=waist, bev=bv * 0.6)
     for sx in (-1, 1):
         facet("skirt_front", (sx * 0.075 * H * k, 0.08 * H, -0.08 * H), (0.07 * H * k, 0.02 * H), (0.1 * H * k, 0.025 * H), 0.13 * H, M["main"],
-              rot=(math.radians(-12), 0, math.radians(sx * -5)), bev=bv * 0.6)
-        facet("skirt_side", (sx * 0.13 * H * k, 0, -0.08 * H), (0.02 * H, 0.08 * H), (0.025 * H, 0.1 * H), 0.14 * H, M["main"], rot=(0, math.radians(sx * 14), 0), bev=bv * 0.6)
-    facet("skirt_rear", (0, -0.085 * H, -0.08 * H), (0.17 * H * k, 0.02 * H), (0.2 * H * k, 0.025 * H), 0.12 * H, M["sub"], rot=(math.radians(12), 0, 0), bev=bv * 0.6)
+              parent=waist, rot=(math.radians(-12), 0, math.radians(sx * -5)), bev=bv * 0.6)
+        facet("skirt_side", (sx * 0.13 * H * k, 0, -0.08 * H), (0.02 * H, 0.08 * H), (0.025 * H, 0.1 * H), 0.14 * H, M["main"], parent=waist, rot=(0, math.radians(sx * 14), 0), bev=bv * 0.6)
+    facet("skirt_rear", (0, -0.085 * H, -0.08 * H), (0.17 * H * k, 0.02 * H), (0.2 * H * k, 0.025 * H), 0.12 * H, M["sub"], parent=waist, rot=(math.radians(12), 0, 0), bev=bv * 0.6)
     # 腹: 回転体の蛇腹 + 前面の装甲
     revolve("waist", [(0.075 * H * k, 0), (0.09 * H * k, abd_h * 0.25), (0.08 * H * k, abd_h * 0.5), (0.09 * H * k, abd_h * 0.75), (0.085 * H * k, abd_h)], M["frame"], (0, 0, z_abd), 24)
     facet("abdomen_plate", (0, 0.075 * H * k, z_abd + abd_h * 0.05), (0.08 * H * k, 0.03 * H), (0.1 * H * k, 0.03 * H), abd_h * 0.9, M["sub"], bev=bv * 0.5)
@@ -389,6 +390,7 @@ def torso(arch):
         "hip_l": (-0.09 * H * (1 + (k - 1) * 0.5), 0, 0),
         "hip_r": (0.09 * H * (1 + (k - 1) * 0.5), 0, 0),
         "back": (0, -0.12 * H, z_chest + chest_h * 0.55),
+        "waist": (0, 0, pelvis_h),                                # 腰の節の位置。脚と腰の武装はこの節の子
         "waist_rear": (0, -0.1 * H, pelvis_h * 0.9),            # 予備の武器 1(装備数の上限に数えない)
         "waist_l": (-0.15 * H * k, -0.02 * H, pelvis_h * 0.9),   # 近接武器(腰左)
         "waist_r": (0.15 * H * k, -0.02 * H, pelvis_h * 0.9),    # 近接武器(腰右)
@@ -500,7 +502,7 @@ def arm(arch, side):
     revolve("upper_arm", [(0.03 * H * k, 0), (0.034 * H * k, -up_h * 0.3), (0.03 * H * k, -up_h)], M["frame"], (0, 0, 0), 16)
     facet("upper_arm_plate", (sx * 0.03 * H * k, 0, -up_h * 0.85), (0.025 * H, 0.06 * H * k), (0.03 * H, 0.075 * H * k), up_h * 0.7, M["main"], bev=bv * 0.6)
     facet("upper_arm_front", (0, 0.035 * H * k, -up_h * 0.85), (0.045 * H * k, 0.02 * H), (0.055 * H * k, 0.02 * H), up_h * 0.6, M["sub"], bev=bv * 0.5)
-    joint("elbow", (0, 0, -up_h), 0.035 * H * k, 0.085 * H * k, M["frame"], "X")
+    joint("elbow_cyl", (0, 0, -up_h), 0.035 * H * k, 0.085 * H * k, M["frame"], "X")   # 節の空 "elbow" と名前が衝突しないように
     elbow = empty("elbow", (0, 0, -up_h))
     # 前腕: 肘側が細く手首へ広がる台形塊(ガンダム系の前腕)、前面と外側の装甲、肘当て
     facet("forearm", (0, 0, -up_h - lo_h * 0.95), (0.075 * H * k, 0.08 * H * k), (0.06 * H * k, 0.065 * H * k), lo_h * 0.85, M["main"], parent=elbow, bev=bv)
@@ -537,7 +539,7 @@ def leg(arch, side):
     facet("thigh", (0, 0, -thigh_h), (0.075 * H * k, 0.09 * H * k), (0.095 * H * k, 0.11 * H * k), thigh_h * 0.95, M["main"], bev=bv)
     facet("thigh_front", (0, 0.05 * H * k, -thigh_h * 0.95), (0.08 * H * k, 0.025 * H), (0.1 * H * k, 0.03 * H), thigh_h * 0.75, M["main"], bev=bv * 0.6)
     facet("thigh_side", (sx * 0.05 * H * k, 0, -thigh_h * 0.9), (0.025 * H, 0.07 * H * k), (0.03 * H, 0.09 * H * k), thigh_h * 0.6, M["sub"], bev=bv * 0.5)
-    joint("knee", (0, 0, -thigh_h), 0.042 * H * k, 0.1 * H * k, M["frame"], "X")
+    joint("knee_cyl", (0, 0, -thigh_h), 0.042 * H * k, 0.1 * H * k, M["frame"], "X")   # 節の空 "knee" と名前が衝突しないように
     knee = empty("knee", (0, 0, -thigh_h))
     # 膝: 角張った膝当て(台形)と差し色
     facet("knee_cap", (0, 0.045 * H * k, -thigh_h - 0.05 * H), (0.07 * H * k, 0.035 * H), (0.08 * H * k, 0.04 * H), 0.1 * H, M["main"], parent=knee, shift=(0, 0.005 * H), bev=bv * 0.7)

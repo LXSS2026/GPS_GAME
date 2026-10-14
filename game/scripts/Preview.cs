@@ -163,6 +163,7 @@ public partial class Preview : Node3D
         for (int x = 0; x < 100; x++) for (int z = 0; z < 60; z++) { _world.Set(x, 0, z, stone); _world.Set(x, 1, z, stone); _world.Set(x, 2, z, plaza); }
         _world.Dirty.Clear();
         string? only = Arg(OS.GetCmdlineUserArgs(), "--only");
+        if (Arg(OS.GetCmdlineUserArgs(), "--riflex") is string rx) MechBuilder.RifleX = float.Parse(rx);
         if (only == "fighter") { _mb.BuildFighter(this, _mb.Presets["fast"], "g3", 48f, 20f, 34f, 0); return; }   // 戦闘機モードだけ
         string[] heads = { "head_twin", "head_visor", "head_fast", "head_mono", "head_quad", "head_tall", "head_twin" };   // 顔のレパートリーを兼ねる
         for (int g = 0; g < 7; g++) _mb.Build(this, _mb.Presets["general"].With(head: heads[g]), $"g{g}", 8f + g * 13.5f, 3f, 20f, 10);   // 工作機 + 第 1〜6 世代(リアクターの色)
