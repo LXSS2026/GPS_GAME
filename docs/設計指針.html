@@ -44,6 +44,7 @@
   <a href="#G8"><span class="no">G8</span>デザイン言語</a>
   <a href="#G9"><span class="no">G9</span>大都市のプレビュー</a>
   <a href="#G10"><span class="no">G10</span>Godot 描画試作</a>
+  <a href="#G11"><span class="no">G11</span>人型(ロボットと人間)</a>
 </nav>
 <main>
 
@@ -965,21 +966,7 @@ dotnet build game\GPS.csproj
   <tr><td>場面</td><td><code>--scene modules</code>: 奥に系統ごとの塔 6 棟(事務所・縦リブ・外骨格・外部設備・コンクリート・住居)、双塔、格納庫塔の切り取り表示、上空に航空戦艦 2 隻(大型は中央区画を切り取り表示)。大都市(<code>--scene city</code>)の建物は全て階モジュールに置き換え、上空に航空戦艦 2 隻。</td></tr>
 </table>
 <img src="img/preview_modules.png" alt="階モジュール方式の 3 棟" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
-<h3>00000-2. 人型(ロボット 5 世代と人間 2 種)</h3>
-<p>人型も Blender のスクリプト(<code>tools/blender/make_characters.py</code>)で生成し、<code>game/assets/characters/</code> に GLB で置く。共通の骨格(足・脛・膝・腿・骨盤・腹・胸・肩・上腕・肘・前腕・手・首・頭)に、世代ごとの寸法・装甲・装備を与える。身長 1.7〜1.95(1 セル = 1m)。正面は +Z。</p>
-<table>
-  <tr><th>種類</th><th>設計</th></tr>
-  <tr><td>第 0 世代(試作機)</td><td>装甲なし。錆びた骨組みと駆動部(ピストン・背骨・肋材)が露出。単眼の橙センサーとアンテナ。</td></tr>
-  <tr><td>第 1 世代(作業型)</td><td>太めの角張った装甲、肩の危険帯、把持部(クランプ)の手、背面の工具箱、橙のバイザー。</td></tr>
-  <tr><td>第 2 世代(兵士型)</td><td>全身装甲と肩当て、兜(耳当て)と水色のバイザー、背嚢とアンテナ、小銃。</td></tr>
-  <tr><td>第 3 世代(上位型)</td><td>細身。青灰の重ねた装甲と発光する継ぎ目、細いバイザー、肩の翼。</td></tr>
-  <tr><td>第 4 世代(精鋭型)</td><td>長身(1.95)。噴射器と翼の背面装備、赤のバイザーと冠、継ぎ目の発光。</td></tr>
-  <tr><td>市民</td><td>作業服(布)、小さな兜とバイザー、装甲なし。肌の露出は頭だけ。</td></tr>
-  <tr><td>人間の兵士</td><td>作業服の上に胸甲と肩当て、兜、背嚢、小銃。</td></tr>
-</table>
-<p>世代と品質の差は、装甲の層・発光の色・背面装備で見分けられるようにした。材質は名前で Godot の PBR 材質に差し替える(肌と布は専用)。切り取り表示の内部や大都市の路上は、この 7 種に置き換えた。</p>
-<img src="img/preview_robots.png" alt="人型 7 種の一列" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
-<img src="img/preview_robots_close.png" alt="人型の近景" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
+<p>人型(ロボット 5 世代と人間 2 種)は G11 に移した。</p>
 <p>航空戦艦の近景(切り取り表示の区画に両甲板の設備)。</p>
 <img src="img/preview_ship.png" alt="航空戦艦の近景" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
 <p>空中の接続の近景(縦リブの塔と外骨格の塔の間に広幅の渡り廊下、右に普通幅)。</p>
@@ -1073,6 +1060,44 @@ dotnet build game\GPS.csproj
   <tr><td>建物内の工場</td><td>建物の器(壁と階)をレシピ化し、内部に同じ設備レシピを置く。切り取り表示は壁を階ごとに非表示にして実現。</td></tr>
   <tr><td>戦艦</td><td>船体を「階を持つ器」として同じ仕組みで組む。格納庫からロボットが出撃する(G2 第 5 節)。</td></tr>
 </table>
+</section>
+
+<section class="page" id="G11">
+<h2>G11 人型(ロボットと人間)</h2>
+<p class="muted">2026-10-14 作成。案(承認待ち)。描画だけの試作(G10)から人型の設計を分離した。</p>
+<h3>1. 種類と設計</h3>
+<p>人型も Blender のスクリプト(<code>tools/blender/make_characters.py</code>)で生成し、<code>game/assets/characters/</code> に GLB で置く。共通の骨格(足・脛・膝・腿・骨盤・腹・胸・肩・上腕・肘・前腕・手・首・頭)に、世代ごとの寸法・装甲・装備を与える。身長 1.7〜1.95(1 セル = 1m)。正面は +Z。</p>
+<table>
+  <tr><th>種類</th><th>設計</th></tr>
+  <tr><td>第 0 世代(試作機)</td><td>装甲なし。錆びた骨組みと駆動部(ピストン・背骨・肋材)が露出。単眼の橙センサーとアンテナ。</td></tr>
+  <tr><td>第 1 世代(作業型)</td><td>太めの角張った装甲、肩の危険帯、把持部(クランプ)の手、背面の工具箱、橙のバイザー。</td></tr>
+  <tr><td>第 2 世代(兵士型)</td><td>全身装甲と肩当て、兜(耳当て)と水色のバイザー、背嚢とアンテナ、小銃。</td></tr>
+  <tr><td>第 3 世代(上位型)</td><td>細身。青灰の重ねた装甲と発光する継ぎ目、細いバイザー、肩の翼。</td></tr>
+  <tr><td>第 4 世代(精鋭型)</td><td>長身(1.95)。噴射器と翼の背面装備、赤のバイザーと冠、継ぎ目の発光。</td></tr>
+  <tr><td>市民</td><td>作業服(布)、小さな兜とバイザー、装甲なし。肌の露出は頭だけ。</td></tr>
+  <tr><td>人間の兵士</td><td>作業服の上に胸甲と肩当て、兜、背嚢、小銃。</td></tr>
+</table>
+<p>世代と品質の差は、装甲の層・発光の色・背面装備で見分けられるようにした。材質は名前で Godot の PBR 材質に差し替える(肌と布は専用)。切り取り表示の内部や大都市の路上は、この 7 種に置き換えた。</p>
+<img src="img/preview_robots.png" alt="人型 7 種の一列" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
+<img src="img/preview_robots_close.png" alt="人型の近景" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
+
+<h3>2. 寸法の基準</h3>
+<table>
+  <tr><th>項目</th><th>現在の値</th><th>備考</th></tr>
+  <tr><td>1 セル</td><td>1 m</td><td>ボクセルの 1 ブロック。設備の床面積の単位。</td></tr>
+  <tr><td>人間の身長</td><td>1.7 m(市民)、1.72 m(兵士)</td><td>ロボットは 1.7〜1.95 m。</td></tr>
+  <tr><td>階高(階モジュール)</td><td>2 m(2 セル)</td><td>人の頭上の余裕が 0.3 m と低い。設備は 1 m 角で人より小さい。見直しの候補(下記)。</td></tr>
+  <tr><td>設備</td><td>1 m 角(1 セル)</td><td>炉・組立機・ベルトなど。Factorio では機械は 3 m 角。</td></tr>
+</table>
+<p>見直しの案: 1 セル = 1 m のまま階高を 3 セル(3 m)にし、設備は床面積 1 セルで高さ 1〜2 セルを許す。48 階の塔が 144 m、メガタワー 100 階で 300 m になり、人と設備と建物の比率が実物に近づく。階モジュールは生成スクリプトの階高 1 か所を変えれば作り直せる。</p>
+
+<h3>3. 次に詰める候補</h3>
+<ol>
+  <li>比率: 脚を長く細く、頭を小さく。</li>
+  <li>姿勢: 歩行・作業・射撃・待機と腕の構え。</li>
+  <li>頭部: 世代ごとの輪郭(今は箱に付属品)。</li>
+  <li>品質差: 同じ世代でも仕上げの差(塗装の剥げ・発光の強さ)。</li>
+</ol>
 </section>
 
 </main>
