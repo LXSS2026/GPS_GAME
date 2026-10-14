@@ -2,6 +2,42 @@
  "height": 17.0,
  "parts": [
   {
+   "id": "head_twin",
+   "slot": "head",
+   "archetype": "general",
+   "sockets": {}
+  },
+  {
+   "id": "head_visor",
+   "slot": "head",
+   "archetype": "heavy",
+   "sockets": {}
+  },
+  {
+   "id": "head_fast",
+   "slot": "head",
+   "archetype": "fast",
+   "sockets": {}
+  },
+  {
+   "id": "head_mono",
+   "slot": "head",
+   "archetype": "general",
+   "sockets": {}
+  },
+  {
+   "id": "head_quad",
+   "slot": "head",
+   "archetype": "general",
+   "sockets": {}
+  },
+  {
+   "id": "head_tall",
+   "slot": "head",
+   "archetype": "general",
+   "sockets": {}
+  },
+  {
    "id": "torso_heavy",
    "slot": "torso",
    "archetype": "heavy",
@@ -37,12 +73,6 @@
      2.04
     ]
    }
-  },
-  {
-   "id": "head_heavy",
-   "slot": "head",
-   "archetype": "heavy",
-   "sockets": {}
   },
   {
    "id": "back_heavy",
@@ -150,12 +180,6 @@
    }
   },
   {
-   "id": "head_fast",
-   "slot": "head",
-   "archetype": "fast",
-   "sockets": {}
-  },
-  {
    "id": "back_fast",
    "slot": "back",
    "archetype": "fast",
@@ -261,12 +285,6 @@
    }
   },
   {
-   "id": "head_general",
-   "slot": "head",
-   "archetype": "general",
-   "sockets": {}
-  },
-  {
    "id": "back_general",
    "slot": "back",
    "archetype": "general",
@@ -362,7 +380,7 @@
  "presets": {
   "heavy": {
    "torso": "torso_heavy",
-   "head": "head_heavy",
+   "head": "head_visor",
    "arm_l": "arm_heavy_l",
    "arm_r": "arm_heavy_r",
    "leg_l": "leg_heavy_l",
@@ -428,7 +446,7 @@
   },
   "general": {
    "torso": "torso_general",
-   "head": "head_general",
+   "head": "head_twin",
    "arm_l": "arm_general_l",
    "arm_r": "arm_general_r",
    "leg_l": "leg_general_l",
@@ -465,40 +483,56 @@
    "name": "工作機",
    "reactor": [
     1.0,
+    0.2,
+    0.15
+   ]
+  },
+  "g1": {
+   "name": "第 1 世代",
+   "reactor": [
+    1.0,
     0.5,
     0.1
    ]
   },
-  "g1": {
-   "name": "量産機",
-   "reactor": [
-    0.4,
-    1.0,
-    0.5
-   ]
-  },
   "g2": {
-   "name": "主力機",
+   "name": "第 2 世代",
    "reactor": [
-    0.25,
-    0.85,
-    1.0
+    1.0,
+    0.9,
+    0.2
    ]
   },
   "g3": {
-   "name": "上位機",
+   "name": "第 3 世代",
    "reactor": [
-    0.75,
-    0.4,
-    1.0
+    0.6,
+    1.0,
+    0.2
    ]
   },
   "g4": {
-   "name": "精鋭機",
+   "name": "第 4 世代",
    "reactor": [
+    0.2,
     1.0,
-    0.85,
-    0.3
+    0.4
+   ]
+  },
+  "g5": {
+   "name": "第 5 世代",
+   "reactor": [
+    0.25,
+    0.5,
+    1.0
+   ]
+  },
+  "g6": {
+   "name": "第 6 世代",
+   "reactor": [
+    0.75,
+    0.35,
+    1.0
    ]
   }
  }

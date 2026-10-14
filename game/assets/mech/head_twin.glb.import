@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://cyxyt85wlvpi2"
-path="res://.godot/imported/head_heavy.glb-e9be6ef7ff0672fd6f5b3d50e7e5aba5.scn"
+uid="uid://cjaewjdc1l5eh"
+path="res://.godot/imported/head_twin.glb-59da141050523fe334ec3e79b7968bfe.scn"
 
 [deps]
 
-source_file="res://assets/mech/head_heavy.glb"
-dest_files=["res://.godot/imported/head_heavy.glb-e9be6ef7ff0672fd6f5b3d50e7e5aba5.scn"]
+source_file="res://assets/mech/head_twin.glb"
+dest_files=["res://.godot/imported/head_twin.glb-59da141050523fe334ec3e79b7968bfe.scn"]
 
 [params]
 

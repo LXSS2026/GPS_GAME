@@ -58,7 +58,7 @@ public sealed class MechBuilder
         Attach(torso, lo.Back, torsoPart.Sockets["back"], mats);
         var legL = Attach(torso, lo.LegL, torsoPart.Sockets["hip_l"], mats);
         var legR = Attach(torso, lo.LegR, torsoPart.Sockets["hip_r"], mats);
-        legL.RotationDegrees = new Vector3(0, 0, 3); legR.RotationDegrees = new Vector3(0, 0, -3);
+        legL.RotationDegrees = new Vector3(0, 6, -3); legR.RotationDegrees = new Vector3(0, -6, 3);   // 足先を少し外へ開く(内股にしない)
         var armL = Attach(torso, lo.ArmL, torsoPart.Sockets["shoulder_l"], mats);
         var armR = Attach(torso, lo.ArmR, torsoPart.Sockets["shoulder_r"], mats);
         armL.RotationDegrees = new Vector3(10, 0, 12); armR.RotationDegrees = new Vector3(-18, 0, -12);
@@ -69,6 +69,30 @@ public sealed class MechBuilder
     }
 
     public Node3D Build(Node3D parent, string preset, string generation, float x, float y, float z, float rotDeg) => Build(parent, Presets[preset], generation, x, y, z, rotDeg);
+
+    /// <summary>戦闘機モード(高速機の変形)。胴を前へ倒して頭を機首に、脚を後ろへ伸ばしてエンジンに、腕を胴の下へ畳み、背部の翼を上面に広げる。(x, y, z) は機体の中心。</summary>
+    public Node3D BuildFighter(Node3D parent, Loadout lo, string generation, float x, float y, float z, float rotDeg)
+    {
+        var mats = Materials(lo, Generations[generation]);
+        var root = new Node3D { Name = "fighter", Position = new Vector3(x, y, z), RotationDegrees = new Vector3(0, rotDeg + 180, 0) };
+        parent.AddChild(root);
+        var tp = Parts[lo.Torso];
+        var torso = Attach(root, lo.Torso, new Vector3(0, 0, -tp.Sockets["neck"].Y * 0.5f), mats);
+        torso.RotationDegrees = new Vector3(-90, 0, 0);   // 頭が前(-Z)を向き、胸が下を向く
+        var head = Attach(torso, lo.Head, tp.Sockets["neck"], mats);
+        head.RotationDegrees = new Vector3(20, 0, 0);     // 機首: 少し下げる
+        var back = Attach(torso, lo.Back, tp.Sockets["back"], mats);
+        back.RotationDegrees = new Vector3(0, 0, 180);   // 背部を上下反転し、立ち姿で上へ開く翼を後方へ水平に広げる
+        var legL = Attach(torso, lo.LegL, tp.Sockets["hip_l"], mats);
+        var legR = Attach(torso, lo.LegR, tp.Sockets["hip_r"], mats);
+        legL.RotationDegrees = new Vector3(-8, 0, -2); legR.RotationDegrees = new Vector3(-8, 0, 2);   // 後方へ伸びたエンジン
+        var armL = Attach(torso, lo.ArmL, tp.Sockets["shoulder_l"], mats);
+        var armR = Attach(torso, lo.ArmR, tp.Sockets["shoulder_r"], mats);
+        armL.RotationDegrees = new Vector3(0, 0, 0); armR.RotationDegrees = new Vector3(0, 0, 0);
+        Bend(armL, 10); Bend(armR, 10);   // 腕は脚と同じく後方へ伸ばす(畳むと機首を隠す)
+        if (lo.WeaponR != null) Attach(armR.GetNodeOrNull<Node3D>("elbow") ?? armR, lo.WeaponR, Parts[lo.ArmR].Sockets["hand"], mats);
+        return root;
+    }
 
     static void Bend(Node3D arm, float deg)
     {
@@ -105,7 +129,7 @@ public sealed class MechBuilder
         ["M_Sub"] = Paint(lo.Sub, 0.35f, 0.5f),
         ["M_Trim"] = Paint(lo.Trim, 0.3f, 0.5f),
         ["M_GlowMech"] = Glow(lo.Glow, 1.2f),
-        ["M_Reactor"] = Glow(reactor, 0.7f),   // 世代の色が読めるようグローで白飛びしない強さ
+        ["M_Reactor"] = Glow(reactor, 0.5f),   // 世代の色が読めるようグローで白飛びしない強さ
     };
 
     static StandardMaterial3D Paint(Color c, float metallic, float rough) => new() { AlbedoColor = c, Metallic = metallic, Roughness = rough };
