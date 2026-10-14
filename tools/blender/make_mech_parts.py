@@ -478,8 +478,19 @@ def arm(arch, side):
         for i in range(2):
             revolve("spike", [(0.012 * H, 0), (0.002 * H, 0.05 * H)], M["steel"], (sx * 0.1 * H, -0.04 * H + i * 0.08 * H, 0.1 * H), 10)
     elif arch == "fast":
-        facet("pauldron", (sx * 0.04 * H, 0, -0.02 * H), (0.08 * H, 0.1 * H), (0.13 * H, 0.14 * H), 0.09 * H, M["main"], shift=(sx * 0.03 * H, -0.01 * H), bev=bv)
-        facet("pauldron_blade", (sx * 0.1 * H, -0.02 * H, 0.05 * H), (0.03 * H, 0.1 * H), (0.015 * H, 0.03 * H), 0.1 * H, M["trim"], rot=(0, math.radians(sx * -40), 0), shift=(0, -0.03 * H), bev=bv * 0.3)
+        # 小さな羽根の肩(節 pauldron_pivot で回す)。人型では立てて肩当てに、戦闘機モードでは水平に広げて前翼にする
+        piv = empty("pauldron_pivot", (sx * 0.03 * H, 0, 0.03 * H))
+        facet("pauldron_base", (sx * 0.03 * H, 0, 0.0), (0.06 * H, 0.08 * H), (0.05 * H, 0.07 * H), 0.04 * H, M["sub"], bev=bv * 0.5)
+        pts = [(sx * 0.0, 0.03 * H), (sx * 0.0, -0.05 * H), (sx * 0.2 * H, -0.13 * H), (sx * 0.2 * H, -0.09 * H)]
+        if sx < 0:
+            pts = pts[::-1]
+        w = slab("shoulder_wing", pts, -0.006 * H, 0.012 * H, M["main"], parent=piv, bev=bv * 0.4)
+        w.location = (sx * 0.03 * H, 0, 0.03 * H)
+        edge = [(sx * 0.01 * H, 0.03 * H), (sx * 0.01 * H, 0.018 * H), (sx * 0.2 * H, -0.1 * H), (sx * 0.2 * H, -0.09 * H)]
+        if sx < 0:
+            edge = edge[::-1]
+        e = slab("shoulder_wing_edge", edge, 0.006 * H, 0.004 * H, M["glow"], parent=piv)
+        e.location = (sx * 0.03 * H, 0, 0.03 * H)
         thruster("pauldron_thruster", (sx * 0.06 * H, -0.08 * H, 0.03 * H), 0.025 * H, 0.06 * H, M["frame"], M["glow"], "Y")
     else:
         facet("pauldron", (sx * 0.045 * H, 0, -0.03 * H), (0.09 * H, 0.12 * H), (0.13 * H, 0.15 * H), 0.1 * H, M["main"], shift=(sx * 0.02 * H, 0), bev=bv)
@@ -587,19 +598,23 @@ def back(arch):
 def wing(arch):
     clear()
     bv = 0.003 * H
-    facet("wing_root", (0, -0.02 * H, -0.03 * H), (0.14 * H, 0.08 * H), (0.12 * H, 0.07 * H), 0.06 * H, M["sub"], bev=bv)
+    facet("wing_root", (0, -0.02 * H, -0.03 * H), (0.16 * H, 0.08 * H), (0.14 * H, 0.07 * H), 0.06 * H, M["sub"], bev=bv)
     for sx in (-1, 1):
-        pts = [(sx * 0.05 * H, 0.02 * H), (sx * 0.05 * H, -0.12 * H), (sx * 0.42 * H, -0.3 * H), (sx * 0.42 * H, -0.24 * H)]
+        piv = empty("wing_l" if sx < 0 else "wing_r", (sx * 0.06 * H, 0, 0))
+        pts = [(sx * 0.0, 0.04 * H), (sx * 0.0, -0.14 * H), (sx * 0.5 * H, -0.4 * H), (sx * 0.5 * H, -0.32 * H)]
         if sx < 0:
             pts = pts[::-1]
-        slab("wing", pts, -0.008 * H, 0.016 * H, M["main"], bev=bv)
-        edge = [(sx * 0.06 * H, 0.02 * H), (sx * 0.06 * H, 0.005 * H), (sx * 0.42 * H, -0.225 * H), (sx * 0.42 * H, -0.24 * H)]
+        w = slab("wing", pts, -0.01 * H, 0.02 * H, M["main"], parent=piv, bev=bv)
+        w.location = (sx * 0.06 * H, 0, 0)
+        edge = [(sx * 0.01 * H, 0.04 * H), (sx * 0.01 * H, 0.025 * H), (sx * 0.5 * H, -0.315 * H), (sx * 0.5 * H, -0.32 * H)]
         if sx < 0:
             edge = edge[::-1]
-        slab("wing_edge", edge, 0.008 * H, 0.004 * H, M["glow"])
-        facet("wing_pod", (sx * 0.2 * H, -0.14 * H, -0.02 * H), (0.03 * H, 0.1 * H), (0.025 * H, 0.08 * H), 0.04 * H, M["sub"], bev=bv)
-    fin = slab("tail_fin", [(-0.1 * H, 0.0), (-0.26 * H, 0.0), (-0.3 * H, 0.14 * H), (-0.2 * H, 0.14 * H)], -0.006 * H, 0.012 * H, M["main"], bev=bv)
-    fin.rotation_euler = (0, math.radians(-90), 0)   # XY で描いた尾翼を YZ 面(垂直)に立てる
+        e = slab("wing_edge", edge, 0.01 * H, 0.004 * H, M["glow"], parent=piv)
+        e.location = (sx * 0.06 * H, 0, 0)
+        facet("wing_pod", (sx * 0.3 * H, -0.2 * H, -0.025 * H), (0.035 * H, 0.12 * H), (0.03 * H, 0.1 * H), 0.05 * H, M["sub"], parent=piv, bev=bv)
+    # 尾翼: XY で描き Y 軸回りに +90 度回して立てる(x → 高さ、y → 前後。-y が後方)。-90 だと下向きに出る
+    fin = slab("tail_fin", [(0.0, 0.02 * H), (0.0, -0.14 * H), (-0.2 * H, -0.2 * H), (-0.2 * H, -0.11 * H)], -0.006 * H, 0.012 * H, M["main"], bev=bv)
+    fin.rotation_euler = (0, math.radians(90), 0)
     fin.location = (0, 0, 0)
     export(f"wing_{arch}", "wing", arch, {})
 
