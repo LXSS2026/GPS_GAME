@@ -1,0 +1,18 @@
+{
+  "floorHeight": 2.0,
+  "modules": [
+    { "id": "base3",        "kind": "base",     "footprint": 3, "top": 3 },
+    { "id": "office3",      "kind": "standard", "footprint": 3, "top": 3 },
+    { "id": "office3c",     "kind": "standard", "footprint": 3, "top": 3 },
+    { "id": "res3",         "kind": "standard", "footprint": 3, "top": 3 },
+    { "id": "mech3",        "kind": "mech",     "footprint": 3, "top": 3 },
+    { "id": "hangar3",      "kind": "hangar",   "footprint": 3, "top": 3 },
+    { "id": "transfer3to2", "kind": "transfer", "footprint": 3, "top": 2 },
+    { "id": "office2",      "kind": "standard", "footprint": 2, "top": 2 },
+    { "id": "office2c",     "kind": "standard", "footprint": 2, "top": 2 },
+    { "id": "roof3_mech",   "kind": "roof",     "footprint": 3, "top": 0 },
+    { "id": "roof3_helipad","kind": "roof",     "footprint": 3, "top": 0 },
+    { "id": "roof2_spire",  "kind": "roof",     "footprint": 2, "top": 0 },
+    { "id": "roof2_mech",   "kind": "roof",     "footprint": 2, "top": 0 }
+  ]
+}

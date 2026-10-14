@@ -1,6 +1,7 @@
 using Godot;
 using GPS.Sim;
 using System;
+using System.Collections.Generic;
 
 /// <summary>
 /// 描画試作(ゲームの計算には触れない)。ボクセル地形 + 自前のキットバッシュ生成(KitBash) + 陰影。
@@ -26,6 +27,7 @@ public partial class Preview : Node3D
         Vector3 pivot; float dist;
         if (scene == "city") { BuildCity(); pivot = new Vector3(30, 18, 30); dist = 122; }
         else if (scene == "buildings") { BuildShowcase(); pivot = new Vector3(60, 17, 12); dist = 112; }
+        else if (scene == "modules") { BuildModules(); pivot = new Vector3(18, 13, 10); dist = 46; }
         else { BuildVillage(); pivot = new Vector3(22, 6, 27); dist = 40; }
         if (Arg(args, "--view") == "close") { pivot = scene == "city" ? new Vector3(24, 9, 20) : new Vector3(24, 6, 33); dist = scene == "city" ? 34 : 16; }
 
@@ -38,7 +40,7 @@ public partial class Preview : Node3D
 
         _cam = new Camera3D { Fov = 38, Far = 800 };
         AddChild(_cam);
-        float yaw = scene == "buildings" ? 0.35f : 0.78f, elev = scene == "buildings" ? 0.30f : 0.52f;
+        float yaw = scene == "buildings" ? 0.35f : scene == "modules" ? 0.6f : 0.78f, elev = scene == "buildings" ? 0.30f : scene == "modules" ? 0.38f : 0.52f;
         _cam.Position = pivot + new Vector3(Mathf.Cos(elev) * Mathf.Sin(yaw), Mathf.Sin(elev), Mathf.Cos(elev) * Mathf.Cos(yaw)) * dist;
         _cam.LookAt(pivot);
     }
@@ -143,6 +145,23 @@ public partial class Preview : Node3D
         _kb.Belt(deck, 0, 2.24f, 0.6f, 90, true);
         _kb.Pipe(deck, new Vector3(1.0f, 0.3f, 0.6f), new Vector3(1.0f, 2.2f, 0.6f), 0.06f, _kb.Rust);
         _kb.Light(this, new Vector3(25, Top(24, 36) + 3.0f, 37), new Color(0.25f, 0.85f, 1.0f), 5f, 1.5f);
+    }
+
+    // ---------- 階モジュール方式の確認(3 棟: 通常・切り取り表示・住居と格納庫) ----------
+    void BuildModules()
+    {
+        const int W = 40, D = 22;
+        byte stone = B("Stone"), plaza = B("Plaza"), road = B("RoadX");
+        for (int x = 0; x < W; x++) for (int z = 0; z < D; z++) { _world.Set(x, 0, z, stone); _world.Set(x, 1, z, stone); _world.Set(x, 2, z, z == 15 || z == 16 ? road : plaza); }
+        _world.Dirty.Clear();
+        var fm = new FloorModules(_kb);
+        var towerA = new List<string> { "base3", "office3", "office3c", "office3", "office3c", "office3", "mech3", "office3c", "office3", "transfer3to2", "office2", "office2c", "office2", "office2c", "office2", "roof2_spire" };
+        var towerB = new List<string> { "base3", "hangar3", "office3", "office3", "mech3", "office3c", "office3c", "office3", "roof3_helipad" };
+        var towerC = new List<string> { "base3", "res3", "res3", "res3", "res3", "mech3", "res3", "res3", "res3", "roof3_mech" };
+        fm.Build(this, 7, 3, 9, towerA, 0);
+        fm.Build(this, 17, 3, 9, towerB, 0, cutawayBelow: 4);
+        fm.Build(this, 28, 3, 9, towerC, 90);
+        for (int i = 0; i < 16; i++) _kb.Humanoid(this, 3f + (float)_rnd.NextDouble() * 34f, 3f, 15f + (float)_rnd.NextDouble() * 2f, _rnd.Next(360), _rnd.NextDouble() < 0.5);
     }
 
     // ---------- 建物の展示(10 様式を一列に) ----------

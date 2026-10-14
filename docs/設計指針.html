@@ -73,7 +73,7 @@
   <tr><td>検証</td><td><code>sim/GPS.Sim.Tests</code>(xunit)。描画は <code>++ --screenshot &lt;path&gt; [--click x,y] [--rclick x,y]</code> で画面を保存して目視。</td></tr>
   <tr><td>定義データ(ブロック・レシピ・機械・ロボ世代・政策)</td><td><code>game/data/*.json</code>。コードに定数を埋めない。</td></tr>
   <tr><td>ボクセル描画</td><td>自前のチャンクメッシュ化(隣が空気の面だけ出す) + 頂点 AO。既製ライブラリは C# 非対応のため使わない。</td></tr>
-  <tr><td>物体の描画</td><td>格子は論理、見た目は自由形状。設備・建物・人型は自前のキットバッシュ生成(<code>game/scripts/KitBash.cs</code>)。箱・円柱・配管・発光帯などの基本部品をレシピで組み、角は立て、細部(グリーブル)を密集させる。素材は Poly Haven(CC0)の PBR テクスチャ(金属板・錆・塗装鉄・コンクリート・格子、<code>game/assets/pbr/</code>、三平面投影で UV 不要)。Kenney のキットは「玩具的」との判断で廃止。</td></tr>
+  <tr><td>物体の描画</td><td>格子は論理、見た目は自由形状。<b>建物は階モジュール方式</b>: 1 階 = 高さ 2 セルの部品(基壇・標準・機械・後退・屋上・格納庫など)を積む。部品は Blender のスクリプト(<code>tools/blender/make_modules.py</code>)で面取りとブーリアンを使って生成し GLB で出力(<code>game/assets/modules/</code>)。定義は <code>game/data/modules.json</code>、積み上げ・接続規則・昇降機の芯・階単位の切り取り表示は <code>game/scripts/FloorModules.cs</code>。材質は名前で Godot 側の PBR 材質(Poly Haven CC0、三平面投影)に差し替える。設備・人型は当面 <code>KitBash.cs</code> の生成(仮)。箱と円柱の組み合わせによる建物生成(KitBash の Tower/RefBuilding/LoftBuilding)は「根本的に不十分」との判断で廃止予定。AI 3D 生成(TRELLIS.2 / Hunyuan3D)は最後に検討。</td></tr>
   <tr><td>地形テクスチャ</td><td>32px/ブロックのアトラス(<code>tools/gen_textures.py</code> で生成、<code>game/assets/textures/</code>)。線形補間 + ミップマップ。見た目の現代性は解像度ではなく陰影(G8 第 7 節)で出す。</td></tr>
 </table>
 
@@ -98,7 +98,7 @@
   <tr><td>相手</td><td>同じ地図上の AI 国家(勢力)が複数。</td><td>2026-10-14</td></tr>
   <tr><td>建物内の工場</td><td>建物の中にも工場施設を作れる(Industries of Titan 型)。内部は階ごとの切り取り表示(G9 の工場ビル)。</td><td>2026-10-14</td></tr>
   <tr><td>陰影</td><td>テクスチャに加えて陰影(面の光・接地の環境遮蔽・落ち影・霧・発光)を入れる。軽量の範囲で(G8 第 7 節)。</td><td>2026-10-14</td></tr>
-  <tr><td>物体の形</td><td>格子は論理、見た目は自由形状。自前のキットバッシュ生成 + PBR 素材(既製の低ポリゴンキットは廃止)。以後のモックは Godot の描画試作(G10)で判断する。</td><td>2026-10-14</td></tr>
+  <tr><td>物体の形</td><td>格子は論理、見た目は自由形状。建物は階モジュール方式(Blender 生成の部品を積む)。有償キットは予算の制約で不採用、AI 3D 生成は最後に検討。以後のモックは Godot の描画試作(G10)で判断する。</td><td>2026-10-14</td></tr>
   <tr><td>戦艦</td><td>Industries of Titan のように戦艦を建造でき、戦艦は小さな都市のように内部を組み立てられる(建物内工場と同じ「階を持つ器」の仕組みを船体に適用)。人型ロボットは戦艦または地上施設から出撃する。</td><td>2026-10-14</td></tr>
 </table>
 
@@ -949,7 +949,20 @@ dotnet build game\GPS.csproj
 <section class="page" id="G10">
 <h2>G10 Godot 描画試作</h2>
 <p class="muted">2026-10-14 作成。ゲームの計算には触れない描画だけの試作。ボクセル地形(32px テクスチャ + 頂点 AO) + 自前のキットバッシュ生成(PBR 素材) + 陰影(方向光の影・SSAO・グロー・霧・ACES のトーンマップ)。実機のスクリーンショット。</p>
-<h3>0000. 名建築を参考にした建物 16 様式</h3>
+<h3>00000. 階モジュール方式(現在の方針)</h3>
+<p>箱と円柱の合成では「根本的に駄目」との判断で、建物の作り方を階モジュールの積み重ねに改めた。階の概念は建物内工場と戦艦の内部にも使う。</p>
+<table>
+  <tr><th>項目</th><th>内容</th></tr>
+  <tr><td>単位</td><td>階モジュール = 床面積 W×W セル(今は 3 と 2)、高さ 2 セル(設備 1 セルの室内と天井)。原点は床の中心。</td></tr>
+  <tr><td>種類</td><td>基壇(列柱・引っ込んだロビー・入口・庇・危険帯)、標準・事務所(窓の凹み・方立・庇・腰壁・背面の配管・通気口)、標準・住居(窓とベランダ・手すり・鉢植え)、機械(ルーバー・太い配管・タンク・橙の発光帯)、後退(広い床板・手すり・庭園の上に細い胴体。3 → 2 セル)、格納庫(大扉の開口と橙の発光。ロボットの出撃口)、屋上(欄干・機械室・空調機・給水塔・アンテナと赤灯。機械室型・ヘリポート型・尖塔型)。</td></tr>
+  <tr><td>接続</td><td>上のモジュールの床面積は下のモジュールの上端面積と一致(後退階が切り替える)。階の境目は鋼の襟で継ぎ目を隠す。昇降機の芯は奥の角を全高で貫く。</td></tr>
+  <tr><td>切り取り表示</td><td>指定階より下の外装(名前が ext_ の部品)を隠し、床板と柱(int_)を残して内部に設備を置く。建物内工場の表示はこれで成立する。</td></tr>
+  <tr><td>部品の作り方</td><td>Blender 4.5 LTS(D:\software\Blender_latest)の無人実行。箱の集合に面取り、窓はブーリアンで凹みを切り、奥にガラス、方立と庇を付ける。材質は名前だけ(M_Steel など)を持ち、Godot で PBR 材質に差し替える。生成: <code>blender.exe -b -P tools/blender/make_modules.py -- game/assets/modules</code>。</td></tr>
+  <tr><td>場面</td><td><code>--scene modules</code>: 3 棟(事務所塔 16 階と後退、格納庫と切り取り表示、住居塔)。</td></tr>
+</table>
+<img src="img/preview_modules.png" alt="階モジュール方式の 3 棟" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
+<p>以下の節(16 様式・部品メッシュ方式・キットバッシュ)は経緯の記録で、建物については階モジュール方式に置き換える。</p>
+<h3>0000. 名建築を参考にした建物 16 様式(廃止予定)</h3>
 <p>「ビルのモデリングを幾つか参考にして作って」との指示で、実在の名建築の造形を参考に 10 様式を部品メッシュ方式でレシピ化した(<code>game/scripts/KitBashBuildings.cs</code>)。判断用に 10 棟を一列に並べた場面(<code>--scene buildings</code>)を追加。中心街の大型区画は、メガタワー 3 棟のほか、ロフト様式 35%、名建築様式 39%、基本様式 26% の割合で選ぶ。</p>
 <table>
   <tr><th>番号</th><th>様式</th><th>参考にした造形</th><th>構成</th></tr>
@@ -1025,7 +1038,7 @@ dotnet build game\GPS.csproj
 <pre><code>cd E:\VSC_Git\GPS\game
 ..\.tools\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe --path . --resolution 1600x900 res://scenes/preview.tscn ++ --scene village
 ..\.tools\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe --path . --resolution 1600x900 res://scenes/preview.tscn ++ --scene city
-(--screenshot &lt;path&gt; を付けると 40 フレーム後に保存して終了。--view close で近景、--scene buildings で建物 10 様式の一列)</code></pre>
+(--screenshot &lt;path&gt; を付けると 40 フレーム後に保存して終了。--view close で近景、--scene buildings で建物 16 様式の一列、--scene modules で階モジュールの 3 棟)</code></pre>
 
 <h3>4. 未着手の物</h3>
 <table>
