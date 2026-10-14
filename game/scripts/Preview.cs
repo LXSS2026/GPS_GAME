@@ -24,7 +24,7 @@ public partial class Preview : Node3D
         var args = OS.GetCmdlineUserArgs();
         string scene = Arg(args, "--scene") ?? "village";
         Vector3 pivot; float dist;
-        if (scene == "city") { BuildCity(); pivot = new Vector3(32, 12, 34); dist = 98; }
+        if (scene == "city") { BuildCity(); pivot = new Vector3(30, 18, 30); dist = 122; }
         else { BuildVillage(); pivot = new Vector3(22, 6, 27); dist = 40; }
 
         _kb.Flush(this);
@@ -174,7 +174,9 @@ public partial class Preview : Node3D
                 switch (d)
                 {
                     case "downtown":
-                        if (_rnd.NextDouble() < 0.4)
+                        if ((x0, z0) is (15, 8) or (22, 15) or (29, 8))
+                            _kb.MegaTower(this, x0 + 3f, Y, z0 + 3f, 3.6f, 3.6f, (x0, z0) == (22, 15) ? 9 : 6, 6, 0);
+                        else if (_rnd.NextDouble() < 0.4)
                             _kb.Tower(this, x0 + 3f, Y, z0 + 3f, 3.8f, 3.8f, _rnd.Next(24, 49), _rnd.Next(4) * 90);
                         else
                             foreach (var (ox, oz) in new[] { (1.6f, 1.6f), (4.4f, 1.6f), (1.6f, 4.4f), (4.4f, 4.4f) })
@@ -212,6 +214,8 @@ public partial class Preview : Node3D
                         break;
                 }
             }
+        // メガタワー間の空中回廊(2 層目のデッキ高さ)
+        _kb.SkyBridge(this, new Vector3(18 + 2.4f, Y + 0.3f + 0.9f * 2 + 0.2f + (0.9f * 6 + 0.5f) * 2 + 0.3f, 11), new Vector3(25 - 2.4f, Y + 0.3f + 0.9f * 2 + 0.2f + (0.9f * 6 + 0.5f) * 2 + 0.3f, 18));
         // 高架の軌道(x = 21 の道路上)と列車
         for (int z = 0; z < N; z++)
         {

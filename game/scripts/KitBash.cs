@@ -10,6 +10,8 @@ public sealed class KitBash
 {
     readonly Random _rnd;
     public readonly StandardMaterial3D Steel, Rust, Paint, PaintDark, Concrete, Floor, Grate, Rubber, Hazard, GlowCyan, GlowOrange, GlowRed, GlowWhite, Glass, Foliage, Trunk;
+    public readonly StandardMaterial3D WinWarm, WinCool, WinMixed, WinDark;   // 窓の格子(住居 = 暖色、商業 = 水色、混在、消灯)
+    public const float Floor_ = 0.9f;
 
     public KitBash(int seed)
     {
@@ -30,6 +32,55 @@ public sealed class KitBash
         Glass = new StandardMaterial3D { AlbedoColor = new Color(0.12f, 0.18f, 0.26f), Roughness = 0.15f, Metallic = 0.6f };
         Foliage = new StandardMaterial3D { AlbedoColor = new Color(0.22f, 0.32f, 0.22f), Roughness = 0.95f };
         Trunk = new StandardMaterial3D { AlbedoColor = new Color(0.16f, 0.12f, 0.09f), Roughness = 0.95f };
+        WinWarm = Windows(new Color(1.0f, 0.82f, 0.55f), 0.55f, 101);
+        WinCool = Windows(new Color(0.55f, 0.85f, 1.0f), 0.5f, 102);
+        WinMixed = Windows(new Color(0.95f, 0.9f, 0.8f), 0.45f, 103, new Color(0.45f, 0.8f, 1.0f));
+        WinDark = Windows(new Color(0.9f, 0.85f, 0.7f), 0.12f, 104);
+    }
+
+    /// <summary>
+    /// 窓の格子: 1 タイル = 1 階(0.9m) × 2 枚のガラス。8 × 8 タイル(7.2m 周期)で点灯を乱数化し、三平面投影で世界座標に貼る。
+    /// アルベドは枠(暗い鋼)と暗いガラス、発光は点灯した窓だけ。
+    /// </summary>
+    static StandardMaterial3D Windows(Color lit, float litRate, int seed, Color? lit2 = null)
+    {
+        const int tile = 64, tiles = 8, size = tile * tiles;
+        var r = new Random(seed);
+        var albedo = Image.CreateEmpty(size, size, true, Image.Format.Rgb8);
+        var emit = Image.CreateEmpty(size, size, true, Image.Format.Rgb8);
+        var frame = new Color(0.10f, 0.11f, 0.13f);
+        var spandrel = new Color(0.20f, 0.22f, 0.26f);
+        for (int ty = 0; ty < tiles; ty++)
+            for (int tx = 0; tx < tiles; tx++)
+                for (int pane = 0; pane < 2; pane++)
+                {
+                    bool isLit = r.NextDouble() < litRate;
+                    var c = lit2 != null && r.NextDouble() < 0.3 ? lit2.Value : lit;
+                    float dim = 0.6f + (float)r.NextDouble() * 0.4f;
+                    var glassCol = new Color(0.07f, 0.10f, 0.15f) * (0.8f + (float)r.NextDouble() * 0.4f);
+                    for (int y = 0; y < tile; y++)
+                        for (int x = 0; x < tile / 2; x++)
+                        {
+                            int px = tx * tile + pane * (tile / 2) + x, py = ty * tile + y;
+                            bool isFrame = x < 3 || x >= tile / 2 - 3 || y < 4 || y >= tile - 4;
+                            bool isSpandrel = y >= tile - 18 && !isFrame;      // 階の下部は腰壁
+                            Color a = isFrame ? frame : isSpandrel ? spandrel : isLit ? c * (0.55f * dim) : glassCol;
+                            Color e = (!isFrame && !isSpandrel && isLit) ? c * dim : new Color(0, 0, 0);
+                            if (!isFrame && !isSpandrel && y % 20 == 10) { a = frame; e = new Color(0, 0, 0); }   // 中桟
+                            albedo.SetPixel(px, py, a);
+                            emit.SetPixel(px, py, e);
+                        }
+                }
+        albedo.GenerateMipmaps(); emit.GenerateMipmaps();
+        float k = 1f / (Floor_ * tiles);
+        return new StandardMaterial3D
+        {
+            AlbedoTexture = ImageTexture.CreateFromImage(albedo),
+            EmissionEnabled = true, EmissionTexture = ImageTexture.CreateFromImage(emit), EmissionEnergyMultiplier = 2.2f,
+            Roughness = 0.25f, Metallic = 0.4f,
+            Uv1Triplanar = true, Uv1WorldTriplanar = true, Uv1Scale = new Vector3(k, k, k), Uv1TriplanarSharpness = 8f,
+            TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic,
+        };
     }
 
     static StandardMaterial3D Pbr(string asset, float scale, Color tint, float roughMul, float metallic)
@@ -46,7 +97,7 @@ public sealed class KitBash
             Roughness = roughMul,
             Metallic = metallic,
             MetallicSpecular = 0.5f,
-            Uv1Triplanar = true,
+            Uv1Triplanar = true, Uv1WorldTriplanar = true,
             Uv1Scale = new Vector3(scale, scale, scale),
             TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic,
         };
@@ -72,7 +123,7 @@ public sealed class KitBash
             for (int x = 0; x < 64; x++)
                 img.SetPixel(x, y, ((x + y) / 8) % 2 == 0 ? new Color(0.85f, 0.65f, 0.1f) : new Color(0.08f, 0.08f, 0.08f));
         img.GenerateMipmaps();
-        return new StandardMaterial3D { AlbedoTexture = ImageTexture.CreateFromImage(img), Uv1Triplanar = true, Uv1Scale = new Vector3(1, 1, 1), Roughness = 0.7f };
+        return new StandardMaterial3D { AlbedoTexture = ImageTexture.CreateFromImage(img), Uv1Triplanar = true, Uv1WorldTriplanar = true, Uv1Scale = new Vector3(1, 1, 1), Roughness = 0.7f };
     }
 
     // ---------- 基本部品 ----------
@@ -137,7 +188,7 @@ public sealed class KitBash
         }
     }
 
-    public void Strip(Node3D p, Vector3 center, Vector3 size, Material glow) => Box(p, center, size, glow);
+    public void Strip(Node3D p, Vector3 center, Vector3 size, Material glow, Vector3? rotDeg = null) => Box(p, center, size, glow, rotDeg);
 
     public void Light(Node3D p, Vector3 pos, Color c, float range = 4f, float energy = 2f)
         => p.AddChild(new OmniLight3D { Position = pos, LightColor = c, LightEnergy = energy, OmniRange = range, ShadowEnabled = false });
@@ -276,7 +327,7 @@ public sealed class KitBash
         var body = _rnd.NextDouble() < 0.5 ? Paint : PaintDark;
         // 基壇と店舗階(発光帯・庇・入口)
         Box(n, new Vector3(0, 0.1f, 0), new Vector3(w + 0.5f, 0.2f, d + 0.5f), Concrete);
-        float gh = 1.3f;
+        float gh = 1.2f;
         Box(n, new Vector3(0, 0.2f + gh / 2, 0), new Vector3(w, gh, d), Concrete);
         Strip(n, new Vector3(0, 0.2f + gh * 0.55f, d / 2 + 0.01f), new Vector3(w * 0.8f, gh * 0.5f, 0.02f), _rnd.NextDouble() < 0.5 ? GlowWhite : GlowCyan);
         Box(n, new Vector3(0, 0.2f + gh + 0.05f, d / 2 + 0.3f), new Vector3(w * 0.9f, 0.08f, 0.6f), Steel);
@@ -310,7 +361,7 @@ public sealed class KitBash
             }
             case Style.Glass:
             {
-                float top = Block(n, y0, w, d, remain, Glass, 0, 0, ledges: false, mullions: true, windows: false);
+                float top = Block(n, y0, w, d, remain, WinCool, 0, 0, ledges: false, mullions: true, windows: false);
                 Crown(n, top, w, d, 0, 0);
                 Roof(n, top, w, d, 0, 0, 2);
                 break;
@@ -332,7 +383,8 @@ public sealed class KitBash
             case Style.Octagon:
             {
                 float h = remain * Fh, r = Math.Max(w, d) / 2;
-                Cyl(n, new Vector3(0, y0 + h / 2, 0), r, h, body, seg: 8);
+                Cyl(n, new Vector3(0, y0 + h / 2, 0), r, h, PickWindows(), seg: 8);
+                Cyl(n, new Vector3(0, y0 + h + 0.02f, 0), r + 0.01f, 0.04f, PaintDark, seg: 8);
                 for (int f = 0; f < remain; f += 3) Cyl(n, new Vector3(0, y0 + f * Fh + Fh * 0.5f, 0), r + 0.02f, 0.06f, GlowCyan, seg: 8);
                 for (int f = 0; f < remain; f++) Cyl(n, new Vector3(0, y0 + f * Fh, 0), r + 0.05f, 0.05f, Steel, seg: 8);
                 float top = y0 + h;
@@ -348,49 +400,26 @@ public sealed class KitBash
         return n;
     }
 
-    /// <summary>胴体の 1 区画: 箱 + 窓(発光帯と暗いガラス) + 任意で庇・縦桟・ベランダ。上端の y を返す。</summary>
+    /// <summary>胴体の 1 区画: 窓格子の材質を貼った箱 + 角柱 + 任意で庇・縦リブ・ベランダ。上端の y を返す。</summary>
     float Block(Node3D n, float yBase, float w, float d, int floors, Material mat, float ox, float oz, bool ledges = false, bool mullions = false, bool balconies = false, bool windows = true)
     {
         float h = floors * Fh;
-        Box(n, new Vector3(ox, yBase + h / 2, oz), new Vector3(w, h, d), mat);
-        if (!ReferenceEquals(mat, Glass))
-            for (int sx = -1; sx <= 1; sx += 2) for (int sz = -1; sz <= 1; sz += 2)
-                Box(n, new Vector3(ox + sx * w / 2, yBase + h / 2, oz + sz * d / 2), new Vector3(0.12f, h + 0.05f, 0.12f), Steel);
-        var sides = new[] { (0, 1), (0, -1), (1, 0), (-1, 0) };
+        var body = windows ? PickWindows() : mat;
+        Box(n, new Vector3(ox, yBase + h / 2, oz), new Vector3(w, h, d), body);
+        Box(n, new Vector3(ox, yBase + h + 0.02f, oz), new Vector3(w + 0.02f, 0.04f, d + 0.02f), PaintDark);   // 屋根板(上面に窓を出さない)
+        for (int sx = -1; sx <= 1; sx += 2) for (int sz = -1; sz <= 1; sz += 2)
+            Box(n, new Vector3(ox + sx * w / 2, yBase + h / 2, oz + sz * d / 2), new Vector3(0.14f, h + 0.05f, 0.14f), Steel);
+        if (mullions)
+        {
+            // 外骨格の縦リブ: 2 列ごと
+            int cx = Math.Max(1, (int)(w / 0.9f)), cz = Math.Max(1, (int)(d / 0.9f));
+            for (int c = 1; c < cx; c++) { float t = (float)c / cx - 0.5f; Box(n, new Vector3(ox + t * w, yBase + h / 2, oz + d / 2 + 0.03f), new Vector3(0.06f, h, 0.06f), Steel); Box(n, new Vector3(ox + t * w, yBase + h / 2, oz - d / 2 - 0.03f), new Vector3(0.06f, h, 0.06f), Steel); }
+            for (int c = 1; c < cz; c++) { float t = (float)c / cz - 0.5f; Box(n, new Vector3(ox + w / 2 + 0.03f, yBase + h / 2, oz + t * d), new Vector3(0.06f, h, 0.06f), Steel); Box(n, new Vector3(ox - w / 2 - 0.03f, yBase + h / 2, oz + t * d), new Vector3(0.06f, h, 0.06f), Steel); }
+        }
         for (int f = 0; f < floors; f++)
         {
             float fy = yBase + f * Fh;
-            if (ledges) Box(n, new Vector3(ox, fy + 0.02f, oz), new Vector3(w + 0.14f, 0.06f, d + 0.14f), Concrete);
-            foreach (var (nx, nz) in sides)
-            {
-                float len = nx == 0 ? w : d;
-                int cols = Math.Max(1, (int)(len / 0.45f));
-                for (int c = 0; c < cols; c++)
-                {
-                    float t = (c + 0.5f) / cols - 0.5f;
-                    if (windows)
-                    {
-                        bool lit = _rnd.NextDouble() < 0.55;
-                        var m = lit ? (_rnd.NextDouble() < 0.85 ? GlowWhite : GlowCyan) : Glass;
-                        var pos = nx == 0 ? new Vector3(ox + t * w, fy + Fh * 0.55f, oz + nz * (d / 2 + 0.01f)) : new Vector3(ox + nx * (w / 2 + 0.01f), fy + Fh * 0.55f, oz + t * d);
-                        var size = nx == 0 ? new Vector3(0.26f, 0.42f, 0.02f) : new Vector3(0.02f, 0.42f, 0.26f);
-                        Box(n, pos, size, m);
-                    }
-                    if (mullions && f == 0)
-                    {
-                        float tb = (float)c / cols - 0.5f;
-                        var pos = nx == 0 ? new Vector3(ox + tb * w, yBase + h / 2, oz + nz * (d / 2 + 0.02f)) : new Vector3(ox + nx * (w / 2 + 0.02f), yBase + h / 2, oz + tb * d);
-                        var size = nx == 0 ? new Vector3(0.04f, h, 0.04f) : new Vector3(0.04f, h, 0.04f);
-                        Box(n, pos, size, Steel);
-                    }
-                }
-                if (mullions)
-                {
-                    var pos = nx == 0 ? new Vector3(ox, fy, oz + nz * (d / 2 + 0.02f)) : new Vector3(ox + nx * (w / 2 + 0.02f), fy, oz);
-                    var size = nx == 0 ? new Vector3(w, 0.04f, 0.04f) : new Vector3(0.04f, 0.04f, d);
-                    Box(n, pos, size, Steel);
-                }
-            }
+            if (ledges) Box(n, new Vector3(ox, fy + 0.02f, oz), new Vector3(w + 0.14f, 0.05f, d + 0.14f), Concrete);
             if (balconies && f % 2 == 1)
             {
                 Box(n, new Vector3(ox, fy + 0.03f, oz + d / 2 + 0.2f), new Vector3(w * 0.7f, 0.06f, 0.4f), Concrete);
@@ -400,6 +429,8 @@ public sealed class KitBash
         }
         return yBase + h;
     }
+
+    Material PickWindows() => _rnd.Next(4) switch { 0 => WinWarm, 1 => WinCool, 2 => WinMixed, _ => WinDark };
 
     void Parapet(Node3D n, float top, float w, float d, float ox, float oz)
     {
@@ -445,6 +476,92 @@ public sealed class KitBash
                 Strip(n, new Vector3(ox + w * 0.3f, top + 1.75f, oz - d * 0.3f), new Vector3(0.12f, 0.12f, 0.12f), GlowRed);
                 break;
         }
+    }
+
+    /// <summary>
+    /// メガタワー(SimCity Cities of Tomorrow を参照): 積層モジュール、外骨格の角柱と斜め支柱、層間の発光デッキと空中庭園、中央コア、冠と尖塔。
+    /// levels × floorsPerLevel 階。原点は基壇の中心。
+    /// </summary>
+    public Node3D MegaTower(Node3D parent, float x, float y, float z, float w, float d, int levels, int floorsPerLevel, float rot = 0)
+    {
+        var n = Root(parent, x, y, z, rot);
+        float lh = floorsPerLevel * Fh;
+        // 基壇とロビー(2 階分のガラスと発光帯)
+        Box(n, new Vector3(0, 0.15f, 0), new Vector3(w + 1.6f, 0.3f, d + 1.6f), Concrete);
+        Box(n, new Vector3(0, 0.3f + Fh, 0), new Vector3(w + 0.6f, Fh * 2, d + 0.6f), WinCool);
+        Box(n, new Vector3(0, 0.3f + Fh * 2 + 0.1f, 0), new Vector3(w + 1.0f, 0.2f, d + 1.0f), Steel);
+        Strip(n, new Vector3(0, 0.34f, (d + 1.6f) / 2), new Vector3(w + 1.6f, 0.05f, 0.05f), GlowCyan);
+        Strip(n, new Vector3(0, 0.34f, -(d + 1.6f) / 2), new Vector3(w + 1.6f, 0.05f, 0.05f), GlowCyan);
+        Box(n, new Vector3(0, 0.3f + Fh * 0.7f, (d + 0.6f) / 2 + 0.02f), new Vector3(1.6f, Fh * 1.4f, 0.04f), Rubber);
+        Strip(n, new Vector3(0, 0.3f + Fh * 1.42f, (d + 0.6f) / 2 + 0.03f), new Vector3(1.6f, 0.06f, 0.02f), GlowWhite);
+        Light(n, new Vector3(0, 1.0f, (d + 0.6f) / 2 + 1.2f), new Color(0.25f, 0.85f, 1.0f), 5f, 1.5f);
+        float y0 = 0.3f + Fh * 2 + 0.2f;
+        float top = y0;
+        // 中央コア(全高 + 冠)
+        float hAll = levels * lh + (levels - 1) * 0.5f;
+        Cyl(n, new Vector3(0, y0 + hAll / 2 + 1.5f, 0), Math.Min(w, d) * 0.22f, hAll + 3.0f, PaintDark, seg: 12);
+        // 積層モジュール
+        var wins = new[] { WinWarm, WinCool, WinMixed };
+        for (int L = 0; L < levels; L++)
+        {
+            float lw = w * (L % 2 == 0 ? 1.0f : 0.9f), ld = d * (L % 2 == 0 ? 1.0f : 0.9f);
+            Box(n, new Vector3(0, top + lh / 2, 0), new Vector3(lw, lh, ld), wins[(L + _rnd.Next(3)) % 3]);
+            // 外骨格: 角の太い柱と各面の斜め支柱(X 字)
+            for (int sx = -1; sx <= 1; sx += 2) for (int sz = -1; sz <= 1; sz += 2)
+                Box(n, new Vector3(sx * (lw / 2 + 0.08f), top + lh / 2, sz * (ld / 2 + 0.08f)), new Vector3(0.28f, lh, 0.28f), Steel);
+            float ang = Mathf.RadToDeg(Mathf.Atan2(lh, lw));
+            foreach (int sz in new[] { -1, 1 })
+            {
+                Box(n, new Vector3(0, top + lh / 2, sz * (ld / 2 + 0.05f)), new Vector3(0.08f, Mathf.Sqrt(lh * lh + lw * lw) * 0.98f, 0.08f), Steel, new Vector3(0, 0, 90 - ang));
+                Box(n, new Vector3(0, top + lh / 2, sz * (ld / 2 + 0.05f)), new Vector3(0.08f, Mathf.Sqrt(lh * lh + lw * lw) * 0.98f, 0.08f), Steel, new Vector3(0, 0, ang - 90));
+            }
+            float angz = Mathf.RadToDeg(Mathf.Atan2(lh, ld));
+            foreach (int sx in new[] { -1, 1 })
+            {
+                Box(n, new Vector3(sx * (lw / 2 + 0.05f), top + lh / 2, 0), new Vector3(0.08f, Mathf.Sqrt(lh * lh + ld * ld) * 0.98f, 0.08f), Steel, new Vector3(90 - angz, 0, 0));
+                Box(n, new Vector3(sx * (lw / 2 + 0.05f), top + lh / 2, 0), new Vector3(0.08f, Mathf.Sqrt(lh * lh + ld * ld) * 0.98f, 0.08f), Steel, new Vector3(angz - 90, 0, 0));
+            }
+            // 中間の帯(2 階ごとの庇)
+            for (int f = 2; f < floorsPerLevel; f += 2) Box(n, new Vector3(0, top + f * Fh, 0), new Vector3(lw + 0.12f, 0.05f, ld + 0.12f), Steel);
+            top += lh;
+            // 層間デッキ: 張り出した板、縁の発光帯、手すり、空中庭園
+            Box(n, new Vector3(0, top + 0.12f, 0), new Vector3(w + 0.9f, 0.24f, d + 0.9f), Steel);
+            Box(n, new Vector3(0, top + 0.26f, 0), new Vector3(w + 0.7f, 0.04f, d + 0.7f), Grate);
+            Strip(n, new Vector3(0, top + 0.12f, (d + 0.9f) / 2 + 0.01f), new Vector3(w + 0.9f, 0.06f, 0.02f), GlowCyan);
+            Strip(n, new Vector3(0, top + 0.12f, -(d + 0.9f) / 2 - 0.01f), new Vector3(w + 0.9f, 0.06f, 0.02f), GlowCyan);
+            Strip(n, new Vector3((w + 0.9f) / 2 + 0.01f, top + 0.12f, 0), new Vector3(0.02f, 0.06f, d + 0.9f), GlowCyan);
+            Strip(n, new Vector3(-(w + 0.9f) / 2 - 0.01f, top + 0.12f, 0), new Vector3(0.02f, 0.06f, d + 0.9f), GlowCyan);
+            for (int sx = -1; sx <= 1; sx += 2) for (int sz = -1; sz <= 1; sz += 2)
+            {
+                Box(n, new Vector3(sx * (w / 2 + 0.25f), top + 0.42f, sz * (d / 2 + 0.25f)), new Vector3(0.5f, 0.3f, 0.5f), Foliage);
+                Box(n, new Vector3(sx * (w / 2 + 0.25f), top + 0.62f, sz * (d / 2 + 0.25f)), new Vector3(0.3f, 0.3f, 0.3f), Foliage);
+            }
+            for (int sz = -1; sz <= 1; sz += 2) Box(n, new Vector3(0, top + 0.5f, sz * (d + 0.9f) / 2), new Vector3(w + 0.9f, 0.02f, 0.02f), Rust);
+            top += 0.5f;
+        }
+        // 冠: 上部デッキ、環の発光、機器、尖塔とアンテナ群、赤灯
+        Box(n, new Vector3(0, top + 0.3f, 0), new Vector3(w * 0.7f, 0.6f, d * 0.7f), PaintDark);
+        Cyl(n, new Vector3(0, top + 0.7f, 0), Math.Min(w, d) * 0.3f, 0.08f, GlowCyan, seg: 16);
+        for (int i = 0; i < 4; i++) Box(n, new Vector3(-w * 0.25f + i * w * 0.17f, top + 0.75f, -d * 0.2f), new Vector3(0.3f, 0.3f, 0.3f), Steel);
+        Cyl(n, new Vector3(0, top + 2.0f, 0), 0.35f, 2.6f, Steel, topR: 0.06f, seg: 8);
+        Cyl(n, new Vector3(0, top + 4.4f, 0), 0.03f, 2.2f, Steel, seg: 6);
+        Strip(n, new Vector3(0, top + 5.55f, 0), new Vector3(0.16f, 0.16f, 0.16f), GlowRed);
+        Light(n, new Vector3(0, top + 5.5f, 0), new Color(1.0f, 0.2f, 0.15f), 6f, 2f);
+        for (int sx = -1; sx <= 1; sx += 2) { Cyl(n, new Vector3(sx * w * 0.3f, top + 1.5f, d * 0.25f), 0.02f, 1.6f, Steel, seg: 6); Strip(n, new Vector3(sx * w * 0.3f, top + 2.35f, d * 0.25f), new Vector3(0.1f, 0.1f, 0.1f), GlowRed); }
+        return n;
+    }
+
+    /// <summary>塔どうしをつなぐ空中回廊。a と b は回廊の両端(世界座標)。</summary>
+    public void SkyBridge(Node3D parent, Vector3 a, Vector3 b)
+    {
+        var n = Root(parent, 0, 0, 0, 0);
+        var dlt = b - a; float len = dlt.Length();
+        float yaw = Mathf.RadToDeg(Mathf.Atan2(dlt.X, dlt.Z));
+        var c = (a + b) / 2;
+        Box(n, c + new Vector3(0, 0.3f, 0), new Vector3(1.2f, 0.6f, len), WinCool, new Vector3(0, yaw, 0));
+        Box(n, c + new Vector3(0, -0.08f, 0), new Vector3(1.5f, 0.16f, len), Steel, new Vector3(0, yaw, 0));
+        Box(n, c + new Vector3(0, 0.68f, 0), new Vector3(1.4f, 0.1f, len), Steel, new Vector3(0, yaw, 0));
+        Strip(n, c + new Vector3(0, -0.17f, 0), new Vector3(1.0f, 0.03f, len), GlowCyan, new Vector3(0, yaw, 0));
     }
 
     /// <summary>工場棟: 低く長い箱、鋸屋根風の通気、配管、煙突、扉の発光。</summary>
