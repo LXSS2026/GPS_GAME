@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://cxua38x7td543"
-path="res://.godot/imported/mech_g2.glb-2d5fb528d3f070b52ed25a14101add6c.scn"
+uid="uid://ch0jom77pmp8s"
+path="res://.godot/imported/torso_general.glb-4c838e36ff915af4c7f20058e89ff87c.scn"
 
 [deps]
 
-source_file="res://assets/characters/mech_g2.glb"
-dest_files=["res://.godot/imported/mech_g2.glb-2d5fb528d3f070b52ed25a14101add6c.scn"]
+source_file="res://assets/mech/torso_general.glb"
+dest_files=["res://.godot/imported/torso_general.glb-4c838e36ff915af4c7f20058e89ff87c.scn"]
 
 [params]
 

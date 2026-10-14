@@ -63,7 +63,7 @@ public sealed class FloorModules
         return n;
     }
 
-    public string RandomMech() => $"mech_g{_rnd.Next(5)}";
+    public IReadOnlyDictionary<string, Material> Materials => _mats;
     public string RandomHuman() => _rnd.NextDouble() < 0.8 ? "citizen" : "soldier";
 
     Node3D Instantiate(string id)

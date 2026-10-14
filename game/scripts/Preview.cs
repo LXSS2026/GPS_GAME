@@ -13,6 +13,7 @@ public partial class Preview : Node3D
     BlockRegistry _blocks = null!;
     KitBash _kb = null!;
     FloorModules _fm = null!;
+    MechBuilder _mb = null!;
     Random _rnd = new(7);
     Camera3D _cam = null!;
     int _frame;
@@ -24,17 +25,18 @@ public partial class Preview : Node3D
         _blocks = BlockRegistry.FromJson(FileAccess.GetFileAsString("res://data/blocks.json"));
         _kb = new KitBash(11);
         _fm = new FloorModules(_kb, 9);
+        _mb = new MechBuilder(_fm);
         var args = OS.GetCmdlineUserArgs();
         string scene = Arg(args, "--scene") ?? "village";
         Vector3 pivot; float dist;
         if (scene == "city") { BuildCity(); pivot = new Vector3(30, 18, 30); dist = 122; }
         else if (scene == "buildings") { BuildShowcase(); pivot = new Vector3(60, 17, 12); dist = 112; }
         else if (scene == "modules") { BuildModules(); pivot = new Vector3(48, 14, 16); dist = 100; }
-        else if (scene == "robots") { BuildRobots(); pivot = new Vector3(44f, 11f, 20f); dist = 78f; }
+        else if (scene == "robots") { BuildRobots(); pivot = new Vector3(48f, 9f, 34f); dist = 80f; }
         else { BuildVillage(); pivot = new Vector3(22, 6, 27); dist = 40; }
-        if (Arg(args, "--pivot") is string pv) { var p = pv.Split(','); pivot = new Vector3(float.Parse(p[0]), float.Parse(p[1]), float.Parse(p[2])); }
-        if (Arg(args, "--dist") is string ds) dist = float.Parse(ds);
         if (Arg(args, "--view") == "close") { pivot = scene == "city" ? new Vector3(24, 9, 20) : new Vector3(24, 6, 33); dist = scene == "city" ? 34 : 16; }
+        if (Arg(args, "--pivot") is string pv) { var p = pv.Split(','); pivot = new Vector3(float.Parse(p[0]), float.Parse(p[1]), float.Parse(p[2])); }   // --view より後に適用(明示指定が勝つ)
+        if (Arg(args, "--dist") is string ds) dist = float.Parse(ds);
 
         _kb.Flush(this);
         var tr = new TerrainRenderer();
@@ -125,7 +127,7 @@ public partial class Preview : Node3D
         // 人(市民 4、自警団はロボット 2)
         _fm.Character(this, "citizen", 12.2f, Top(12, 19), 19.4f, 150); _fm.Character(this, "citizen", 13.0f, Top(13, 19), 19.8f, -30);
         _fm.Character(this, "soldier", 16.3f, Top(16, 20), 20.5f, 60); _fm.Character(this, "citizen", 14.0f, Top(14, 22), 22.2f, 200);
-        _fm.Character(this, "soldier", 21.3f, Top(21, 35), 35.5f, 30); _fm.Character(this, "mech_g0", 34f, Top(34, 30), 30f, -60);
+        _fm.Character(this, "soldier", 21.3f, Top(21, 35), 35.5f, 30); _mb.Build(this, "general", "g0", 34f, Top(34, 30), 30f, -60);
         // 木と岩
         foreach (var (x, z) in new[] { (3, 4), (17, 8), (4, 30), (22, 40), (36, 18), (40, 30), (14, 40), (38, 8), (5, 36), (33, 12) })
             _kb.Pine(this, C(x), Top(x, z), C(z), 1.8f + (float)_rnd.NextDouble() * 1.2f);
@@ -152,17 +154,21 @@ public partial class Preview : Node3D
         _kb.Light(this, new Vector3(25, Top(24, 36) + 3.0f, 37), new Color(0.25f, 0.85f, 1.0f), 5f, 1.5f);
     }
 
-    // ---------- 機体の展示(5 世代を一列に、比較用の人間と階モジュールの塔) ----------
+    // ---------- 機体の展示(前列: 重装・高速・汎用の 3 系統、後列: 汎用の 5 世代 = リアクターの色、右端: 組み替え例) ----------
     void BuildRobots()
     {
         byte stone = B("Stone"), plaza = B("Plaza");
-        for (int x = 0; x < 90; x++) for (int z = 0; z < 40; z++) { _world.Set(x, 0, z, stone); _world.Set(x, 1, z, stone); _world.Set(x, 2, z, plaza); }
+        for (int x = 0; x < 100; x++) for (int z = 0; z < 60; z++) { _world.Set(x, 0, z, stone); _world.Set(x, 1, z, stone); _world.Set(x, 2, z, plaza); }
         _world.Dirty.Clear();
-        string[] ids = { "mech_g0", "mech_g1", "mech_g2", "mech_g3", "mech_g4" };
-        for (int i = 0; i < ids.Length; i++) _fm.Character(this, ids[i], 12f + i * 15f, 3f, 20f, 15);
-        _fm.Character(this, "citizen", 6f, 3f, 24f, 20); _fm.Character(this, "soldier", 7.2f, 3f, 24.5f, 0);
-        _fm.Build(this, 84f, 3f, 12f, _fm.Plan("office", 5, 5, 7, false, "heli"), 0);   // 7 階 = 21 m の塔(比較用)
-        _kb.Light(this, new Vector3(45f, 14f, 36f), new Color(0.9f, 0.92f, 1.0f), 50f, 1.6f);
+        _mb.Build(this, "heavy", "g2", 18f, 3f, 44f, 0);
+        _mb.Build(this, "fast", "g2", 38f, 3f, 44f, 0);
+        _mb.Build(this, "general", "g2", 58f, 3f, 44f, 0);
+        // 組み替え例: 汎用の胴と頭に、重装の腕と高速の脚、大砲
+        _mb.Build(this, _mb.Presets["general"].With(arms: "heavy", legs: "fast", back: "back_heavy", weaponR: "weapon_cannon", weaponL: "weapon_blade") with { Main = new Color(0.35f, 0.45f, 0.4f) }, "g4", 78f, 3f, 44f, 0);
+        for (int g = 0; g < 5; g++) _mb.Build(this, "general", $"g{g}", 14f + g * 17f, 3f, 20f, 10);
+        _fm.Character(this, "citizen", 8f, 3f, 48f, 20); _fm.Character(this, "soldier", 9.2f, 3f, 48.5f, 0);
+        _fm.Build(this, 94f, 3f, 16f, _fm.Plan("office", 5, 5, 7, false, "heli"), 0);   // 7 階 = 21 m の塔(比較用)
+        _kb.Light(this, new Vector3(48f, 16f, 36f), new Color(0.9f, 0.92f, 1.0f), 60f, 1.6f);
         _kb.Light(this, new Vector3(10f, 10f, 30f), new Color(1.0f, 0.8f, 0.6f), 30f, 1.0f);
     }
 
@@ -206,7 +212,7 @@ public partial class Preview : Node3D
         }
         fm.SkyNode(this, new Vector3(cx, 0, cz), 5, b.GetRange(b.Count - 4, 4), true);
         for (int i = 0; i < 30; i++) _fm.Character(this, _fm.RandomHuman(), 3f + (float)_rnd.NextDouble() * 90f, 3f, 15f + (float)_rnd.NextDouble() * 2f, _rnd.Next(360));
-        _fm.Character(this, "mech_g2", 30f, 3f, 24f, 40);
+        _mb.Build(this, "general", "g2", 30f, 3f, 24f, 40);
     }
 
     // ---------- 建物の展示(10 様式を一列に) ----------
@@ -293,7 +299,7 @@ public partial class Preview : Node3D
                         break;
                     case "military":
                         _fm.Build(this, x0 + 3f, Y, z0 + 3f, new List<string> { "base_5x5_office", "hangar_5x5", "hangar_5x5", "mech_5x5_office", "roof_5x5_heli_office" }, 0);
-                        _fm.Character(this, _rnd.NextDouble() < 0.5 ? "mech_g1" : "mech_g2", x0 + 3f, Y, z0 + 8.5f, 180);
+                        _mb.Build(this, _rnd.NextDouble() < 0.5 ? "heavy" : "general", _rnd.NextDouble() < 0.5 ? "g1" : "g2", x0 + 3f, Y, z0 + 8.5f, 180);
                         break;
                     case "solar":
                         for (int i = 0; i < 5; i++) for (int j = 0; j < 3; j++) _kb.Solar(this, x0 + 0.8f + i * 1.1f, Y, z0 + 1.0f + j * 1.8f, 0);

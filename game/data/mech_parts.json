@@ -1,0 +1,505 @@
+{
+ "height": 17.0,
+ "parts": [
+  {
+   "id": "torso_heavy",
+   "slot": "torso",
+   "archetype": "heavy",
+   "sockets": {
+    "neck": [
+     0,
+     5.61,
+     -0.0
+    ],
+    "shoulder_l": [
+     -4.0375,
+     4.675,
+     0
+    ],
+    "shoulder_r": [
+     4.0375,
+     4.675,
+     0
+    ],
+    "hip_l": [
+     -1.7212,
+     0,
+     0
+    ],
+    "hip_r": [
+     1.7212,
+     0,
+     0
+    ],
+    "back": [
+     0,
+     3.9695,
+     2.04
+    ]
+   }
+  },
+  {
+   "id": "head_heavy",
+   "slot": "head",
+   "archetype": "heavy",
+   "sockets": {}
+  },
+  {
+   "id": "back_heavy",
+   "slot": "back",
+   "archetype": "heavy",
+   "sockets": {}
+  },
+  {
+   "id": "arm_heavy_l",
+   "slot": "arm_l",
+   "archetype": "heavy",
+   "sockets": {
+    "hand": [
+     0,
+     -6.545,
+     -0.51
+    ],
+    "elbow": [
+     0,
+     -2.72,
+     0
+    ]
+   },
+   "length": 6.8
+  },
+  {
+   "id": "leg_heavy_l",
+   "slot": "leg_l",
+   "archetype": "heavy",
+   "sockets": {
+    "knee": [
+     0,
+     -3.4722,
+     0
+    ]
+   },
+   "length": 7.369
+  },
+  {
+   "id": "arm_heavy_r",
+   "slot": "arm_r",
+   "archetype": "heavy",
+   "sockets": {
+    "hand": [
+     0,
+     -6.545,
+     -0.51
+    ],
+    "elbow": [
+     0,
+     -2.72,
+     0
+    ]
+   },
+   "length": 6.8
+  },
+  {
+   "id": "leg_heavy_r",
+   "slot": "leg_r",
+   "archetype": "heavy",
+   "sockets": {
+    "knee": [
+     0,
+     -3.4722,
+     0
+    ]
+   },
+   "length": 7.369
+  },
+  {
+   "id": "torso_fast",
+   "slot": "torso",
+   "archetype": "fast",
+   "sockets": {
+    "neck": [
+     0,
+     5.61,
+     -0.0
+    ],
+    "shoulder_l": [
+     -2.7455,
+     4.675,
+     0
+    ],
+    "shoulder_r": [
+     2.7455,
+     4.675,
+     0
+    ],
+    "hip_l": [
+     -1.4153,
+     0,
+     0
+    ],
+    "hip_r": [
+     1.4153,
+     0,
+     0
+    ],
+    "back": [
+     0,
+     3.9695,
+     2.04
+    ]
+   }
+  },
+  {
+   "id": "head_fast",
+   "slot": "head",
+   "archetype": "fast",
+   "sockets": {}
+  },
+  {
+   "id": "back_fast",
+   "slot": "back",
+   "archetype": "fast",
+   "sockets": {}
+  },
+  {
+   "id": "arm_fast_l",
+   "slot": "arm_l",
+   "archetype": "fast",
+   "sockets": {
+    "hand": [
+     0,
+     -6.545,
+     -0.51
+    ],
+    "elbow": [
+     0,
+     -2.72,
+     0
+    ]
+   },
+   "length": 6.8
+  },
+  {
+   "id": "leg_fast_l",
+   "slot": "leg_l",
+   "archetype": "fast",
+   "sockets": {
+    "knee": [
+     0,
+     -4.2032,
+     0
+    ]
+   },
+   "length": 8.832
+  },
+  {
+   "id": "arm_fast_r",
+   "slot": "arm_r",
+   "archetype": "fast",
+   "sockets": {
+    "hand": [
+     0,
+     -6.545,
+     -0.51
+    ],
+    "elbow": [
+     0,
+     -2.72,
+     0
+    ]
+   },
+   "length": 6.8
+  },
+  {
+   "id": "leg_fast_r",
+   "slot": "leg_r",
+   "archetype": "fast",
+   "sockets": {
+    "knee": [
+     0,
+     -4.2032,
+     0
+    ]
+   },
+   "length": 8.832
+  },
+  {
+   "id": "torso_general",
+   "slot": "torso",
+   "archetype": "general",
+   "sockets": {
+    "neck": [
+     0,
+     5.61,
+     -0.0
+    ],
+    "shoulder_l": [
+     -3.23,
+     4.675,
+     0
+    ],
+    "shoulder_r": [
+     3.23,
+     4.675,
+     0
+    ],
+    "hip_l": [
+     -1.53,
+     0,
+     0
+    ],
+    "hip_r": [
+     1.53,
+     0,
+     0
+    ],
+    "back": [
+     0,
+     3.9695,
+     2.04
+    ]
+   }
+  },
+  {
+   "id": "head_general",
+   "slot": "head",
+   "archetype": "general",
+   "sockets": {}
+  },
+  {
+   "id": "back_general",
+   "slot": "back",
+   "archetype": "general",
+   "sockets": {}
+  },
+  {
+   "id": "arm_general_l",
+   "slot": "arm_l",
+   "archetype": "general",
+   "sockets": {
+    "hand": [
+     0,
+     -6.545,
+     -0.51
+    ],
+    "elbow": [
+     0,
+     -2.72,
+     0
+    ]
+   },
+   "length": 6.8
+  },
+  {
+   "id": "leg_general_l",
+   "slot": "leg_l",
+   "archetype": "general",
+   "sockets": {
+    "knee": [
+     0,
+     -3.655,
+     0
+    ]
+   },
+   "length": 7.735
+  },
+  {
+   "id": "arm_general_r",
+   "slot": "arm_r",
+   "archetype": "general",
+   "sockets": {
+    "hand": [
+     0,
+     -6.545,
+     -0.51
+    ],
+    "elbow": [
+     0,
+     -2.72,
+     0
+    ]
+   },
+   "length": 6.8
+  },
+  {
+   "id": "leg_general_r",
+   "slot": "leg_r",
+   "archetype": "general",
+   "sockets": {
+    "knee": [
+     0,
+     -3.655,
+     0
+    ]
+   },
+   "length": 7.735
+  },
+  {
+   "id": "weapon_rifle",
+   "slot": "weapon",
+   "archetype": "general",
+   "sockets": {}
+  },
+  {
+   "id": "weapon_cannon",
+   "slot": "weapon",
+   "archetype": "heavy",
+   "sockets": {}
+  },
+  {
+   "id": "weapon_blade",
+   "slot": "weapon",
+   "archetype": "fast",
+   "sockets": {}
+  },
+  {
+   "id": "weapon_shield",
+   "slot": "weapon",
+   "archetype": "heavy",
+   "sockets": {}
+  }
+ ],
+ "presets": {
+  "heavy": {
+   "torso": "torso_heavy",
+   "head": "head_heavy",
+   "arm_l": "arm_heavy_l",
+   "arm_r": "arm_heavy_r",
+   "leg_l": "leg_heavy_l",
+   "leg_r": "leg_heavy_r",
+   "back": "back_heavy",
+   "weapon_r": "weapon_cannon",
+   "weapon_l": "weapon_shield",
+   "colors": {
+    "main": [
+     0.3,
+     0.33,
+     0.3
+    ],
+    "sub": [
+     0.18,
+     0.2,
+     0.2
+    ],
+    "trim": [
+     0.85,
+     0.6,
+     0.15
+    ],
+    "glow": [
+     1.0,
+     0.45,
+     0.1
+    ]
+   }
+  },
+  "fast": {
+   "torso": "torso_fast",
+   "head": "head_fast",
+   "arm_l": "arm_fast_l",
+   "arm_r": "arm_fast_r",
+   "leg_l": "leg_fast_l",
+   "leg_r": "leg_fast_r",
+   "back": "back_fast",
+   "weapon_r": "weapon_rifle",
+   "weapon_l": "weapon_blade",
+   "colors": {
+    "main": [
+     0.85,
+     0.2,
+     0.2
+    ],
+    "sub": [
+     0.15,
+     0.15,
+     0.18
+    ],
+    "trim": [
+     0.95,
+     0.85,
+     0.3
+    ],
+    "glow": [
+     0.4,
+     1.0,
+     0.6
+    ]
+   }
+  },
+  "general": {
+   "torso": "torso_general",
+   "head": "head_general",
+   "arm_l": "arm_general_l",
+   "arm_r": "arm_general_r",
+   "leg_l": "leg_general_l",
+   "leg_r": "leg_general_r",
+   "back": "back_general",
+   "weapon_r": "weapon_rifle",
+   "weapon_l": "weapon_shield",
+   "colors": {
+    "main": [
+     0.88,
+     0.9,
+     0.93
+    ],
+    "sub": [
+     0.2,
+     0.3,
+     0.55
+    ],
+    "trim": [
+     0.95,
+     0.75,
+     0.2
+    ],
+    "glow": [
+     0.25,
+     0.85,
+     1.0
+    ]
+   }
+  }
+ },
+ "generations": {
+  "g0": {
+   "name": "工作機",
+   "reactor": [
+    1.0,
+    0.5,
+    0.1
+   ]
+  },
+  "g1": {
+   "name": "量産機",
+   "reactor": [
+    0.4,
+    1.0,
+    0.5
+   ]
+  },
+  "g2": {
+   "name": "主力機",
+   "reactor": [
+    0.25,
+    0.85,
+    1.0
+   ]
+  },
+  "g3": {
+   "name": "上位機",
+   "reactor": [
+    0.75,
+    0.4,
+    1.0
+   ]
+  },
+  "g4": {
+   "name": "精鋭機",
+   "reactor": [
+    1.0,
+    0.85,
+    0.3
+   ]
+  }
+ }
+}
