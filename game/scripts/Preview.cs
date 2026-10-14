@@ -12,6 +12,7 @@ public partial class Preview : Node3D
     VoxelWorld _world = new();
     BlockRegistry _blocks = null!;
     KitBash _kb = null!;
+    FloorModules _fm = null!;
     Random _rnd = new(7);
     Camera3D _cam = null!;
     int _frame;
@@ -27,7 +28,7 @@ public partial class Preview : Node3D
         Vector3 pivot; float dist;
         if (scene == "city") { BuildCity(); pivot = new Vector3(30, 18, 30); dist = 122; }
         else if (scene == "buildings") { BuildShowcase(); pivot = new Vector3(60, 17, 12); dist = 112; }
-        else if (scene == "modules") { BuildModules(); pivot = new Vector3(18, 13, 10); dist = 46; }
+        else if (scene == "modules") { BuildModules(); pivot = new Vector3(48, 12, 14); dist = 92; }
         else { BuildVillage(); pivot = new Vector3(22, 6, 27); dist = 40; }
         if (Arg(args, "--view") == "close") { pivot = scene == "city" ? new Vector3(24, 9, 20) : new Vector3(24, 6, 33); dist = scene == "city" ? 34 : 16; }
 
@@ -147,21 +148,30 @@ public partial class Preview : Node3D
         _kb.Light(this, new Vector3(25, Top(24, 36) + 3.0f, 37), new Color(0.25f, 0.85f, 1.0f), 5f, 1.5f);
     }
 
-    // ---------- 階モジュール方式の確認(3 棟: 通常・切り取り表示・住居と格納庫) ----------
+    // ---------- 階モジュール方式の確認(系統・床面積・双塔・戦艦) ----------
     void BuildModules()
     {
-        const int W = 40, D = 22;
+        const int W = 96, D = 30;
         byte stone = B("Stone"), plaza = B("Plaza"), road = B("RoadX");
         for (int x = 0; x < W; x++) for (int z = 0; z < D; z++) { _world.Set(x, 0, z, stone); _world.Set(x, 1, z, stone); _world.Set(x, 2, z, z == 15 || z == 16 ? road : plaza); }
         _world.Dirty.Clear();
-        var fm = new FloorModules(_kb);
-        var towerA = new List<string> { "base3", "office3", "office3c", "office3", "office3c", "office3", "mech3", "office3c", "office3", "transfer3to2", "office2", "office2c", "office2", "office2c", "office2", "roof2_spire" };
-        var towerB = new List<string> { "base3", "hangar3", "office3", "office3", "mech3", "office3c", "office3c", "office3", "roof3_helipad" };
-        var towerC = new List<string> { "base3", "res3", "res3", "res3", "res3", "mech3", "res3", "res3", "res3", "roof3_mech" };
-        fm.Build(this, 7, 3, 9, towerA, 0);
-        fm.Build(this, 17, 3, 9, towerB, 0, cutawayBelow: 4);
-        fm.Build(this, 28, 3, 9, towerC, 90);
-        for (int i = 0; i < 16; i++) _kb.Humanoid(this, 3f + (float)_rnd.NextDouble() * 34f, 3f, 15f + (float)_rnd.NextDouble() * 2f, _rnd.Next(360), _rnd.NextDouble() < 0.5);
+        var fm = new FloorModules(_kb, 3);
+        float xx = 5f;
+        // 1 列目(奥): 系統ごとの塔。5x5 と 4x6、後退あり
+        fm.Build(this, xx, 3, 8, fm.Plan("office", 5, 5, 14), 0); xx += 9;
+        fm.Build(this, xx, 3, 8, fm.Plan("deco", 5, 5, 13, true, "spire"), 0); xx += 9;
+        fm.Build(this, xx, 3, 8, fm.Plan("exo", 4, 6, 12, true, "mech"), 0); xx += 9;
+        fm.Build(this, xx, 3, 8, fm.Plan("svc", 5, 5, 11, true, "heli"), 0); xx += 9;
+        fm.Build(this, xx, 3, 8, fm.Plan("concrete", 5, 5, 10), 0); xx += 9;
+        fm.Build(this, xx, 3, 8, fm.Plan("res", 4, 6, 9, true, "mech"), 0); xx += 10;
+        fm.Twin(this, xx + 1, 3, 8, "office", 12, 3, 7, 0); xx += 12;
+        // 格納庫付きの塔(下 4 階を切り取り表示)
+        var hangarTower = new List<string> { "base_5x5_office", "hangar_5x5", "office_5x5", "office_5x5_c", "mech_5x5_office", "office_5x5", "transfer_5x5_3x3_office", "office_3x3_c", "office_3x3", "roof_3x3_heli_office" };
+        fm.Build(this, xx + 1, 3, 8, hangarTower, 0, cutawayBelow: 4);
+        // 手前: 戦艦(艦尾 → 艦首)。中央の 1 区画を切り取り表示
+        fm.Ship(this, 40, 3.6f, 22, new List<string> { "ship_stern_7x4", "ship_turret_7x4", "ship_mid_7x4", "ship_hangar_7x4", "ship_bridge_7x4", "ship_mid_7x4", "ship_turret_7x4", "ship_bow_7x6" }, 0, cutawayIndex: 2);
+        fm.Ship(this, 74, 3.6f, 22, new List<string> { "ship_stern_5x3", "ship_mid_5x3", "ship_bridge_5x3", "ship_turret_5x3", "ship_bow_5x5" }, 0);
+        for (int i = 0; i < 30; i++) _kb.Humanoid(this, 3f + (float)_rnd.NextDouble() * 90f, 3f, 15f + (float)_rnd.NextDouble() * 2f, _rnd.Next(360), _rnd.NextDouble() < 0.5);
     }
 
     // ---------- 建物の展示(10 様式を一列に) ----------
@@ -199,6 +209,7 @@ public partial class Preview : Node3D
             }
         _world.Dirty.Clear();
         const float Y = 4f;
+        _fm = new FloorModules(_kb, 9);
 
         for (int bx = 0; bx < N; bx += 7)
             for (int bz = 0; bz < N; bz += 7)
@@ -211,23 +222,27 @@ public partial class Preview : Node3D
                 switch (d)
                 {
                     case "downtown":
-                        if ((x0, z0) is (15, 8) or (22, 15) or (29, 8))
-                            _kb.MegaTower(this, x0 + 3f, Y, z0 + 3f, 3.6f, 3.6f, (x0, z0) == (22, 15) ? 8 : 6, 6, 0);
-                        else if (_rnd.NextDouble() < 0.35)
-                            _kb.LoftBuilding(this, _rnd.Next(KitBash.LoftStyles), x0 + 3f, Y, z0 + 3f, 3.4f, _rnd.Next(20, 44), _rnd.Next(4) * 90);
-                        else if (_rnd.NextDouble() < 0.6)
-                            _kb.RefBuilding(this, _rnd.Next(KitBash.RefStyles), x0 + 3f, Y, z0 + 3f, 3.8f, 3.8f, _rnd.Next(20, 44), _rnd.Next(4) * 90);
-                        else
-                            foreach (var (ox, oz) in new[] { (1.6f, 1.6f), (4.4f, 1.6f), (1.6f, 4.4f), (4.4f, 4.4f) })
-                                _kb.Tower(this, x0 + ox, Y, z0 + oz, 2.2f, 2.2f, _rnd.Next(8, 26), _rnd.Next(4) * 90);
+                    {
+                        string fam = new[] { "office", "office", "deco", "exo", "svc", "concrete" }[_rnd.Next(6)];
+                        double r = _rnd.NextDouble();
+                        if (r < 0.5) _fm.Build(this, x0 + 3f, Y, z0 + 3f, _fm.Plan(fam, 5, 5, _rnd.Next(10, 23)), _rnd.Next(4) * 90);
+                        else if (r < 0.7) _fm.Build(this, x0 + 3f, Y, z0 + 3f, _fm.Plan(fam, 4, 6, _rnd.Next(8, 20)), _rnd.Next(2) * 90);
+                        else if (r < 0.85) _fm.Twin(this, x0 + 3f, Y, z0 + 3f, fam == "concrete" ? "office" : fam, _rnd.Next(8, 16), 3, _rnd.Next(3, 7), _rnd.Next(2) * 90);
+                        else foreach (var (ox, oz) in new[] { (1.5f, 1.5f), (4.5f, 1.5f), (1.5f, 4.5f), (4.5f, 4.5f) })
+                            _fm.Build(this, x0 + ox, Y, z0 + oz, _fm.Plan(fam, 3, 3, _rnd.Next(5, 14)), _rnd.Next(4) * 90);
                         break;
+                    }
                     case "residential":
-                        foreach (var (ox, oz) in new[] { (1.6f, 1.6f), (4.4f, 1.6f), (1.6f, 4.4f), (4.4f, 4.4f) })
+                    {
+                        string fam = _rnd.NextDouble() < 0.6 ? "res" : "concrete";
+                        if (_rnd.NextDouble() < 0.4) _fm.Build(this, x0 + 3f, Y, z0 + 3f, _fm.Plan(fam, 4, 6, _rnd.Next(3, 7), false), _rnd.Next(2) * 90);
+                        else foreach (var (ox, oz) in new[] { (1.5f, 1.5f), (4.5f, 1.5f), (1.5f, 4.5f), (4.5f, 4.5f) })
                         {
-                            if (_rnd.NextDouble() < 0.8) _kb.Building(this, x0 + ox, Y, z0 + oz, 2.2f, 2.2f, _rnd.Next(3, 10), _rnd.NextDouble() < 0.6 ? KitBash.Style.Slab : KitBash.Style.Podium, _rnd.Next(4) * 90);
+                            if (_rnd.NextDouble() < 0.85) _fm.Build(this, x0 + ox, Y, z0 + oz, _fm.Plan(fam, 3, 3, _rnd.Next(2, 6), false), _rnd.Next(4) * 90);
                             else _kb.Pine(this, x0 + ox, Y, z0 + oz, 2.2f);
                         }
                         break;
+                    }
                     case "park":
                         for (int i = 0; i < 8; i++) _kb.Pine(this, x0 + 0.5f + _rnd.Next(6), Y, z0 + 0.5f + _rnd.Next(6), 1.8f + (float)_rnd.NextDouble() * 1.4f);
                         _kb.Box(this, new Vector3(x0 + 3f, Y + 0.2f, z0 + 3f), new Vector3(1.4f, 0.4f, 1.4f), _kb.Concrete);
@@ -243,10 +258,9 @@ public partial class Preview : Node3D
                         _kb.Humanoid(this, x0 + 5.5f, Y, z0 + 2.6f, -90, true);
                         break;
                     case "military":
-                        _kb.Hangar(this, x0 + 3f, Y, z0 + 1.4f, 4.6f, 2.2f, 1.9f, 0);
-                        for (int i = 0; i < 6; i++) for (int j = 0; j < 3; j++) _kb.Humanoid(this, x0 + 0.5f + i, Y, z0 + 3.6f + j * 0.9f, 180, true);
-                        _kb.Turret(this, x0 + 0.6f, Y, z0 + 0.6f, 45);
-                        _kb.Turret(this, x0 + 5.4f, Y, z0 + 5.4f, -135);
+                        if (z0 >= 43) break;   // 戦艦の係留場所を空ける
+                        _fm.Build(this, x0 + 3f, Y, z0 + 3f, new List<string> { "base_5x5_office", "hangar_5x5", "hangar_5x5", "mech_5x5_office", "roof_5x5_heli_office" }, 0);
+                        for (int i = 0; i < 6; i++) _kb.Humanoid(this, x0 + 0.5f + i, Y, z0 + 6.4f, 180, true);
                         break;
                     case "solar":
                         for (int i = 0; i < 5; i++) for (int j = 0; j < 3; j++) _kb.Solar(this, x0 + 0.8f + i * 1.1f, Y, z0 + 1.0f + j * 1.8f, 0);
@@ -254,7 +268,7 @@ public partial class Preview : Node3D
                 }
             }
         // メガタワー間の空中回廊(2 層目のデッキ高さ)
-        _kb.SkyBridge(this, new Vector3(18 + 2.4f, Y + 0.3f + 0.9f * 2 + 0.2f + (0.9f * 6 + 0.5f) * 2 + 0.3f, 11), new Vector3(25 - 2.4f, Y + 0.3f + 0.9f * 2 + 0.2f + (0.9f * 6 + 0.5f) * 2 + 0.3f, 18));
+        _fm.Ship(this, 28.5f, Y + 0.6f, 50.5f, new List<string> { "ship_stern_7x4", "ship_turret_7x4", "ship_mid_7x4", "ship_hangar_7x4", "ship_bridge_7x4", "ship_turret_7x4", "ship_bow_7x6" }, 90);
         // 高架の軌道(x = 21 の道路上)と列車
         for (int z = 0; z < N; z++)
         {

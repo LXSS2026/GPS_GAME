@@ -1,18 +1,885 @@
 {
-  "floorHeight": 2.0,
-  "modules": [
-    { "id": "base3",        "kind": "base",     "footprint": 3, "top": 3 },
-    { "id": "office3",      "kind": "standard", "footprint": 3, "top": 3 },
-    { "id": "office3c",     "kind": "standard", "footprint": 3, "top": 3 },
-    { "id": "res3",         "kind": "standard", "footprint": 3, "top": 3 },
-    { "id": "mech3",        "kind": "mech",     "footprint": 3, "top": 3 },
-    { "id": "hangar3",      "kind": "hangar",   "footprint": 3, "top": 3 },
-    { "id": "transfer3to2", "kind": "transfer", "footprint": 3, "top": 2 },
-    { "id": "office2",      "kind": "standard", "footprint": 2, "top": 2 },
-    { "id": "office2c",     "kind": "standard", "footprint": 2, "top": 2 },
-    { "id": "roof3_mech",   "kind": "roof",     "footprint": 3, "top": 0 },
-    { "id": "roof3_helipad","kind": "roof",     "footprint": 3, "top": 0 },
-    { "id": "roof2_spire",  "kind": "roof",     "footprint": 2, "top": 0 },
-    { "id": "roof2_mech",   "kind": "roof",     "footprint": 2, "top": 0 }
-  ]
+ "floorHeight": 2.0,
+ "modules": [
+  {
+   "id": "base_3x3_office",
+   "kind": "base",
+   "family": "office",
+   "w": 3,
+   "d": 3,
+   "topW": 3,
+   "topD": 3,
+   "length": 0
+  },
+  {
+   "id": "mech_3x3_office",
+   "kind": "mech",
+   "family": "office",
+   "w": 3,
+   "d": 3,
+   "topW": 3,
+   "topD": 3,
+   "length": 0
+  },
+  {
+   "id": "base_3x3_concrete",
+   "kind": "base",
+   "family": "concrete",
+   "w": 3,
+   "d": 3,
+   "topW": 3,
+   "topD": 3,
+   "length": 0
+  },
+  {
+   "id": "mech_3x3_concrete",
+   "kind": "mech",
+   "family": "concrete",
+   "w": 3,
+   "d": 3,
+   "topW": 3,
+   "topD": 3,
+   "length": 0
+  },
+  {
+   "id": "office_3x3",
+   "kind": "standard",
+   "family": "office",
+   "w": 3,
+   "d": 3,
+   "topW": 3,
+   "topD": 3,
+   "length": 0
+  },
+  {
+   "id": "office_3x3_c",
+   "kind": "standard",
+   "family": "office",
+   "w": 3,
+   "d": 3,
+   "topW": 3,
+   "topD": 3,
+   "length": 0
+  },
+  {
+   "id": "res_3x3",
+   "kind": "standard",
+   "family": "res",
+   "w": 3,
+   "d": 3,
+   "topW": 3,
+   "topD": 3,
+   "length": 0
+  },
+  {
+   "id": "concrete_3x3",
+   "kind": "standard",
+   "family": "concrete",
+   "w": 3,
+   "d": 3,
+   "topW": 3,
+   "topD": 3,
+   "length": 0
+  },
+  {
+   "id": "deco_3x3",
+   "kind": "standard",
+   "family": "deco",
+   "w": 3,
+   "d": 3,
+   "topW": 3,
+   "topD": 3,
+   "length": 0
+  },
+  {
+   "id": "exo_3x3",
+   "kind": "standard",
+   "family": "exo",
+   "w": 3,
+   "d": 3,
+   "topW": 3,
+   "topD": 3,
+   "length": 0
+  },
+  {
+   "id": "svc_3x3",
+   "kind": "standard",
+   "family": "svc",
+   "w": 3,
+   "d": 3,
+   "topW": 3,
+   "topD": 3,
+   "length": 0
+  },
+  {
+   "id": "roof_3x3_mech_office",
+   "kind": "roof",
+   "family": "office",
+   "w": 3,
+   "d": 3,
+   "topW": 0,
+   "topD": 0,
+   "length": 0
+  },
+  {
+   "id": "roof_3x3_heli_office",
+   "kind": "roof",
+   "family": "office",
+   "w": 3,
+   "d": 3,
+   "topW": 0,
+   "topD": 0,
+   "length": 0
+  },
+  {
+   "id": "roof_3x3_spire_office",
+   "kind": "roof",
+   "family": "office",
+   "w": 3,
+   "d": 3,
+   "topW": 0,
+   "topD": 0,
+   "length": 0
+  },
+  {
+   "id": "roof_3x3_boiler_concrete",
+   "kind": "roof",
+   "family": "concrete",
+   "w": 3,
+   "d": 3,
+   "topW": 0,
+   "topD": 0,
+   "length": 0
+  },
+  {
+   "id": "roof_3x3_mech_concrete",
+   "kind": "roof",
+   "family": "concrete",
+   "w": 3,
+   "d": 3,
+   "topW": 0,
+   "topD": 0,
+   "length": 0
+  },
+  {
+   "id": "hangar_3x3",
+   "kind": "hangar",
+   "family": "office",
+   "w": 3,
+   "d": 3,
+   "topW": 3,
+   "topD": 3,
+   "length": 0
+  },
+  {
+   "id": "base_2x2_office",
+   "kind": "base",
+   "family": "office",
+   "w": 2,
+   "d": 2,
+   "topW": 2,
+   "topD": 2,
+   "length": 0
+  },
+  {
+   "id": "mech_2x2_office",
+   "kind": "mech",
+   "family": "office",
+   "w": 2,
+   "d": 2,
+   "topW": 2,
+   "topD": 2,
+   "length": 0
+  },
+  {
+   "id": "base_2x2_concrete",
+   "kind": "base",
+   "family": "concrete",
+   "w": 2,
+   "d": 2,
+   "topW": 2,
+   "topD": 2,
+   "length": 0
+  },
+  {
+   "id": "mech_2x2_concrete",
+   "kind": "mech",
+   "family": "concrete",
+   "w": 2,
+   "d": 2,
+   "topW": 2,
+   "topD": 2,
+   "length": 0
+  },
+  {
+   "id": "office_2x2",
+   "kind": "standard",
+   "family": "office",
+   "w": 2,
+   "d": 2,
+   "topW": 2,
+   "topD": 2,
+   "length": 0
+  },
+  {
+   "id": "office_2x2_c",
+   "kind": "standard",
+   "family": "office",
+   "w": 2,
+   "d": 2,
+   "topW": 2,
+   "topD": 2,
+   "length": 0
+  },
+  {
+   "id": "res_2x2",
+   "kind": "standard",
+   "family": "res",
+   "w": 2,
+   "d": 2,
+   "topW": 2,
+   "topD": 2,
+   "length": 0
+  },
+  {
+   "id": "concrete_2x2",
+   "kind": "standard",
+   "family": "concrete",
+   "w": 2,
+   "d": 2,
+   "topW": 2,
+   "topD": 2,
+   "length": 0
+  },
+  {
+   "id": "deco_2x2",
+   "kind": "standard",
+   "family": "deco",
+   "w": 2,
+   "d": 2,
+   "topW": 2,
+   "topD": 2,
+   "length": 0
+  },
+  {
+   "id": "exo_2x2",
+   "kind": "standard",
+   "family": "exo",
+   "w": 2,
+   "d": 2,
+   "topW": 2,
+   "topD": 2,
+   "length": 0
+  },
+  {
+   "id": "svc_2x2",
+   "kind": "standard",
+   "family": "svc",
+   "w": 2,
+   "d": 2,
+   "topW": 2,
+   "topD": 2,
+   "length": 0
+  },
+  {
+   "id": "roof_2x2_mech_office",
+   "kind": "roof",
+   "family": "office",
+   "w": 2,
+   "d": 2,
+   "topW": 0,
+   "topD": 0,
+   "length": 0
+  },
+  {
+   "id": "roof_2x2_heli_office",
+   "kind": "roof",
+   "family": "office",
+   "w": 2,
+   "d": 2,
+   "topW": 0,
+   "topD": 0,
+   "length": 0
+  },
+  {
+   "id": "roof_2x2_spire_office",
+   "kind": "roof",
+   "family": "office",
+   "w": 2,
+   "d": 2,
+   "topW": 0,
+   "topD": 0,
+   "length": 0
+  },
+  {
+   "id": "roof_2x2_boiler_concrete",
+   "kind": "roof",
+   "family": "concrete",
+   "w": 2,
+   "d": 2,
+   "topW": 0,
+   "topD": 0,
+   "length": 0
+  },
+  {
+   "id": "roof_2x2_mech_concrete",
+   "kind": "roof",
+   "family": "concrete",
+   "w": 2,
+   "d": 2,
+   "topW": 0,
+   "topD": 0,
+   "length": 0
+  },
+  {
+   "id": "hangar_2x2",
+   "kind": "hangar",
+   "family": "office",
+   "w": 2,
+   "d": 2,
+   "topW": 2,
+   "topD": 2,
+   "length": 0
+  },
+  {
+   "id": "base_5x5_office",
+   "kind": "base",
+   "family": "office",
+   "w": 5,
+   "d": 5,
+   "topW": 5,
+   "topD": 5,
+   "length": 0
+  },
+  {
+   "id": "mech_5x5_office",
+   "kind": "mech",
+   "family": "office",
+   "w": 5,
+   "d": 5,
+   "topW": 5,
+   "topD": 5,
+   "length": 0
+  },
+  {
+   "id": "base_5x5_concrete",
+   "kind": "base",
+   "family": "concrete",
+   "w": 5,
+   "d": 5,
+   "topW": 5,
+   "topD": 5,
+   "length": 0
+  },
+  {
+   "id": "mech_5x5_concrete",
+   "kind": "mech",
+   "family": "concrete",
+   "w": 5,
+   "d": 5,
+   "topW": 5,
+   "topD": 5,
+   "length": 0
+  },
+  {
+   "id": "office_5x5",
+   "kind": "standard",
+   "family": "office",
+   "w": 5,
+   "d": 5,
+   "topW": 5,
+   "topD": 5,
+   "length": 0
+  },
+  {
+   "id": "office_5x5_c",
+   "kind": "standard",
+   "family": "office",
+   "w": 5,
+   "d": 5,
+   "topW": 5,
+   "topD": 5,
+   "length": 0
+  },
+  {
+   "id": "res_5x5",
+   "kind": "standard",
+   "family": "res",
+   "w": 5,
+   "d": 5,
+   "topW": 5,
+   "topD": 5,
+   "length": 0
+  },
+  {
+   "id": "concrete_5x5",
+   "kind": "standard",
+   "family": "concrete",
+   "w": 5,
+   "d": 5,
+   "topW": 5,
+   "topD": 5,
+   "length": 0
+  },
+  {
+   "id": "deco_5x5",
+   "kind": "standard",
+   "family": "deco",
+   "w": 5,
+   "d": 5,
+   "topW": 5,
+   "topD": 5,
+   "length": 0
+  },
+  {
+   "id": "exo_5x5",
+   "kind": "standard",
+   "family": "exo",
+   "w": 5,
+   "d": 5,
+   "topW": 5,
+   "topD": 5,
+   "length": 0
+  },
+  {
+   "id": "svc_5x5",
+   "kind": "standard",
+   "family": "svc",
+   "w": 5,
+   "d": 5,
+   "topW": 5,
+   "topD": 5,
+   "length": 0
+  },
+  {
+   "id": "roof_5x5_mech_office",
+   "kind": "roof",
+   "family": "office",
+   "w": 5,
+   "d": 5,
+   "topW": 0,
+   "topD": 0,
+   "length": 0
+  },
+  {
+   "id": "roof_5x5_heli_office",
+   "kind": "roof",
+   "family": "office",
+   "w": 5,
+   "d": 5,
+   "topW": 0,
+   "topD": 0,
+   "length": 0
+  },
+  {
+   "id": "roof_5x5_spire_office",
+   "kind": "roof",
+   "family": "office",
+   "w": 5,
+   "d": 5,
+   "topW": 0,
+   "topD": 0,
+   "length": 0
+  },
+  {
+   "id": "roof_5x5_boiler_concrete",
+   "kind": "roof",
+   "family": "concrete",
+   "w": 5,
+   "d": 5,
+   "topW": 0,
+   "topD": 0,
+   "length": 0
+  },
+  {
+   "id": "roof_5x5_mech_concrete",
+   "kind": "roof",
+   "family": "concrete",
+   "w": 5,
+   "d": 5,
+   "topW": 0,
+   "topD": 0,
+   "length": 0
+  },
+  {
+   "id": "hangar_5x5",
+   "kind": "hangar",
+   "family": "office",
+   "w": 5,
+   "d": 5,
+   "topW": 5,
+   "topD": 5,
+   "length": 0
+  },
+  {
+   "id": "base_4x6_office",
+   "kind": "base",
+   "family": "office",
+   "w": 4,
+   "d": 6,
+   "topW": 4,
+   "topD": 6,
+   "length": 0
+  },
+  {
+   "id": "mech_4x6_office",
+   "kind": "mech",
+   "family": "office",
+   "w": 4,
+   "d": 6,
+   "topW": 4,
+   "topD": 6,
+   "length": 0
+  },
+  {
+   "id": "base_4x6_concrete",
+   "kind": "base",
+   "family": "concrete",
+   "w": 4,
+   "d": 6,
+   "topW": 4,
+   "topD": 6,
+   "length": 0
+  },
+  {
+   "id": "mech_4x6_concrete",
+   "kind": "mech",
+   "family": "concrete",
+   "w": 4,
+   "d": 6,
+   "topW": 4,
+   "topD": 6,
+   "length": 0
+  },
+  {
+   "id": "office_4x6",
+   "kind": "standard",
+   "family": "office",
+   "w": 4,
+   "d": 6,
+   "topW": 4,
+   "topD": 6,
+   "length": 0
+  },
+  {
+   "id": "office_4x6_c",
+   "kind": "standard",
+   "family": "office",
+   "w": 4,
+   "d": 6,
+   "topW": 4,
+   "topD": 6,
+   "length": 0
+  },
+  {
+   "id": "res_4x6",
+   "kind": "standard",
+   "family": "res",
+   "w": 4,
+   "d": 6,
+   "topW": 4,
+   "topD": 6,
+   "length": 0
+  },
+  {
+   "id": "concrete_4x6",
+   "kind": "standard",
+   "family": "concrete",
+   "w": 4,
+   "d": 6,
+   "topW": 4,
+   "topD": 6,
+   "length": 0
+  },
+  {
+   "id": "deco_4x6",
+   "kind": "standard",
+   "family": "deco",
+   "w": 4,
+   "d": 6,
+   "topW": 4,
+   "topD": 6,
+   "length": 0
+  },
+  {
+   "id": "exo_4x6",
+   "kind": "standard",
+   "family": "exo",
+   "w": 4,
+   "d": 6,
+   "topW": 4,
+   "topD": 6,
+   "length": 0
+  },
+  {
+   "id": "svc_4x6",
+   "kind": "standard",
+   "family": "svc",
+   "w": 4,
+   "d": 6,
+   "topW": 4,
+   "topD": 6,
+   "length": 0
+  },
+  {
+   "id": "roof_4x6_mech_office",
+   "kind": "roof",
+   "family": "office",
+   "w": 4,
+   "d": 6,
+   "topW": 0,
+   "topD": 0,
+   "length": 0
+  },
+  {
+   "id": "roof_4x6_heli_office",
+   "kind": "roof",
+   "family": "office",
+   "w": 4,
+   "d": 6,
+   "topW": 0,
+   "topD": 0,
+   "length": 0
+  },
+  {
+   "id": "roof_4x6_spire_office",
+   "kind": "roof",
+   "family": "office",
+   "w": 4,
+   "d": 6,
+   "topW": 0,
+   "topD": 0,
+   "length": 0
+  },
+  {
+   "id": "roof_4x6_boiler_concrete",
+   "kind": "roof",
+   "family": "concrete",
+   "w": 4,
+   "d": 6,
+   "topW": 0,
+   "topD": 0,
+   "length": 0
+  },
+  {
+   "id": "roof_4x6_mech_concrete",
+   "kind": "roof",
+   "family": "concrete",
+   "w": 4,
+   "d": 6,
+   "topW": 0,
+   "topD": 0,
+   "length": 0
+  },
+  {
+   "id": "hangar_4x6",
+   "kind": "hangar",
+   "family": "office",
+   "w": 4,
+   "d": 6,
+   "topW": 4,
+   "topD": 6,
+   "length": 0
+  },
+  {
+   "id": "transfer_3x3_2x2_office",
+   "kind": "transfer",
+   "family": "office",
+   "w": 3,
+   "d": 3,
+   "topW": 2,
+   "topD": 2,
+   "length": 0
+  },
+  {
+   "id": "transfer_5x5_3x3_office",
+   "kind": "transfer",
+   "family": "office",
+   "w": 5,
+   "d": 5,
+   "topW": 3,
+   "topD": 3,
+   "length": 0
+  },
+  {
+   "id": "transfer_4x6_3x3_office",
+   "kind": "transfer",
+   "family": "office",
+   "w": 4,
+   "d": 6,
+   "topW": 3,
+   "topD": 3,
+   "length": 0
+  },
+  {
+   "id": "transfer_5x5_4x6_office",
+   "kind": "transfer",
+   "family": "office",
+   "w": 5,
+   "d": 5,
+   "topW": 4,
+   "topD": 6,
+   "length": 0
+  },
+  {
+   "id": "transfer_3x3_2x2_concrete",
+   "kind": "transfer",
+   "family": "concrete",
+   "w": 3,
+   "d": 3,
+   "topW": 2,
+   "topD": 2,
+   "length": 0
+  },
+  {
+   "id": "transfer_5x5_3x3_concrete",
+   "kind": "transfer",
+   "family": "concrete",
+   "w": 5,
+   "d": 5,
+   "topW": 3,
+   "topD": 3,
+   "length": 0
+  },
+  {
+   "id": "bridge_3",
+   "kind": "bridge",
+   "family": "office",
+   "w": 0,
+   "d": 0,
+   "topW": 0,
+   "topD": 0,
+   "length": 3
+  },
+  {
+   "id": "bridge_4",
+   "kind": "bridge",
+   "family": "office",
+   "w": 0,
+   "d": 0,
+   "topW": 0,
+   "topD": 0,
+   "length": 4
+  },
+  {
+   "id": "ship_mid_5x3",
+   "kind": "ship",
+   "family": "ship",
+   "w": 5,
+   "d": 3,
+   "topW": 5,
+   "topD": 3,
+   "length": 3
+  },
+  {
+   "id": "ship_bow_5x5",
+   "kind": "ship",
+   "family": "ship",
+   "w": 5,
+   "d": 5,
+   "topW": 5,
+   "topD": 5,
+   "length": 5
+  },
+  {
+   "id": "ship_stern_5x3",
+   "kind": "ship",
+   "family": "ship",
+   "w": 5,
+   "d": 3,
+   "topW": 5,
+   "topD": 3,
+   "length": 3
+  },
+  {
+   "id": "ship_hangar_5x3",
+   "kind": "ship",
+   "family": "ship",
+   "w": 5,
+   "d": 3,
+   "topW": 5,
+   "topD": 3,
+   "length": 3
+  },
+  {
+   "id": "ship_turret_5x3",
+   "kind": "ship",
+   "family": "ship",
+   "w": 5,
+   "d": 3,
+   "topW": 5,
+   "topD": 3,
+   "length": 3
+  },
+  {
+   "id": "ship_bridge_5x3",
+   "kind": "ship",
+   "family": "ship",
+   "w": 5,
+   "d": 3,
+   "topW": 5,
+   "topD": 3,
+   "length": 3
+  },
+  {
+   "id": "ship_mid_7x4",
+   "kind": "ship",
+   "family": "ship",
+   "w": 7,
+   "d": 4,
+   "topW": 7,
+   "topD": 4,
+   "length": 4
+  },
+  {
+   "id": "ship_bow_7x6",
+   "kind": "ship",
+   "family": "ship",
+   "w": 7,
+   "d": 6,
+   "topW": 7,
+   "topD": 6,
+   "length": 6
+  },
+  {
+   "id": "ship_stern_7x4",
+   "kind": "ship",
+   "family": "ship",
+   "w": 7,
+   "d": 4,
+   "topW": 7,
+   "topD": 4,
+   "length": 4
+  },
+  {
+   "id": "ship_hangar_7x4",
+   "kind": "ship",
+   "family": "ship",
+   "w": 7,
+   "d": 4,
+   "topW": 7,
+   "topD": 4,
+   "length": 4
+  },
+  {
+   "id": "ship_turret_7x4",
+   "kind": "ship",
+   "family": "ship",
+   "w": 7,
+   "d": 4,
+   "topW": 7,
+   "topD": 4,
+   "length": 4
+  },
+  {
+   "id": "ship_bridge_7x4",
+   "kind": "ship",
+   "family": "ship",
+   "w": 7,
+   "d": 4,
+   "topW": 7,
+   "topD": 4,
+   "length": 4
+  }
+ ]
 }
