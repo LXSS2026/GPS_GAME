@@ -11,9 +11,9 @@ public static class SceneSetup
             ShadowEnabled = true,
             DirectionalShadowMode = DirectionalLight3D.ShadowMode.Parallel2Splits,
             DirectionalShadowMaxDistance = 220,
-            LightEnergy = 1.9f,
+            LightEnergy = 2.2f,
             LightColor = new Color(1.0f, 0.78f, 0.58f),   // 夕刻の暖色
-            RotationDegrees = new Vector3(-28, 52, 0),     // 低い太陽 = 長い影
+            RotationDegrees = new Vector3(-36, 52, 0),     // 低い太陽 = 長い影
         });
         var sky = new ProceduralSkyMaterial
         {
@@ -31,7 +31,7 @@ public static class SceneSetup
                 Sky = new Sky { SkyMaterial = sky },
                 AmbientLightSource = Godot.Environment.AmbientSource.Color,
                 AmbientLightColor = new Color(0.42f, 0.50f, 0.66f),   // 冷たい環境光
-                AmbientLightEnergy = 0.55f,
+                AmbientLightEnergy = 1.0f,
                 TonemapMode = Godot.Environment.ToneMapper.Aces,
                 TonemapExposure = 1.0f,
                 SsaoEnabled = true,
@@ -48,7 +48,7 @@ public static class SceneSetup
                 AdjustmentEnabled = true,
                 AdjustmentSaturation = 0.68f,
                 AdjustmentContrast = 1.18f,
-                AdjustmentBrightness = 0.98f,
+                AdjustmentBrightness = 1.05f,
             }
         });
         // 周辺減光(画面端を暗くする薄い板)

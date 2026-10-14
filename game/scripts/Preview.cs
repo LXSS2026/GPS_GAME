@@ -1,66 +1,26 @@
 using Godot;
 using GPS.Sim;
 using System;
-using System.Collections.Generic;
 
 /// <summary>
-/// 描画試作(ゲームの計算には触れない)。ボクセル地形 + 格子に置く低ポリゴンのモデル + 陰影。
+/// 描画試作(ゲームの計算には触れない)。ボクセル地形 + 自前のキットバッシュ生成(KitBash) + 陰影。
 /// 起動: godot --path game res://scenes/preview.tscn ++ --scene village|city [--screenshot path]
 /// </summary>
 public partial class Preview : Node3D
 {
-    const string Kits = "res://assets/kenney";
     VoxelWorld _world = new();
     BlockRegistry _blocks = null!;
+    KitBash _kb = null!;
     Random _rnd = new(7);
     Camera3D _cam = null!;
     int _frame;
-    StandardMaterial3D _beltMat = new() { AlbedoColor = new Color(0.85f, 0.70f, 0.31f), Roughness = 0.8f };
-    StandardMaterial3D _beltStripe = new() { AlbedoColor = new Color(0.20f, 0.20f, 0.22f), Roughness = 0.9f };
 
     byte B(string name) => _blocks.IdOf(name);
-    readonly Dictionary<(ulong, string), StandardMaterial3D> _tinted = new();
-
-    static Color TintFor(string kit) => kit switch
-    {
-        "nature-kit" => new Color(0.36f, 0.44f, 0.38f),
-        "space-kit" => new Color(0.60f, 0.64f, 0.72f),
-        "mini-characters" => new Color(0.55f, 0.56f, 0.62f),
-        "city-kit-industrial" => new Color(0.50f, 0.52f, 0.57f),
-        _ => new Color(0.48f, 0.52f, 0.60f),
-    };
-
-    /// <summary>既製モデルの材質を暗く冷たい色調へ寄せる(材質は共有されるので複製して差し替える)。</summary>
-    void Tint(Node node, string kit)
-    {
-        var tint = TintFor(kit);
-        foreach (var child in node.GetChildren()) Tint(child, kit);
-        if (node is not MeshInstance3D mi || mi.Mesh == null) return;
-        for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
-        {
-            if (mi.GetActiveMaterial(i) is not StandardMaterial3D m) continue;
-            var key = (m.GetInstanceId(), kit);
-            if (!_tinted.TryGetValue(key, out var d))
-            {
-                d = (StandardMaterial3D)m.Duplicate();
-                d.AlbedoColor = m.AlbedoColor * tint;
-                d.Roughness = 0.92f;
-                _tinted[key] = d;
-            }
-            mi.SetSurfaceOverrideMaterial(i, d);
-        }
-    }
-
-    void Beacon(float x, float y, float z, Color color, float radius = 0.14f, bool light = false)
-    {
-        var mat = new StandardMaterial3D { AlbedoColor = color, EmissionEnabled = true, Emission = color, EmissionEnergyMultiplier = 5f };
-        AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = radius, Height = radius * 2 }, MaterialOverride = mat, Position = new Vector3(x, y, z) });
-        if (light) AddChild(new OmniLight3D { Position = new Vector3(x, y, z), LightColor = color, LightEnergy = 2.5f, OmniRange = 5f, ShadowEnabled = false });
-    }
 
     public override void _Ready()
     {
         _blocks = BlockRegistry.FromJson(FileAccess.GetFileAsString("res://data/blocks.json"));
+        _kb = new KitBash(11);
         var args = OS.GetCmdlineUserArgs();
         string scene = Arg(args, "--scene") ?? "village";
         Vector3 pivot; float dist;
@@ -98,12 +58,11 @@ public partial class Preview : Node3D
         return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
     }
 
-    // ---------- 共通 ----------
     int Top(int x, int z)
     {
         int y = 0;
         while (_world.IsSolid(new BlockPos(x, y, z))) y++;
-        return y; // 最初の空気の高さ = 地表に置く y
+        return y;
     }
 
     void SetTop(int x, int z, byte id)
@@ -112,38 +71,13 @@ public partial class Preview : Node3D
         if (y >= 0) _world.Set(x, y, z, id);
     }
 
-    Node3D Place(string kit, string model, float x, float y, float z, float scale = 1f, float rotDeg = 0f, float yOffset = 0f, Vector3? scale3 = null)
-    {
-        var ps = GD.Load<PackedScene>($"{Kits}/{kit}/models/{model}.glb");
-        var n = (Node3D)ps.Instantiate();
-        n.Position = new Vector3(x, y + yOffset, z);
-        n.Scale = scale3 ?? Vector3.One * scale;
-        n.RotationDegrees = new Vector3(0, rotDeg, 0);
-        Tint(n, kit);
-        AddChild(n);
-        return n;
-    }
+    float C(int v) => v + 0.5f;   // セルの中心
 
-    /// <summary>ベルト 1 セル: 薄い板と進行方向の縞(自前の簡易メッシュ)。</summary>
-    void Belt(float x, float y, float z, float rotDeg)
-    {
-        var root = new Node3D { Position = new Vector3(x + 0.5f, y, z + 0.5f), RotationDegrees = new Vector3(0, rotDeg, 0) };
-        root.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.9f, 0.12f, 0.8f) }, MaterialOverride = _beltMat, Position = new Vector3(0, 0.06f, 0) });
-        for (int i = -1; i <= 1; i++)
-            root.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.08f, 0.02f, 0.6f) }, MaterialOverride = _beltStripe, Position = new Vector3(i * 0.28f, 0.13f, 0) });
-        AddChild(root);
-    }
-
-    void Person(float x, float y, float z, float rot) => Place("space-kit", "astronautB", x, y, z, 1.0f, rot, yOffset: 0.39f);
-
-    void Robot(float x, float y, float z, float rot) => Place("space-kit", "astronautA", x, y, z, 1.1f, rot, yOffset: 0.43f);
-
-    // ---------- 村 ----------
+    // ---------- 村(入植地) ----------
     void BuildVillage()
     {
         WorldGen.Terrain(_world, _blocks, 48, 48, 3);
-        byte water = B("Water"), sand = B("Sand"), path = B("Path"), field = B("Field"), ore = B("IronOre");
-        // 川: 高さ 5 以上を削り、底を水にする
+        byte water = B("Water"), sand = B("Sand"), path = B("Path"), field = B("Field"), ore = B("IronOre"), concrete = B("Concrete");
         for (int x = 0; x < 48; x++)
             for (int z = 0; z < 48; z++)
             {
@@ -155,54 +89,57 @@ public partial class Preview : Node3D
                 }
                 else if (d == 11 || d == 14) SetTop(x, z, sand);
             }
-        // 道
         foreach (var (x, z) in new[] { (12, 20), (13, 20), (14, 21), (15, 22), (16, 23), (17, 24), (18, 25), (19, 26), (20, 27), (21, 28), (22, 28), (23, 28), (24, 28), (25, 28), (26, 28) })
             SetTop(x, z, path);
-        // 畑と鉱脈
         for (int x = 6; x < 11; x++) for (int z = 22; z < 26; z++) SetTop(x, z, field);
         for (int x = 28; x < 31; x++) for (int z = 32; z < 35; z++) SetTop(x, z, ore);
+        for (int x = 9; x < 17; x++) for (int z = 13; z < 19; z++) SetTop(x, z, concrete);   // 入植地の基礎
+        for (int x = 18; x < 31; x++) for (int z = 30; z < 38; z++) if (_blocks[_world.Get(x, Top(x, z) - 1, z)].Name != "IronOre") SetTop(x, z, concrete);
         _world.Dirty.Clear();
 
-        // 入植地: 格納庫・通路モジュール・構造体・通信アンテナ・灯
-        Place("space-kit", "hangar_smallA", 11, Top(10, 14), 15, 1.6f, 0);
-        Place("space-kit", "corridor", 14.5f, Top(14, 14), 14.5f, 1.5f, 90); Place("space-kit", "corridor_end", 16.0f, Top(16, 14), 14.5f, 1.5f, 90);
-        Place("space-kit", "corridor_window", 13.5f, Top(13, 16), 16.5f, 1.5f, 0); Place("space-kit", "corridor_roof", 13.5f, Top(13, 17), 17.5f, 1.5f, 0);
-        Place("space-kit", "structure_detailed", 8.5f, Top(8, 18), 18.5f, 1.5f, 0);
-        Place("space-kit", "satelliteDish_detailed", 16.5f, Top(16, 17), 17.5f, 1.6f, 45);
-        Place("space-kit", "crater", 5.5f, Top(5, 12), 12.5f, 1.8f, 0);
-        Beacon(11, Top(10, 14) + 2.0f, 15, new Color(0.3f, 0.9f, 1.0f), 0.12f, true);
-        Beacon(16.5f, Top(16, 17) + 1.6f, 17.5f, new Color(1.0f, 0.3f, 0.2f), 0.1f);
-        for (int i = 0; i < 5; i++) Place("nature-kit", "fence_simple", 6.5f + i, Top(6 + i, 21), 21.5f, 1.0f, 0);
-        for (int i = 0; i < 4; i++) Place("nature-kit", "fence_simple", 5.5f, Top(5, 22 + i), 22.5f + i, 1.0f, 90);
-        for (int x = 6; x < 11; x++) for (int z = 22; z < 26; z++) Place("nature-kit", "crops_wheatStageB", x + 0.5f, Top(x, z), z + 0.5f, 1.6f, _rnd.Next(4) * 90);
-        Place("space-kit", "machine_barrel", 12.5f, Top(12, 16), 16.5f, 1.2f);
-        Person(11.5f, Top(11, 16), 16.5f, 120); Person(12.3f, Top(12, 15), 15.2f, -40); Person(16.5f, Top(16, 20), 20.5f, 60); Person(14.0f, Top(14, 21), 21.5f, 200);
+        // 入植地: 居住モジュール 3、格納庫、通信塔、灯
+        _kb.Habitat(this, 11, Top(10, 14), 14.7f, 0);
+        _kb.Habitat(this, 11, Top(10, 17), 17.3f, 0);
+        _kb.Habitat(this, 15, Top(14, 15), 15.5f, 90);
+        _kb.Hangar(this, 13, Top(12, 11), 10.5f, 3.6f, 2.4f, 1.8f, 0);
+        var mast = new Node3D { Position = new Vector3(C(16), Top(16, 18), C(18)) }; AddChild(mast);
+        _kb.Box(mast, new Vector3(0, 0.1f, 0), new Vector3(0.8f, 0.2f, 0.8f), _kb.Concrete);
+        _kb.Cyl(mast, new Vector3(0, 2.0f, 0), 0.08f, 4.0f, _kb.Steel, seg: 8);
+        for (int i = 0; i < 3; i++) _kb.Box(mast, new Vector3(0, 1.0f + i * 1.2f, 0), new Vector3(0.5f, 0.04f, 0.5f), _kb.Rust);
+        _kb.Box(mast, new Vector3(0.3f, 3.6f, 0), new Vector3(0.5f, 0.5f, 0.05f), _kb.Paint);
+        _kb.Strip(mast, new Vector3(0, 4.05f, 0), new Vector3(0.1f, 0.1f, 0.1f), _kb.GlowRed);
+        // 畑と柵
+        for (int x = 6; x < 11; x++) for (int z = 22; z < 26; z++) _kb.Crop(this, C(x), Top(x, z), C(z));
+        for (int i = 0; i < 5; i++) _kb.Box(this, new Vector3(6.5f + i, Top(6 + i, 21) + 0.3f, 21.5f), new Vector3(1.0f, 0.04f, 0.04f), _kb.Rust);
+        for (int i = 0; i < 5; i += 2) _kb.Box(this, new Vector3(6.0f + i, Top(6 + i, 21) + 0.2f, 21.5f), new Vector3(0.06f, 0.4f, 0.06f), _kb.Steel);
+        // 人(市民 4、自警団はロボット 2)
+        _kb.Humanoid(this, 12.2f, Top(12, 19), 19.4f, 150, false); _kb.Humanoid(this, 13.0f, Top(13, 19), 19.8f, -30, false);
+        _kb.Humanoid(this, 16.3f, Top(16, 20), 20.5f, 60, false); _kb.Humanoid(this, 14.0f, Top(14, 22), 22.2f, 200, false);
+        _kb.Humanoid(this, 21.3f, Top(21, 35), 35.5f, 30, true); _kb.Humanoid(this, 26.5f, Top(26, 31), 31.5f, -90, true);
         // 木と岩
-        var trees = new[] { (3, 4), (17, 8), (4, 30), (22, 36), (36, 18), (40, 30), (14, 40), (38, 8) };
-        string[] tm = { "tree_pineDefaultA", "tree_pineTallA", "tree_pineDefaultB" };
-        foreach (var (x, z) in trees) Place("nature-kit", tm[_rnd.Next(tm.Length)], x + 0.5f, Top(x, z), z + 0.5f, 1.6f, _rnd.Next(360));
-        Place("nature-kit", "rock_largeA", 26.5f, Top(26, 40), 40.5f, 1.5f); Place("nature-kit", "rock_largeB", 9.5f, Top(9, 38), 38.5f, 1.3f);
-        Place("space-kit", "rock_largeA", 33.5f, Top(33, 8), 8.5f, 1.6f); Place("space-kit", "rocks_smallA", 20.5f, Top(20, 11), 11.5f, 1.4f); Place("space-kit", "rock_crystals", 36.5f, Top(36, 40), 40.5f, 1.3f);
-        // 工房(小さな工場)と煙突
-        Place("city-kit-industrial", "building-f", 29, Top(28, 26), 27, 1.6f, 0);
-        Place("city-kit-industrial", "chimney-small", 31.3f, Top(31, 26), 26.5f, 1.6f);
-        Beacon(31.3f, Top(31, 26) + 2.2f, 26.5f, new Color(1.0f, 0.5f, 0.15f), 0.12f, true);
-        // 採掘機(やぐら) → ベルト → 機械 → 炉(樽型の機械) → 箱
-        Place("space-kit", "machine_wireless", 29.5f, Top(29, 33), 33.5f, 2.2f);
-        for (int i = 0; i < 5; i++) Belt(28 - i, Top(28 - i, 33), 33, 90);
-        Place("space-kit", "machine_generator", 22.5f, Top(22, 33), 33.5f, 2.2f, 90);
-        Place("space-kit", "pipe_straight", 22.5f, Top(22, 34), 34.5f, 1.2f, 0);
-        Place("space-kit", "pipe_cornerRound", 22.5f, Top(22, 35), 35.5f, 1.2f, 0);
-        Place("space-kit", "machine_barrelLarge", 20.5f, Top(20, 33), 33.5f, 2.0f, 0);
-        Place("city-kit-industrial", "shipping-container-a", 18.5f, Top(18, 33), 33.5f, 1.2f, 90);
-        // 上段の足場と縦の搬送(構造体 + 足場 + 機械)
-        for (int i = 0; i < 2; i++) for (int j = 0; j < 2; j++) Place("space-kit", "structure", 24.5f + i, Top(24 + i, 36 + j), 36.5f + j, 1.0f);
-        for (int i = 0; i < 2; i++) for (int j = 0; j < 2; j++) Place("space-kit", "platform_center", 24.5f + i, Top(24 + i, 36 + j) + 1.0f, 36.5f + j, 1.0f);
-        Place("space-kit", "machine_generatorLarge", 25.5f, Top(25, 36) + 1.0f, 36.5f, 1.6f, 180);
-        Place("space-kit", "pipe_rampLarge", 23.5f, Top(23, 36), 36.5f, 1.0f, 90);
-        Belt(24, Top(24, 38) + 1.0f, 38, 0);
-        // 人型ロボット(試作では宇宙服のモデルで代用)
-        Robot(21.3f, Top(21, 35), 35.5f, 30); Robot(26.5f, Top(26, 31), 31.5f, -90);
+        foreach (var (x, z) in new[] { (3, 4), (17, 8), (4, 30), (22, 40), (36, 18), (40, 30), (14, 40), (38, 8), (5, 36), (33, 12) })
+            _kb.Pine(this, C(x), Top(x, z), C(z), 1.8f + (float)_rnd.NextDouble() * 1.2f);
+        _kb.Rock(this, C(26), Top(26, 42), C(42), 1.6f); _kb.Rock(this, C(9), Top(9, 38), C(38), 1.2f); _kb.Rock(this, C(33), Top(33, 8), C(8), 1.4f);
+        // 工房と工場列: 採掘機 → ベルト → 組立機 / 炉 → 箱
+        _kb.Factory(this, 27, Top(26, 25), 25, 3.0f, 2.0f, 1.6f, 0);
+        _kb.Chimney(this, 28.6f, Top(28, 25), 24.3f, 2.4f);
+        _kb.Miner(this, C(29), Top(29, 33), C(33));
+        for (int i = 0; i < 5; i++) _kb.Belt(this, C(28 - i), Top(28 - i, 33), C(33), 0, i % 2 == 0);
+        _kb.Assembler(this, C(22), Top(22, 33), C(33), 90);
+        _kb.Furnace(this, C(22), Top(22, 35), C(35), 0);
+        _kb.Belt(this, C(23), Top(23, 35), C(35), 0, true);
+        _kb.Chest(this, C(20), Top(20, 33), C(33));
+        _kb.Tank(this, C(19), Top(19, 36), C(36), 0.4f, 1.3f);
+        // 上段の足場(鋼の柱 + 格子床)と機械
+        var deck = new Node3D { Position = new Vector3(25, Top(24, 36), 37) }; AddChild(deck);
+        for (int sx = -1; sx <= 1; sx += 2) for (int sz = -1; sz <= 1; sz += 2) _kb.Box(deck, new Vector3(sx * 0.9f, 1.1f, sz * 0.9f), new Vector3(0.12f, 2.2f, 0.12f), _kb.Steel);
+        _kb.Box(deck, new Vector3(0, 2.2f, 0), new Vector3(2.1f, 0.08f, 2.1f), _kb.Grate);
+        for (int sx = -1; sx <= 1; sx += 2) _kb.Box(deck, new Vector3(sx * 1.0f, 2.6f, 0), new Vector3(0.04f, 0.04f, 2.0f), _kb.Rust);
+        for (int sz = -1; sz <= 1; sz += 2) _kb.Box(deck, new Vector3(0, 2.6f, sz * 1.0f), new Vector3(2.0f, 0.04f, 0.04f), _kb.Rust);
+        _kb.Assembler(deck, 0, 2.24f, -0.4f, 180);
+        _kb.Belt(deck, 0, 2.24f, 0.6f, 90, true);
+        _kb.Pipe(deck, new Vector3(1.0f, 0.3f, 0.6f), new Vector3(1.0f, 2.2f, 0.6f), 0.06f, _kb.Rust);
+        _kb.Light(this, new Vector3(25, Top(24, 36) + 3.0f, 37), new Color(0.25f, 0.85f, 1.0f), 5f, 1.5f);
     }
 
     // ---------- 大都市 ----------
@@ -216,7 +153,7 @@ public partial class Preview : Node3D
             {
                 _world.Set(x, 0, z, stone); _world.Set(x, 1, z, stone); _world.Set(x, 2, z, dirt);
                 bool river = x - z >= 16 && x - z <= 17;
-                bool roadX = z % 7 == 0 || z == 28 || z == 29;   // x 方向に走る道
+                bool roadX = z % 7 == 0 || z == 28 || z == 29;
                 bool roadZ = x % 7 == 0;
                 byte top = roadX && roadZ ? asphalt : roadX ? rx : roadZ ? rz : District(x, z) switch { "park" => grass, "industry" => concrete, _ => plaza };
                 if (river && !(z == 28 || z == 29)) { _world.Set(x, 2, z, water); continue; }
@@ -225,89 +162,75 @@ public partial class Preview : Node3D
         _world.Dirty.Clear();
         const float Y = 4f;
 
-        // 街区ごとに配置
         for (int bx = 0; bx < N; bx += 7)
             for (int bz = 0; bz < N; bz += 7)
             {
                 int x0 = bx + 1, z0 = bz + 1;
                 if (x0 + 5 >= N || z0 + 5 >= N) continue;
-                if (z0 <= 29 && z0 + 5 >= 28) continue; // 大通りにかかる街区は空ける
-                bool river = Enumerable_Any(x0, z0);
-                if (river) continue;
+                if (z0 <= 29 && z0 + 5 >= 28) continue;
+                if (NearRiver(x0, z0)) continue;
                 string d = District(x0 + 2, z0 + 2);
                 switch (d)
                 {
                     case "downtown":
-                        foreach (var (ox, oz) in new[] { (1.5f, 1.5f), (4.5f, 1.5f), (1.5f, 4.5f), (4.5f, 4.5f) })
-                        {
-                            if (_rnd.NextDouble() < 0.55)
-                            {
-                                Place("city-kit-commercial", $"building-skyscraper-{"abcde"[_rnd.Next(5)]}", x0 + ox, Y, z0 + oz, 2.0f, _rnd.Next(4) * 90);
-                                Beacon(x0 + ox, Y + 5.9f, z0 + oz, new Color(1.0f, 0.25f, 0.2f), 0.12f);
-                            }
-                            else
-                                Place("city-kit-commercial", $"low-detail-building-{"abcdefghijklmn"[_rnd.Next(14)]}", x0 + ox, Y, z0 + oz, 2.6f, _rnd.Next(4) * 90);
-                        }
+                        if (_rnd.NextDouble() < 0.35)
+                            _kb.Tower(this, x0 + 3f, Y, z0 + 3f, 3.6f, 3.6f, _rnd.Next(8, 14), _rnd.Next(4) * 90);
+                        else
+                            foreach (var (ox, oz) in new[] { (1.6f, 1.6f), (4.4f, 1.6f), (1.6f, 4.4f), (4.4f, 4.4f) })
+                                _kb.Tower(this, x0 + ox, Y, z0 + oz, 2.0f, 2.0f, _rnd.Next(4, 11), _rnd.Next(4) * 90);
                         break;
                     case "residential":
-                        foreach (var (ox, oz) in new[] { (1.5f, 1.5f), (4.5f, 1.5f), (1.5f, 4.5f), (4.5f, 4.5f) })
+                        foreach (var (ox, oz) in new[] { (1.6f, 1.6f), (4.4f, 1.6f), (1.6f, 4.4f), (4.4f, 4.4f) })
                         {
-                            if (_rnd.NextDouble() < 0.75)
-                                Place("city-kit-commercial", $"building-{"abcdefghijklmn"[_rnd.Next(14)]}", x0 + ox, Y, z0 + oz, 2.0f, _rnd.Next(4) * 90);
-                            else
-                                Place("nature-kit", "tree_default", x0 + ox, Y, z0 + oz, 1.6f, _rnd.Next(360));
+                            if (_rnd.NextDouble() < 0.8) _kb.Tower(this, x0 + ox, Y, z0 + oz, 2.0f, 2.0f, _rnd.Next(2, 5), _rnd.Next(4) * 90);
+                            else _kb.Pine(this, x0 + ox, Y, z0 + oz, 2.2f);
                         }
                         break;
                     case "park":
-                        for (int i = 0; i < 7; i++) Place("nature-kit", _rnd.NextDouble() < 0.5 ? "tree_default" : "tree_oak", x0 + 0.5f + _rnd.Next(6), Y, z0 + 0.5f + _rnd.Next(6), 1.7f, _rnd.Next(360));
-                        Place("city-kit-suburban", "planter", x0 + 3f, Y, z0 + 3f, 2.0f);
+                        for (int i = 0; i < 8; i++) _kb.Pine(this, x0 + 0.5f + _rnd.Next(6), Y, z0 + 0.5f + _rnd.Next(6), 1.8f + (float)_rnd.NextDouble() * 1.4f);
+                        _kb.Box(this, new Vector3(x0 + 3f, Y + 0.2f, z0 + 3f), new Vector3(1.4f, 0.4f, 1.4f), _kb.Concrete);
                         break;
                     case "industry":
-                        Place("city-kit-industrial", $"building-{"abcdeghjk"[_rnd.Next(9)]}", x0 + 2.2f, Y, z0 + 1.6f, 1.8f, 0);
-                        Place("city-kit-industrial", "chimney-large", x0 + 5.2f, Y, z0 + 1.2f, 1.5f);
-                        Beacon(x0 + 5.2f, Y + 2.7f, z0 + 1.2f, new Color(1.0f, 0.5f, 0.15f), 0.14f, _rnd.NextDouble() < 0.5);
-                        Place("city-kit-industrial", "detail-tank-large", x0 + 1.5f, Y, z0 + 4.8f, 1.5f);
-                        Place("city-kit-industrial", $"shipping-container-{"abc"[_rnd.Next(3)]}", x0 + 4.5f, Y, z0 + 4.8f, 1.4f, 90);
-                        for (int i = 0; i < 3; i++) Belt(x0 + 3 + i, Y, z0 + 3, 90);
-                        Place("space-kit", "machine_generator", x0 + 2.0f, Y, z0 + 3.5f, 2.0f, 90);
-                        Robot(x0 + 5.5f, Y, z0 + 3.0f, -90);
+                        _kb.Factory(this, x0 + 2.2f, Y, z0 + 1.7f, 3.4f, 2.2f, 1.6f, 0);
+                        _kb.Chimney(this, x0 + 5.0f, Y, z0 + 1.0f, 2.8f);
+                        _kb.Tank(this, x0 + 1.2f, Y, z0 + 4.8f, 0.5f, 1.5f);
+                        _kb.Tank(this, x0 + 2.4f, Y, z0 + 4.8f, 0.4f, 1.2f);
+                        _kb.Chest(this, x0 + 5.3f, Y, z0 + 5.2f, 90);
+                        for (int i = 0; i < 3; i++) _kb.Belt(this, x0 + 3.5f + i, Y, z0 + 3.6f, 0, i != 1);
+                        _kb.Assembler(this, x0 + 2.0f, Y, z0 + 3.6f, 90);
+                        _kb.Humanoid(this, x0 + 5.5f, Y, z0 + 2.6f, -90, true);
                         break;
                     case "military":
-                        Place("space-kit", "hangar_smallA", x0 + 3f, Y, z0 + 1.5f, 1.5f, 0);
-                        Beacon(x0 + 3f, Y + 1.6f, z0 + 1.5f, new Color(0.3f, 0.9f, 1.0f), 0.12f, true);
-                        for (int i = 0; i < 6; i++) for (int j = 0; j < 3; j++) Robot(x0 + 0.5f + i, Y, z0 + 3.6f + j * 0.9f, 180);
-                        Place("space-kit", "turret_single", x0 + 0.6f, Y, z0 + 0.6f, 1.2f, 45);
+                        _kb.Hangar(this, x0 + 3f, Y, z0 + 1.4f, 4.6f, 2.2f, 1.9f, 0);
+                        for (int i = 0; i < 6; i++) for (int j = 0; j < 3; j++) _kb.Humanoid(this, x0 + 0.5f + i, Y, z0 + 3.6f + j * 0.9f, 180, true);
+                        _kb.Turret(this, x0 + 0.6f, Y, z0 + 0.6f, 45);
+                        _kb.Turret(this, x0 + 5.4f, Y, z0 + 5.4f, -135);
                         break;
                     case "solar":
-                        for (int i = 0; i < 3; i++) for (int j = 0; j < 2; j++) Place("city-kit-industrial", "solar-panel-landscape-group", x0 + 1f + i * 2f, Y, z0 + 1.5f + j * 3f, 1.6f, 0);
+                        for (int i = 0; i < 5; i++) for (int j = 0; j < 3; j++) _kb.Solar(this, x0 + 0.8f + i * 1.1f, Y, z0 + 1.0f + j * 1.8f, 0);
                         break;
                 }
             }
-        // 高架の軌道(x = 21 の道路の上) と列車
+        // 高架の軌道(x = 21 の道路上)と列車
         for (int z = 0; z < N; z++)
         {
-            if (z % 3 == 0) Place("space-kit", "monorail_trackSupport", 21.5f, Y, z + 0.5f, scale3: new Vector3(2.2f, 7.0f, 2.2f));
-            Place("space-kit", "monorail_trackStraight", 21.5f, Y + 3.5f, z + 0.5f, scale3: new Vector3(2.2f, 2.2f, 1.0f));
+            if (z % 3 == 0) _kb.RailPillar(this, 21.5f, Y, z + 0.5f, 3.4f);
+            _kb.RailSegment(this, 21.5f, Y + 3.5f, z + 0.5f);
         }
-        Place("space-kit", "monorail_trainFront", 21.5f, Y + 3.7f, 17.5f, scale3: new Vector3(2.2f, 2.2f, 1.0f));
-        Beacon(21.5f, Y + 4.3f, 17.0f, new Color(0.9f, 0.95f, 1.0f), 0.12f, true);
-        Place("space-kit", "monorail_trainPassenger", 21.5f, Y + 3.7f, 18.5f, scale3: new Vector3(2.2f, 2.2f, 1.0f));
-        Place("space-kit", "monorail_trainPassenger", 21.5f, Y + 3.7f, 19.5f, scale3: new Vector3(2.2f, 2.2f, 1.0f));
-        Place("space-kit", "monorail_trainEnd", 21.5f, Y + 3.7f, 20.5f, scale3: new Vector3(2.2f, 2.2f, 1.0f), rotDeg: 180);
+        _kb.Train(this, 21.5f, Y + 3.6f, 19.0f, 4.0f);
         // 路上の市民と人型ロボット
-        for (int i = 0; i < 70; i++)
+        for (int i = 0; i < 80; i++)
         {
             int x = _rnd.Next(1, N - 1), z = _rnd.Next(1, N - 1);
             bool road = x % 7 == 0 || z % 7 == 0 || z == 28 || z == 29;
             if (!road || (x - z >= 16 && x - z <= 17)) continue;
-            float px = x + (float)_rnd.NextDouble(), pz = z + (float)_rnd.NextDouble();
-            if (_rnd.NextDouble() < 0.5) Robot(px, Y, pz, _rnd.Next(360)); else Person(px, Y, pz, _rnd.Next(360));
+            _kb.Humanoid(this, x + (float)_rnd.NextDouble(), Y, z + (float)_rnd.NextDouble(), _rnd.Next(360), _rnd.NextDouble() < 0.5);
         }
-        // 川の橋(大通り)の欄干
-        for (int x = 44; x <= 47; x++) { Place("nature-kit", "fence_simple", x + 0.5f, Y, 28.05f, 1.0f, 0); Place("nature-kit", "fence_simple", x + 0.5f, Y, 29.95f, 1.0f, 0); }
+        // 橋の欄干
+        for (int x = 44; x <= 47; x++) { _kb.Box(this, new Vector3(x + 0.5f, Y + 0.3f, 28.05f), new Vector3(1.0f, 0.04f, 0.04f), _kb.Rust); _kb.Box(this, new Vector3(x + 0.5f, Y + 0.3f, 29.95f), new Vector3(1.0f, 0.04f, 0.04f), _kb.Rust); }
     }
 
-    static bool Enumerable_Any(int x0, int z0)
+    static bool NearRiver(int x0, int z0)
     {
         for (int x = x0 - 1; x <= x0 + 6; x++) for (int z = z0 - 1; z <= z0 + 6; z++) if (x - z >= 16 && x - z <= 17) return true;
         return false;
