@@ -1,0 +1,39 @@
+{
+ "characters": [
+  {
+   "id": "robot_g0",
+   "kind": "robot",
+   "height": 1.7
+  },
+  {
+   "id": "robot_g1",
+   "kind": "robot",
+   "height": 1.75
+  },
+  {
+   "id": "robot_g2",
+   "kind": "robot",
+   "height": 1.8
+  },
+  {
+   "id": "robot_g3",
+   "kind": "robot",
+   "height": 1.8
+  },
+  {
+   "id": "robot_g4",
+   "kind": "robot",
+   "height": 1.95
+  },
+  {
+   "id": "citizen",
+   "kind": "human",
+   "height": 1.7
+  },
+  {
+   "id": "soldier",
+   "kind": "human",
+   "height": 1.72
+  }
+ ]
+}

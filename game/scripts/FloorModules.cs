@@ -39,10 +39,31 @@ public sealed class FloorModules
             ["M_Steel"] = kb.Steel, ["M_Concrete"] = kb.Concrete, ["M_PaintDark"] = kb.PaintDark, ["M_Paint"] = kb.Paint, ["M_Rust"] = kb.Rust,
             ["M_Glass"] = kb.Glass, ["M_WinLit"] = winLit, ["M_WinCool"] = winCool, ["M_GlowCyan"] = glowCyan, ["M_GlowOrange"] = glowOrange,
             ["M_GlowRed"] = kb.GlowRed, ["M_Rubber"] = kb.Rubber, ["M_Hazard"] = kb.Hazard, ["M_Grate"] = kb.Grate, ["M_Foliage"] = kb.Foliage, ["M_Armor"] = armor,
+            ["M_Skin"] = new StandardMaterial3D { AlbedoColor = new Color(0.72f, 0.58f, 0.48f), Roughness = 0.7f },
+            ["M_Cloth"] = new StandardMaterial3D { AlbedoColor = new Color(0.22f, 0.24f, 0.28f), Roughness = 0.95f },
         };
     }
 
     public bool Has(string id) => Defs.ContainsKey(id);
+
+    // ---------- 人型(Blender 生成: ロボット 5 世代と人間 2 種) ----------
+    readonly Dictionary<string, PackedScene> _chars = new();
+
+    /// <summary>人型を置く。id: robot_g0〜robot_g4 / citizen / soldier。原点は足元、正面は +Z。</summary>
+    public Node3D Character(Node3D parent, string id, float x, float y, float z, float rotDeg)
+    {
+        if (!_chars.TryGetValue(id, out var ps))
+            _chars[id] = ps = GD.Load<PackedScene>($"res://assets/characters/{id}.glb");
+        var n = (Node3D)ps.Instantiate();
+        Swap(n);
+        n.Position = new Vector3(x, y, z);
+        n.RotationDegrees = new Vector3(0, rotDeg + 180, 0);   // Blender の +Y 正面は GLB で -Z になるため、+Z を正面に揃える
+        parent.AddChild(n);
+        return n;
+    }
+
+    public string RandomRobot() => $"robot_g{_rnd.Next(5)}";
+    public string RandomHuman() => _rnd.NextDouble() < 0.8 ? "citizen" : "soldier";
 
     Node3D Instantiate(string id)
     {
@@ -317,7 +338,7 @@ public sealed class FloorModules
                 for (int i = 0; i < w - 1; i++) _kb.Belt(root, ox - hw + 0.5f + i, y, -hd, 0, i % 2 == 1);
                 break;
             default:
-                for (int i = 0; i < w; i++) _kb.Humanoid(root, ox - hw + i, y, 0.3f, 180, true);
+                for (int i = 0; i < w; i++) Character(root, "robot_g1", ox - hw + i, y, 0.3f, 180);
                 _kb.Tank(root, ox + hw, y, -hd, 0.3f, 1.1f);
                 break;
         }
