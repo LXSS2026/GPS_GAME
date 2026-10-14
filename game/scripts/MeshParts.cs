@@ -72,6 +72,27 @@ public static class MeshParts
         }
     }
 
+    /// <summary>四角錐台: 底面 bottom(x, z)、上面 top(x, z)、高さ h。原点は底面の中心。</summary>
+    public static ArrayMesh Frustum(Vector3 bottom, Vector3 top, float h)
+    {
+        var st = new SurfaceTool();
+        st.Begin(Mesh.PrimitiveType.Triangles);
+        Vector3 B(int sx, int sz) => new(sx * bottom.X / 2, 0, sz * bottom.Z / 2);
+        Vector3 T(int sx, int sz) => new(sx * top.X / 2, h, sz * top.Z / 2);
+        Quad(st, T(-1, -1), T(1, -1), T(1, 1), T(-1, 1), Vector3.Up);
+        Quad(st, B(-1, -1), B(1, -1), B(1, 1), B(-1, 1), Vector3.Down);
+        foreach (var (sx, sz, n) in new[] { (1, 0, Vector3.Right), (-1, 0, Vector3.Left), (0, 1, Vector3.Back), (0, -1, Vector3.Forward) })
+        {
+            Vector3 b0, b1, t0, t1;
+            if (sx != 0) { b0 = B(sx, -1); b1 = B(sx, 1); t0 = T(sx, -1); t1 = T(sx, 1); }
+            else { b0 = B(-1, sz); b1 = B(1, sz); t0 = T(-1, sz); t1 = T(1, sz); }
+            var nn = ((b1 - b0).Cross(t0 - b0)).Normalized();
+            if (nn.Dot(n) < 0) nn = -nn;
+            Quad(st, b0, b1, t1, t0, nn);
+        }
+        return st.Commit();
+    }
+
     public static ArrayMesh ChamferBox(float c)
     {
         var st = new SurfaceTool();

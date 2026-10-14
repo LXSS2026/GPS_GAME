@@ -6,7 +6,7 @@ using System.Collections.Generic;
 /// 自前のキットバッシュ生成器。箱・円柱・配管・発光帯などの基本部品を PBR 素材(Poly Haven CC0, 三平面投影)で組み、
 /// 設備・建物・人型をレシピとして生成する。角は立て、細部を密集させ、素材感で硬さを出す(ハード SF)。
 /// </summary>
-public sealed class KitBash
+public sealed partial class KitBash
 {
     readonly Random _rnd;
     public readonly StandardMaterial3D Steel, Rust, Paint, PaintDark, Concrete, Floor, Grate, Rubber, Hazard, GlowCyan, GlowOrange, GlowRed, GlowWhite, Glass, Foliage, Trunk;

@@ -949,6 +949,22 @@ dotnet build game\GPS.csproj
 <section class="page" id="G10">
 <h2>G10 Godot 描画試作</h2>
 <p class="muted">2026-10-14 作成。ゲームの計算には触れない描画だけの試作。ボクセル地形(32px テクスチャ + 頂点 AO) + 自前のキットバッシュ生成(PBR 素材) + 陰影(方向光の影・SSAO・グロー・霧・ACES のトーンマップ)。実機のスクリーンショット。</p>
+<h3>0000. 名建築を参考にした建物 10 様式</h3>
+<p>「ビルのモデリングを幾つか参考にして作って」との指示で、実在の名建築の造形を参考に 10 様式を部品メッシュ方式でレシピ化した(<code>game/scripts/KitBashBuildings.cs</code>)。判断用に 10 棟を一列に並べた場面(<code>--scene buildings</code>)を追加。中心街の大型区画の半数はこの 10 様式から選ぶ。</p>
+<table>
+  <tr><th>番号</th><th>様式</th><th>参考にした造形</th><th>構成</th></tr>
+  <tr><td>0</td><td>段状の冠</td><td>アールデコの摩天楼(段状の後退と冠)</td><td>基壇、4 段の後退(幅 1.0 / 0.78 / 0.6 / 0.44)、青銅色の縦の柱形、段の縁の装飾光、段状の冠と尖塔。</td></tr>
+  <tr><td>1</td><td>板状カーテンウォール</td><td>列柱の上に引っ込んだロビーを持つ板状の塔</td><td>列柱の基壇、連続する青銅色の縦桟と各階の横桟、暗い機械階の帯、平らな屋根。</td></tr>
+  <tr><td>2</td><td>外骨格</td><td>吊り構造の塔(側面の双柱マストと水平トラス)</td><td>開放された 1 階、両側面の双柱マスト、7 階ごとの水平トラスと X 支柱、吊られた階群、屋上の機械室。</td></tr>
+  <tr><td>3</td><td>外部設備</td><td>設備を外に出した塔(設備塔・露出配管・ガラスの昇降機)</td><td>主塔の外に円筒の設備塔 3 本、露出した配管とダクト、発光するガラスの昇降機、連絡通路、屋上クレーン。</td></tr>
+  <tr><td>4</td><td>積層塔</td><td>末広がりの節を積んだ塔</td><td>3〜8 節の積層、各節の上部を広げた錐台と軒、軒の縁の暖色光、頂部の尖塔。</td></tr>
+  <tr><td>5</td><td>先細りの尖塔</td><td>中央コアと 3 枚の翼が螺旋状に後退する超高層</td><td>円筒のコア、3 方向の翼が段階的に短くなる後退、翼の上端の発光、長い尖塔。</td></tr>
+  <tr><td>6</td><td>双塔</td><td>八角の双塔と空中回廊</td><td>八角の 2 塔が 3 段で細くなり、中層の空中回廊と斜めの支柱、円錐の先端。</td></tr>
+  <tr><td>7</td><td>水平帯</td><td>水平連続窓の近代建築</td><td>ガラスの帯と腰壁の帯の交互、各階の庇、屋上庭園と機械室。</td></tr>
+  <tr><td>8</td><td>ブルータリズム</td><td>板状棟と独立した設備塔を橋でつなぐ集合住宅</td><td>コンクリートの板状棟と小さな窓、各階の庇、独立した設備塔と 3 階ごとの橋、屋上のボイラー室。</td></tr>
+  <tr><td>9</td><td>段状ピラミッド</td><td>SF のアーコロジー(段状の巨大構造物)</td><td>6 段のテラス、窓帯、格納庫の開口(橙の光)、テラスの縁の発光と緑、中央の尖塔。</td></tr>
+</table>
+<img src="img/preview_buildings.png" alt="建物 10 様式の一列" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
 <h3>000. ポリゴン密度の引き上げ(部品メッシュ方式 + LOD)</h3>
 <p>「根本的にポリゴン数が少ない」との指摘で、作り方を箱と円柱の組み合わせから部品メッシュの大量配置に改めた。方針は二本立て: 主役の建物は高精細な既製キット(KitBash3D。無償の Neo City ミニキットは 9 棟で 1,290 万ポリゴン、FBX、商用可。取得はアカウント登録が要るためユーザーが行い、<code>game/assets/kitbash3d/</code> に置く)、量産物は以下の部品メッシュ方式。「軽量」の方針は「ポリゴン数を抑える」から「描画回数と LOD で抑える」に改める。</p>
 <table>
@@ -999,7 +1015,7 @@ dotnet build game\GPS.csproj
 <pre><code>cd E:\VSC_Git\GPS\game
 ..\.tools\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe --path . --resolution 1600x900 res://scenes/preview.tscn ++ --scene village
 ..\.tools\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe --path . --resolution 1600x900 res://scenes/preview.tscn ++ --scene city
-(--screenshot &lt;path&gt; を付けると 40 フレーム後に保存して終了。--view close で近景)</code></pre>
+(--screenshot &lt;path&gt; を付けると 40 フレーム後に保存して終了。--view close で近景、--scene buildings で建物 10 様式の一列)</code></pre>
 
 <h3>4. 未着手の物</h3>
 <table>
