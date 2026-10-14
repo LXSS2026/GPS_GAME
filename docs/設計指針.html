@@ -5,30 +5,50 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GPS 設計指針</title>
 <style>
-  :root { --fg: #222; --bg: #fff; --line: #ccc; --muted: #666; --head: #f3f3f3; }
-  @media (prefers-color-scheme: dark) { :root { --fg: #ddd; --bg: #1e1e1e; --line: #444; --muted: #999; --head: #2a2a2a; } }
-  body { font-family: "Yu Gothic UI", "Meiryo", sans-serif; color: var(--fg); background: var(--bg); max-width: 960px; margin: 0 auto; padding: 24px 16px; line-height: 1.7; }
-  h1 { font-size: 1.6em; border-bottom: 2px solid var(--line); padding-bottom: 6px; }
-  h2 { font-size: 1.25em; margin-top: 2em; border-left: 5px solid var(--line); padding-left: 10px; }
+  :root { --fg: #222; --bg: #fff; --line: #ccc; --muted: #666; --head: #f3f3f3; --bar: #f7f7f7; --sel: #dde8f5; }
+  @media (prefers-color-scheme: dark) { :root { --fg: #ddd; --bg: #1e1e1e; --line: #444; --muted: #999; --head: #2a2a2a; --bar: #252525; --sel: #33445a; } }
+  * { box-sizing: border-box; }
+  body { font-family: "Yu Gothic UI", "Meiryo", sans-serif; color: var(--fg); background: var(--bg); margin: 0; line-height: 1.7; display: flex; min-height: 100vh; }
+  nav { width: 240px; flex: none; background: var(--bar); border-right: 1px solid var(--line); padding: 16px 0; position: sticky; top: 0; height: 100vh; overflow: auto; }
+  nav h1 { font-size: 1.1em; margin: 0 16px 12px; }
+  nav a { display: block; padding: 6px 16px; color: var(--fg); text-decoration: none; }
+  nav a.sel { background: var(--sel); font-weight: bold; }
+  nav a .no { display: inline-block; width: 2.4em; color: var(--muted); }
+  main { flex: 1; padding: 24px 32px; max-width: 1000px; }
+  .page { display: none; }
+  .page.sel { display: block; }
+  h2 { font-size: 1.5em; border-bottom: 2px solid var(--line); padding-bottom: 6px; margin-top: 0; }
+  h3 { font-size: 1.15em; margin-top: 2em; border-left: 5px solid var(--line); padding-left: 10px; }
   table { border-collapse: collapse; width: 100%; margin: 12px 0; }
   th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
   th { background: var(--head); }
   code { background: var(--head); padding: 1px 5px; border-radius: 3px; }
+  pre { background: var(--head); padding: 10px 14px; overflow: auto; }
   .muted { color: var(--muted); }
+  @media (max-width: 720px) { body { display: block; } nav { width: auto; height: auto; position: static; } main { padding: 16px; } }
 </style>
 </head>
 <body>
-<h1>GPS 設計指針</h1>
+<nav>
+  <h1>GPS 設計指針</h1>
+  <a href="#G1"><span class="no">G1</span>方針と手順1・2</a>
+  <a href="#G2"><span class="no">G2</span>軍の規模の扱い</a>
+</nav>
+<main>
+
+<section class="page" id="G1">
+<h2>G1 方針と手順1・2</h2>
 <p class="muted">置き場: E:\VSC_Git\GPS 。方針の変更はこの文書を更新してから実装する。</p>
 
-<h2>1. ゲームの柱</h2>
+<h3>1. ゲームの柱</h3>
 <ul>
   <li>ボクセル世界の上で、都市運営(SimCity 型)・立体工場(上下方向にも組める)・ロボット製造(世代別)・戦争または外交を一つの経済で回す。</li>
   <li>視点は俯瞰の管理視点。一人称で掘る遊びは含めない。</li>
   <li>軍人は都市の内政で徴用する。戦争か外交かはプレイヤーが選ぶ。</li>
+  <li>軽量に作る。過度なグラフィックは不要。見た目は色付きの立方体と最小限の印で足りる範囲に留め、描画より計算量と規模を優先する。</li>
 </ul>
 
-<h2>2. 技術構成</h2>
+<h3>2. 技術構成</h3>
 <table>
   <tr><th>部分</th><th>手段</th></tr>
   <tr><td>描画・入力・UI</td><td>Godot 4.7 (.NET 版) + C#。<code>game/</code> 配下。エンジン実体は <code>.tools/</code>(git 管理外)。</td></tr>
@@ -38,30 +58,33 @@
   <tr><td>ボクセル描画</td><td>自前のチャンクメッシュ化(隣が空気の面だけ出す)。既製ライブラリは C# 非対応のため使わない。</td></tr>
 </table>
 
-<h2>3. 守る原則</h2>
+<h3>3. 守る原則</h3>
 <ul>
   <li>入力は全てコマンド(<code>ICommand</code>)として投入し、固定ティック(60/秒)で順に適用する。同じコマンド列は同じ結果になる(決定論)。これがマルチプレイ(ロックステップ)の前提。マルチプレイ自体は最初の実装では作らない。</li>
   <li>Godot 側は「状態を読んで描く」「入力をコマンドに変換して渡す」だけ。ゲームの判断を Godot のノードに書かない。</li>
   <li>四つのサブシステムは一つのティックループと一つの資源台帳を共有する。</li>
+  <li>多数の同種物(ベルト上のアイテム・兵・ロボット)はインスタンス描画(MultiMesh)で描き、1 体ごとのノードを作らない。</li>
 </ul>
 
-<h2>4. 確定している要件</h2>
+<h3>4. 確定している要件</h3>
 <table>
   <tr><th>項目</th><th>内容</th><th>決定日</th></tr>
-  <tr><td>製品の品質と歩留まり</td><td>工場の生産物には歩留まりと品質のばらつきがある。一定以上のレベルや世代のロボットを作るには、一定以上の品質の製品が必要。製品は品質値を持つ個体として流れ、レシピは入力の品質下限を持つ方向で手順 2 の設計時に具体化する。</td><td>2026-10-14</td></tr>
+  <tr><td>製品の品質と歩留まり</td><td>工場の生産物には歩留まりと品質のばらつきがある。一定以上のレベルや世代のロボットを作るには、一定以上の品質の製品が必要。製品は品質値を持つ個体として流れ、レシピは入力の品質下限を持つ(第8節)。</td><td>2026-10-14</td></tr>
+  <tr><td>軍の規模</td><td>10 万の軍を率いる可能性がある。小規模のうちから集団単位だけで計算すると大味になるので、規模に応じて扱いを変える。詳細は G2。</td><td>2026-10-14</td></tr>
+  <tr><td>軽量</td><td>過度なグラフィックは不要。</td><td>2026-10-14</td></tr>
 </table>
 
-<h2>5. 作る順番</h2>
+<h3>5. 作る順番</h3>
 <table>
   <tr><th>手順</th><th>内容</th><th>状態</th></tr>
   <tr><td>1</td><td>ボクセル世界にブロックを置ける(描画・カメラ・設置と撤去)</td><td>完了 2026-10-14</td></tr>
-  <tr><td>2</td><td>工場の核(ベルト・インサータ・機械を上下方向にも組める)。品質・歩留まりを含む</td><td>未着手</td></tr>
+  <tr><td>2</td><td>工場の核(ベルト・インサータ・機械を上下方向にも組める)。品質・歩留まりを含む</td><td>設計案 第8節(承認待ち)</td></tr>
   <tr><td>3</td><td>工場の産出物からロボットを世代別に製造する</td><td>未着手</td></tr>
   <tr><td>4</td><td>都市(人口・雇用・税)。労働力と徴兵を工場・軍に供給する</td><td>未着手</td></tr>
-  <tr><td>5</td><td>戦争(同じボクセル地図上の RTS)、その後に外交</td><td>未着手</td></tr>
+  <tr><td>5</td><td>戦争(同じボクセル地図上の RTS)、その後に外交</td><td>未着手(方向は G2)</td></tr>
 </table>
 
-<h2>6. 操作(現状)</h2>
+<h3>6. 操作(現状)</h3>
 <table>
   <tr><th>操作</th><th>動作</th></tr>
   <tr><td>左クリック</td><td>選択中のブロックを設置</td></tr>
@@ -72,10 +95,87 @@
   <tr><td>1 から 9</td><td>設置するブロックを選ぶ</td></tr>
 </table>
 
-<h2>7. 起動と検証</h2>
+<h3>7. 起動と検証</h3>
 <pre><code>cd E:\VSC_Git\GPS
 dotnet test sim\GPS.Sim.Tests
 dotnet build game\GPS.csproj
 .tools\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe --path game</code></pre>
+
+<h3>8. 手順2 工場の核 設計案(承認待ち 2026-10-14)</h3>
+<p>最初の版で作る範囲。全て 1 セル(1 ボクセル)の設備で、複数セル機械は後回し。</p>
+<table>
+  <tr><th>設備</th><th>動き</th></tr>
+  <tr><td>ベルト</td><td>向き 6 方向(上下も可)。1 レーン 4 コマ。10 ティックごとに出口側へ 1 コマ進み、出口のアイテムは前のセルのベルトの入口へ渡す。</td></tr>
+  <tr><td>インサータ</td><td>向き 6 方向。30 ティックごとに、後ろのセル(ベルト・箱・機械の出力)から 1 個取り、前のセル(ベルト・箱・機械の入力)へ入れる。入らなければ持ったまま待つ。</td></tr>
+  <tr><td>採掘機</td><td>直下のブロックが鉱石なら一定ティックごとに鉱石アイテムを 1 個作り、前のセルへ出す。鉱石の品質は鉱脈の位置で決まる(30 から 70)。</td></tr>
+  <tr><td>箱</td><td>アイテムを溜める(上限 100 個)。</td></tr>
+  <tr><td>炉・組立機</td><td>レシピを 1 つ選んで動く。入力在庫が揃えば加工を始め、規定ティック後に品質判定と歩留まり判定をして出力在庫へ出す。</td></tr>
+</table>
+
+<p><b>品質と歩留まり</b>。アイテムは 1 個ずつ品質値(0 から 100)を持って流れる。</p>
+<table>
+  <tr><th>項目</th><th>定義</th></tr>
+  <tr><td>入力の受け入れ</td><td>レシピの各入力は品質下限 minQuality を持つ。下限未満のアイテムは機械に入らない(インサータが待つ)。これが「一定以上の製品がないと上位世代のロボットを作れない」仕組みの土台。</td></tr>
+  <tr><td>出力品質</td><td>消費した入力の品質平均を avg、機械の精度を precision(0 から 100)として、<code>(avg + precision) / 2 + 乱数(-spread 〜 +spread)</code> を 0 から 100 に収める。spread はレシピごとの値。</td></tr>
+  <tr><td>歩留まり</td><td>成功確率 = <code>yield + (avg - 50) × slope / 100</code> を 0 から 1 に収める。yield と slope はレシピごとの値。失敗すると入力は消費され出力は出ない。</td></tr>
+  <tr><td>乱数</td><td>シミュレーション内の決定論的な乱数(種から再現可能)。描画側や実時間は使わない。</td></tr>
+</table>
+
+<p><b>データ</b>(game/data)。items.json(アイテム)、structures.json(設備: 種類・色・精度・速度)、recipes.json(レシピ: 対象機械・入力と品質下限・出力・所要ティック・yield・slope・spread)。最初の内容は 鉄鉱石 → 鉄板(炉)、鉄板 2 → 歯車(組立機)の 2 レシピ。</p>
+
+<p><b>操作と表示</b>。数字キーで設備を選び、R で向きを回し、左クリックで設置、右クリックで撤去。設備は色付きブロックに向きの印を付けて描く。ベルト上のアイテムは小さな立方体をインスタンス描画で描く。設備を左クリックすると在庫・加工中・レシピを画面左上に表示し、Tab でレシピを切り替える。</p>
+
+<p><b>構造</b>。地形は従来のブロック格納、設備は別の一覧(セル座標をキー)。更新順は設置順で固定(決定論)。全設備を毎ティック走査する素朴な方式で始め、数が増えて遅くなったら見直す。</p>
+</section>
+
+<section class="page" id="G2">
+<h2>G2 軍の規模の扱い</h2>
+<p class="muted">要件は確定(2026-10-14)。設計方向は案(承認待ち)。実装は手順5。</p>
+
+<h3>1. 要件</h3>
+<ul>
+  <li>最終的に 10 万規模の軍を率いる可能性がある。</li>
+  <li>最初から集団単位だけで計算すると小規模戦が大味になる。規模に応じて扱いを変える。</li>
+  <li>案として、プレイヤーのランク(小隊長から元帥まで)に応じて戦場の規模を変える。</li>
+</ul>
+
+<h3>2. 設計方向(案)</h3>
+<p>計算の単位を一つに統一し、その「粒度」をランクで変える。</p>
+<table>
+  <tr><th>要素</th><th>内容</th></tr>
+  <tr><td>単位(Unit)</td><td>戦闘の計算単位。人数(Count)と平均状態(体力・士気・装備世代・品質)を持つ。人数 1 の Unit は個人そのもの。</td></tr>
+  <tr><td>粒度</td><td>プレイヤーのランクが指揮できる階層を決める。小隊長なら配下は人数 1 の Unit(個人ごとに計算)。中隊長以上では分隊や小隊が 1 つの Unit になり、人数は数十から数千になる。</td></tr>
+  <tr><td>戦闘解決</td><td>命中・損耗・士気の式は Unit 同士で一つだけ持ち、人数を係数として掛ける。個人戦(Count 1)と大軍(Count 1000)が同じ式で解決されるので、規模で計算経路が分かれない。</td></tr>
+  <tr><td>下位の自動化</td><td>プレイヤーの指揮階層より下は AI が受け持つ(元帥は師団に命令し、師団以下の運用は自動)。ランクが上がるほど操作対象が減り、戦場が広がる。</td></tr>
+  <tr><td>移動</td><td>経路探索は Unit ごとに 1 回。個人単位の階層でも群れ移動(フローフィールド)で 1 グループ 1 回の計算に収める。</td></tr>
+  <tr><td>描画</td><td>人数分の小立方体をインスタンス描画。10 万体でも 1 ノード。描画は計算に影響しない(計算は Unit 数で決まる)。</td></tr>
+</table>
+
+<h3>3. ランクと戦場規模(案)</h3>
+<table>
+  <tr><th>ランク</th><th>指揮する単位</th><th>Unit の人数</th><th>戦場の概ねの規模</th></tr>
+  <tr><td>小隊長</td><td>個人</td><td>1</td><td>数十人</td></tr>
+  <tr><td>中隊長</td><td>分隊</td><td>約 10</td><td>数百人</td></tr>
+  <tr><td>大隊長・連隊長</td><td>小隊・中隊</td><td>約 30 から 150</td><td>数千人</td></tr>
+  <tr><td>師団長</td><td>大隊</td><td>約 500</td><td>1 万人台</td></tr>
+  <tr><td>元帥</td><td>師団</td><td>約 1 万</td><td>10 万人</td></tr>
+</table>
+<p>数字はデータ(json)に持ち、調整はコードを触らずに行う。</p>
+
+<h3>4. ロボットとの関係</h3>
+<p>ロボットも同じ Unit として扱い、世代と品質が装備世代・品質の欄に入る。工場で作った物がそのまま軍の性能差になる。</p>
+</section>
+
+</main>
+<script>
+  function show() {
+    var id = (location.hash || '#G1').slice(1);
+    document.querySelectorAll('.page').forEach(function (p) { p.classList.toggle('sel', p.id === id); });
+    document.querySelectorAll('nav a').forEach(function (a) { a.classList.toggle('sel', a.getAttribute('href') === '#' + id); });
+    window.scrollTo(0, 0);
+  }
+  window.addEventListener('hashchange', show);
+  show();
+</script>
 </body>
 </html>
