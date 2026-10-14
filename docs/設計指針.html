@@ -949,6 +949,18 @@ dotnet build game\GPS.csproj
 <section class="page" id="G10">
 <h2>G10 Godot 描画試作</h2>
 <p class="muted">2026-10-14 作成。ゲームの計算には触れない描画だけの試作。ボクセル地形(32px テクスチャ + 頂点 AO) + 自前のキットバッシュ生成(PBR 素材) + 陰影(方向光の影・SSAO・グロー・霧・ACES のトーンマップ)。実機のスクリーンショット。</p>
+<h3>000. ポリゴン密度の引き上げ(部品メッシュ方式 + LOD)</h3>
+<p>「根本的にポリゴン数が少ない」との指摘で、作り方を箱と円柱の組み合わせから部品メッシュの大量配置に改めた。方針は二本立て: 主役の建物は高精細な既製キット(KitBash3D。無償の Neo City ミニキットは 9 棟で 1,290 万ポリゴン、FBX、商用可。取得はアカウント登録が要るためユーザーが行い、<code>game/assets/kitbash3d/</code> に置く)、量産物は以下の部品メッシュ方式。「軽量」の方針は「ポリゴン数を抑える」から「描画回数と LOD で抑える」に改める。</p>
+<table>
+  <tr><th>部品</th><th>内容</th></tr>
+  <tr><td>面取り箱</td><td>全ての箱を 26 面の面取り付き立方体(<code>MeshParts.ChamferBox</code>)に置き換え。稜線が光を拾い、硬さが出る。</td></tr>
+  <tr><td>窓 1 区画(ベイ)</td><td>方立・上枠・腰壁(張り出し)・奥まったガラス・庇・縦横の桟を持つ 3 表面のメッシュ(<code>MeshParts.Bay</code>)。点灯(暖色・水色)と消灯の 3 種を建物ごとに MultiMesh で並べる。1 区画 = 1 階 × 0.9m。</td></tr>
+  <tr><td>配管</td><td>16 分割の円筒、両端のフランジ、周上のボルト 6 本。</td></tr>
+  <tr><td>円柱</td><td>既定の分割を 12 から 24 へ。</td></tr>
+  <tr><td>LOD</td><td>建物ごとに、近距離(75m 以内)はベイの MultiMesh、遠距離は窓テクスチャの箱 1 個に切り替え(Godot の VisibilityRange、フェード付き)。大都市全体で数百万ポリゴンでも描画回数は建物あたり数回。</td></tr>
+</table>
+<p>近景(<code>--view close</code>)。</p>
+<img src="img/preview_city_close.png" alt="大都市の近景" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
 <h3>00. 物体の作り直し(キットバッシュ)</h3>
 <p>既製の低ポリゴンキットは「物体そのものがポップ」との指摘で廃止し、全物体を <code>KitBash.cs</code> のレシピで生成する形に切り替えた。</p>
 <table>
@@ -987,7 +999,7 @@ dotnet build game\GPS.csproj
 <pre><code>cd E:\VSC_Git\GPS\game
 ..\.tools\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe --path . --resolution 1600x900 res://scenes/preview.tscn ++ --scene village
 ..\.tools\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe --path . --resolution 1600x900 res://scenes/preview.tscn ++ --scene city
-(--screenshot &lt;path&gt; を付けると 40 フレーム後に保存して終了)</code></pre>
+(--screenshot &lt;path&gt; を付けると 40 フレーム後に保存して終了。--view close で近景)</code></pre>
 
 <h3>4. 未着手の物</h3>
 <table>

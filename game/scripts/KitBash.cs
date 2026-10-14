@@ -129,7 +129,7 @@ public sealed class KitBash
     // ---------- 基本部品 ----------
     // ---------- 一括描画: 同じ材質の箱は 1 つの MultiMesh にまとめる(窓や庇が数万個になるため) ----------
     readonly Dictionary<Material, List<Transform3D>> _batch = new();
-    readonly BoxMesh _unit = new() { Size = Vector3.One };
+    readonly ArrayMesh _unit = MeshParts.ChamferBox(0.035f);
 
     public void Box(Node3D p, Vector3 center, Vector3 size, Material m, Vector3? rotDeg = null)
     {
@@ -152,7 +152,7 @@ public sealed class KitBash
         _batch.Clear();
     }
 
-    public MeshInstance3D Cyl(Node3D p, Vector3 center, float r, float h, Material m, Vector3? rotDeg = null, float topR = -1, int seg = 12)
+    public MeshInstance3D Cyl(Node3D p, Vector3 center, float r, float h, Material m, Vector3? rotDeg = null, float topR = -1, int seg = 24)
     {
         var mi = new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = topR < 0 ? r : topR, BottomRadius = r, Height = h, RadialSegments = seg, Rings = 1 }, MaterialOverride = m, Position = center };
         if (rotDeg != null) mi.RotationDegrees = rotDeg.Value;
@@ -167,9 +167,20 @@ public sealed class KitBash
         float len = d.Length();
         var c = (a + b) / 2;
         Vector3 rot = Mathf.Abs(d.X) > 0.01f ? new Vector3(0, 0, 90) : Mathf.Abs(d.Z) > 0.01f ? new Vector3(90, 0, 0) : Vector3.Zero;
-        Cyl(p, c, r, len, m, rot, seg: 8);
-        Cyl(p, a, r * 1.35f, r * 1.2f, m, rot, seg: 8);
-        Cyl(p, b, r * 1.35f, r * 1.2f, m, rot, seg: 8);
+        Cyl(p, c, r, len, m, rot, seg: 16);
+        foreach (var e in new[] { a, b })
+        {
+            Cyl(p, e, r * 1.45f, r * 1.0f, Steel, rot, seg: 16);
+            // ボルト 6 本(フランジの周上)
+            var axis = (b - a).Normalized();
+            var t1 = Mathf.Abs(axis.Y) > 0.9f ? Vector3.Right : Vector3.Up;
+            var t2 = axis.Cross(t1).Normalized(); t1 = t2.Cross(axis).Normalized();
+            for (int i = 0; i < 6; i++)
+            {
+                float ang = i * Mathf.Tau / 6;
+                Box(p, e + (t1 * Mathf.Cos(ang) + t2 * Mathf.Sin(ang)) * r * 1.2f, new Vector3(r * 0.28f, r * 0.28f, r * 0.28f), Rubber);
+            }
+        }
     }
 
     /// <summary>面の上に小さな箱を散らす(グリーブル)。normal は面の向き(軸単位ベクトル)。</summary>
@@ -397,6 +408,7 @@ public sealed class KitBash
         // 裏面の配管と機器
         for (int i = 0; i < 2; i++) Pipe(n, new Vector3(-w / 2 - 0.08f, y0 + 0.2f, -d / 2 + 0.3f + i * 0.35f), new Vector3(-w / 2 - 0.08f, y0 + Math.Min(remain, 6) * Fh, -d / 2 + 0.3f + i * 0.35f), 0.05f, Rust);
         Greeble(n, new Vector3(0, y0 + Fh * 1.5f, -d / 2 - 0.02f), new Vector3(w * 0.8f, Fh * 2, 0), Vector3.Forward, 6, Rust);
+        FlushBays(n);
         return n;
     }
 
@@ -404,8 +416,14 @@ public sealed class KitBash
     float Block(Node3D n, float yBase, float w, float d, int floors, Material mat, float ox, float oz, bool ledges = false, bool mullions = false, bool balconies = false, bool windows = true)
     {
         float h = floors * Fh;
-        var body = windows ? PickWindows() : mat;
-        Box(n, new Vector3(ox, yBase + h / 2, oz), new Vector3(w, h, d), body);
+        if (windows || ReferenceEquals(mat, WinCool))
+        {
+            Box(n, new Vector3(ox, yBase + h / 2, oz), new Vector3(w - 0.4f, h, d - 0.4f), PaintDark);   // 壁の芯(ベイの奥。ガラスの奥行き 0.16 より深く)
+            bool cool = ReferenceEquals(mat, WinCool) || _rnd.NextDouble() < 0.4;
+            Facade(n, yBase, w, d, floors, ox, oz, 0.5f, cool);
+            FarBox(n, new Vector3(ox, yBase + h / 2, oz), new Vector3(w, h, d), cool ? WinCool : WinWarm);
+        }
+        else Box(n, new Vector3(ox, yBase + h / 2, oz), new Vector3(w, h, d), mat);
         Box(n, new Vector3(ox, yBase + h + 0.02f, oz), new Vector3(w + 0.02f, 0.04f, d + 0.02f), PaintDark);   // 屋根板(上面に窓を出さない)
         for (int sx = -1; sx <= 1; sx += 2) for (int sz = -1; sz <= 1; sz += 2)
             Box(n, new Vector3(ox + sx * w / 2, yBase + h / 2, oz + sz * d / 2), new Vector3(0.14f, h + 0.05f, 0.14f), Steel);
@@ -431,6 +449,69 @@ public sealed class KitBash
     }
 
     Material PickWindows() => _rnd.Next(4) switch { 0 => WinWarm, 1 => WinCool, 2 => WinMixed, _ => WinDark };
+
+    // ---------- 窓 1 区画(ベイ): 枠・奥まったガラス・庇・桟・腰壁を持つ部品メッシュを建物ごとに MultiMesh で並べる ----------
+    public const float LodNear = 75f;   // これより遠い建物は窓テクスチャの箱に切り替える
+    ArrayMesh? _bayLitWarm, _bayLitCool, _bayDark;
+    readonly Dictionary<Node3D, (List<Transform3D> warm, List<Transform3D> cool, List<Transform3D> dark)> _bays = new();
+
+    void EnsureBayMeshes()
+    {
+        if (_bayLitWarm != null) return;
+        var glassLitWarm = Glow(new Color(1.0f, 0.82f, 0.55f), 1.6f); glassLitWarm.Roughness = 0.2f;
+        var glassLitCool = Glow(new Color(0.55f, 0.85f, 1.0f), 1.6f); glassLitCool.Roughness = 0.2f;
+        _bayLitWarm = MeshParts.Bay(PaintDark, glassLitWarm, Steel);
+        _bayLitCool = MeshParts.Bay(PaintDark, glassLitCool, Steel);
+        _bayDark = MeshParts.Bay(PaintDark, Glass, Steel);
+    }
+
+    /// <summary>壁面にベイを並べる。yBase から floors 階、w × d の箱の 4 面。</summary>
+    void Facade(Node3D n, float yBase, float w, float d, int floors, float ox, float oz, float litRate, bool cool)
+    {
+        EnsureBayMeshes();
+        if (!_bays.TryGetValue(n, out var lists)) _bays[n] = lists = (new(), new(), new());
+        var sides = new[] { (0, 1, 0f), (0, -1, 180f), (1, 0, 90f), (-1, 0, -90f) };
+        foreach (var (nx, nz, yaw) in sides)
+        {
+            float len = nx == 0 ? w : d;
+            int bays = Math.Max(1, (int)(len / MeshParts.BayW));
+            float margin = (len - bays * MeshParts.BayW) / 2;
+            for (int f = 0; f < floors; f++)
+                for (int b = 0; b < bays; b++)
+                {
+                    float t = -len / 2 + margin + (b + 0.5f) * MeshParts.BayW;
+                    var pos = nx == 0 ? new Vector3(ox + t, yBase + f * Fh, oz + nz * d / 2) : new Vector3(ox + nx * w / 2, yBase + f * Fh, oz + t);
+                    // 側面の並びは外向きに +x が右になるように符号を合わせる
+                    if (nx == 0 && nz < 0) pos.X = ox - t; if (nx != 0) pos.Z = oz + (nx > 0 ? -t : t);
+                    var basis = Basis.FromEuler(new Vector3(0, Mathf.DegToRad(yaw), 0));
+                    var xf = n.GlobalTransform * new Transform3D(basis, pos);
+                    bool lit = _rnd.NextDouble() < litRate;
+                    (lit ? (cool ? lists.cool : lists.warm) : lists.dark).Add(xf);
+                }
+        }
+    }
+
+    /// <summary>建物のベイを MultiMesh にして追加(近距離用)。遠距離用は呼び出し側が窓テクスチャの箱を置く。</summary>
+    void FlushBays(Node3D n)
+    {
+        if (!_bays.TryGetValue(n, out var lists)) return;
+        foreach (var (mesh, list) in new[] { (_bayLitWarm!, lists.warm), (_bayLitCool!, lists.cool), (_bayDark!, lists.dark) })
+        {
+            if (list.Count == 0) continue;
+            var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = mesh, InstanceCount = list.Count };
+            for (int i = 0; i < list.Count; i++) mm.SetInstanceTransform(i, list[i]);
+            n.GetParent().AddChild(new MultiMeshInstance3D { Multimesh = mm, VisibilityRangeEnd = LodNear, VisibilityRangeEndMargin = 8f, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self });
+        }
+        _bays.Remove(n);
+    }
+
+    /// <summary>遠距離用: 窓テクスチャを貼った箱(近距離ではベイに置き換わる)。</summary>
+    void FarBox(Node3D n, Vector3 center, Vector3 size, Material win)
+    {
+        var mi = new MeshInstance3D { Mesh = new BoxMesh { Size = size }, MaterialOverride = win, Position = center, VisibilityRangeBegin = LodNear, VisibilityRangeBeginMargin = 8f, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self };
+        n.AddChild(mi);
+    }
+
 
     void Parapet(Node3D n, float top, float w, float d, float ox, float oz)
     {
@@ -505,7 +586,9 @@ public sealed class KitBash
         for (int L = 0; L < levels; L++)
         {
             float lw = w * (L % 2 == 0 ? 1.0f : 0.9f), ld = d * (L % 2 == 0 ? 1.0f : 0.9f);
-            Box(n, new Vector3(0, top + lh / 2, 0), new Vector3(lw, lh, ld), wins[(L + _rnd.Next(3)) % 3]);
+            Box(n, new Vector3(0, top + lh / 2, 0), new Vector3(lw - 0.4f, lh, ld - 0.4f), PaintDark);
+            Facade(n, top, lw, ld, floorsPerLevel, 0, 0, 0.6f, L % 2 == 1);
+            FarBox(n, new Vector3(0, top + lh / 2, 0), new Vector3(lw, lh, ld), wins[L % 3]);
             // 外骨格: 角の太い柱と各面の斜め支柱(X 字)
             for (int sx = -1; sx <= 1; sx += 2) for (int sz = -1; sz <= 1; sz += 2)
                 Box(n, new Vector3(sx * (lw / 2 + 0.08f), top + lh / 2, sz * (ld / 2 + 0.08f)), new Vector3(0.28f, lh, 0.28f), Steel);
@@ -548,6 +631,7 @@ public sealed class KitBash
         Strip(n, new Vector3(0, top + 5.55f, 0), new Vector3(0.16f, 0.16f, 0.16f), GlowRed);
         Light(n, new Vector3(0, top + 5.5f, 0), new Color(1.0f, 0.2f, 0.15f), 6f, 2f);
         for (int sx = -1; sx <= 1; sx += 2) { Cyl(n, new Vector3(sx * w * 0.3f, top + 1.5f, d * 0.25f), 0.02f, 1.6f, Steel, seg: 6); Strip(n, new Vector3(sx * w * 0.3f, top + 2.35f, d * 0.25f), new Vector3(0.1f, 0.1f, 0.1f), GlowRed); }
+        FlushBays(n);
         return n;
     }
 

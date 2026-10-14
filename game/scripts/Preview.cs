@@ -26,6 +26,7 @@ public partial class Preview : Node3D
         Vector3 pivot; float dist;
         if (scene == "city") { BuildCity(); pivot = new Vector3(30, 18, 30); dist = 122; }
         else { BuildVillage(); pivot = new Vector3(22, 6, 27); dist = 40; }
+        if (Arg(args, "--view") == "close") { pivot = scene == "city" ? new Vector3(24, 9, 20) : new Vector3(24, 6, 33); dist = scene == "city" ? 34 : 16; }
 
         _kb.Flush(this);
         var tr = new TerrainRenderer();
@@ -175,7 +176,7 @@ public partial class Preview : Node3D
                 {
                     case "downtown":
                         if ((x0, z0) is (15, 8) or (22, 15) or (29, 8))
-                            _kb.MegaTower(this, x0 + 3f, Y, z0 + 3f, 3.6f, 3.6f, (x0, z0) == (22, 15) ? 9 : 6, 6, 0);
+                            _kb.MegaTower(this, x0 + 3f, Y, z0 + 3f, 3.6f, 3.6f, (x0, z0) == (22, 15) ? 8 : 6, 6, 0);
                         else if (_rnd.NextDouble() < 0.4)
                             _kb.Tower(this, x0 + 3f, Y, z0 + 3f, 3.8f, 3.8f, _rnd.Next(24, 49), _rnd.Next(4) * 90);
                         else
