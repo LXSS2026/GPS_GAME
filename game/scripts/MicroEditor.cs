@@ -85,10 +85,7 @@ public partial class MicroEditor : Node3D
         Pan(delta);
         if (_structureVersion != _renderedVersion) { RebuildEquipment(); _renderedVersion = _structureVersion; }
         RebuildItems();
-        var (y, d, h, mi) = Clock.Of(_sim.Tick);
-        _clock.Text = $"{y} 年目  {d} 日  {h:00}:{mi:00}";
-        var b = Building;
-        _power.Text = $"動力  供給 {b.LastSupply} kW  需要 {b.LastDemand} kW  リアクター {Floor.Structures.Count(s => s is Reactor)} 基";
+        RefreshTop();
         RefreshSide();
         Screenshot();
     }
@@ -123,7 +120,7 @@ public partial class MicroEditor : Node3D
                 else _cursor.Visible = false;
                 break;
             case InputEventKey { Pressed: true, Echo: false } k:
-                if (k.Keycode == Key.R) { _dir = (Direction)(((int)_dir + 1) % 6); _dirLabel.Text = DirName(_dir); }
+                if (k.Keycode == Key.R) SetDir((Direction)(((int)_dir + 1) % 6));
                 else if (k.Keycode == Key.Escape) { SetPalette(null); _selected = -1; }
                 else if (k.Keycode == Key.Delete && _selected >= 0) RemoveSelected();
                 else if (k.Keycode == Key.Z && k.CtrlPressed) Undo();
@@ -266,56 +263,153 @@ public partial class MicroEditor : Node3D
         _itemsRoot.AddChild(_items);
     }
 
-    // ---------- UI(G8 の様式) ----------
-    static StyleBoxFlat PanelStyle(bool accent = false) => new()
+    // ---------- UI(G8 の様式。斜めの要素は使わない) ----------
+    static readonly Color NavyDeep = new(6 / 255f, 14 / 255f, 34 / 255f, 0.94f), Line40 = new(159 / 255f, 216 / 255f, 1f, 0.4f), Warm = new(1f, 154 / 255f, 60 / 255f), Green = new(95 / 255f, 224 / 255f, 138 / 255f);
+    readonly Dictionary<string, Texture2D> _icons = new();
+    Texture2D Icon(string id)
     {
-        BgColor = Navy, BorderColor = accent ? Accent : Cyan, BorderWidthLeft = 1, BorderWidthTop = 1, BorderWidthRight = 1, BorderWidthBottom = 1,
-        ContentMarginLeft = 12, ContentMarginRight = 12, ContentMarginTop = 8, ContentMarginBottom = 8,   // 斜めの要素は使わない(2026-10-15 指示)
-    };
-    static Font JpFont() => new SystemFont { FontNames = new[] { "Yu Gothic UI", "Meiryo", "sans-serif" } };
-    Label Lbl(string text, int size = 14, Color? color = null) { var l = new Label { Text = text }; l.AddThemeFontOverride("font", JpFont()); l.AddThemeFontSizeOverride("font_size", size); l.AddThemeColorOverride("font_color", color ?? Text); return l; }
-    Button Btn(string text, Action onPress, bool accent = false)
-    {
-        var b = new Button { Text = text, CustomMinimumSize = new Vector2(0, 32), Flat = false };
-        b.AddThemeFontOverride("font", JpFont()); b.AddThemeFontSizeOverride("font_size", 13); b.AddThemeColorOverride("font_color", Text);
-        var st = PanelStyle(accent); st.ContentMarginTop = 4; st.ContentMarginBottom = 4;
-        b.AddThemeStyleboxOverride("normal", st); b.AddThemeStyleboxOverride("hover", PanelStyle(true)); b.AddThemeStyleboxOverride("pressed", PanelStyle(true)); b.AddThemeStyleboxOverride("focus", new StyleBoxEmpty());
-        b.Pressed += onPress;
-        return b;
+        if (!_icons.TryGetValue(id, out var t)) { string p = $"res://assets/icons/{id}.svg"; t = ResourceLoader.Exists(p) ? GD.Load<Texture2D>(p) : GD.Load<Texture2D>("res://assets/icons/chest.svg"); _icons[id] = t; }
+        return t;
     }
-    PanelContainer Panel(Control inner, bool accent = false) { var p = new PanelContainer(); p.AddThemeStyleboxOverride("panel", PanelStyle(accent)); p.AddChild(inner); return p; }
+
+    static StyleBoxFlat Box(Color bg, Color border, int bw = 1, int pad = 8, int inner = 0)
+    {
+        var s = new StyleBoxFlat { BgColor = bg, BorderColor = border, ContentMarginLeft = pad, ContentMarginRight = pad, ContentMarginTop = pad, ContentMarginBottom = pad };
+        s.SetBorderWidthAll(bw);
+        if (inner > 0) { s.ShadowColor = Line40; s.ShadowSize = inner; s.ShadowOffset = Vector2.Zero; }
+        return s;
+    }
+    static Font JpFont() => new SystemFont { FontNames = new[] { "Yu Gothic UI", "Meiryo", "sans-serif" } };
+
+    /// <summary>全部品に当てる Theme(板・ボタン・プルダウン・数値入力・進捗の棒・ツールチップ)。</summary>
+    Theme MakeTheme()
+    {
+        var th = new Theme();
+        var font = JpFont();
+        th.DefaultFont = font; th.DefaultFontSize = 13;
+        th.SetColor("font_color", "Label", Text);
+        foreach (var t in new[] { "Button", "OptionButton", "CheckButton" })
+        {
+            th.SetStylebox("normal", t, Box(Navy, Cyan, 1, 8)); th.SetStylebox("hover", t, Box(new Color(18 / 255f, 40 / 255f, 84 / 255f, 0.9f), Accent, 1, 8));
+            th.SetStylebox("pressed", t, Box(new Color(24 / 255f, 56 / 255f, 110 / 255f, 0.95f), Accent, 2, 8)); th.SetStylebox("focus", t, new StyleBoxEmpty());
+            th.SetStylebox("disabled", t, Box(Navy, Line40, 1, 8));
+            th.SetColor("font_color", t, Text); th.SetColor("font_hover_color", t, Text); th.SetColor("font_pressed_color", t, Text); th.SetColor("font_disabled_color", t, Line40);
+        }
+        th.SetStylebox("panel", "PopupMenu", Box(NavyDeep, Cyan, 1, 4)); th.SetStylebox("hover", "PopupMenu", Box(new Color(24 / 255f, 56 / 255f, 110 / 255f, 1f), Accent, 1, 4));
+        th.SetColor("font_color", "PopupMenu", Text); th.SetColor("font_hover_color", "PopupMenu", Text); th.SetColor("font_separator_color", "PopupMenu", Cyan);
+        th.SetStylebox("normal", "LineEdit", Box(NavyDeep, Cyan, 1, 6)); th.SetStylebox("focus", "LineEdit", Box(NavyDeep, Accent, 1, 6)); th.SetStylebox("read_only", "LineEdit", Box(NavyDeep, Line40, 1, 6));
+        th.SetColor("font_color", "LineEdit", Text); th.SetColor("caret_color", "LineEdit", Accent); th.SetColor("selection_color", "LineEdit", new Color(Accent, 0.4f));
+        th.SetStylebox("up_background", "SpinBox", Box(Navy, Cyan, 1, 0)); th.SetStylebox("down_background", "SpinBox", Box(Navy, Cyan, 1, 0));
+        th.SetStylebox("up_background_hovered", "SpinBox", Box(Navy, Accent, 1, 0)); th.SetStylebox("down_background_hovered", "SpinBox", Box(Navy, Accent, 1, 0));
+        th.SetStylebox("background", "ProgressBar", Box(NavyDeep, Line40, 1, 0)); th.SetStylebox("fill", "ProgressBar", Box(Accent, Accent, 0, 0));
+        th.SetColor("font_color", "ProgressBar", Text);
+        th.SetStylebox("panel", "PanelContainer", Box(Navy, Cyan, 1, 12, 2));
+        th.SetStylebox("panel", "TooltipPanel", Box(NavyDeep, Cyan, 1, 8)); th.SetColor("font_color", "TooltipLabel", Text);
+        th.SetStylebox("panel", "ScrollContainer", new StyleBoxEmpty());
+        return th;
+    }
+
+    Label Lbl(string text, int size = 13, Color? color = null, bool bold = false)
+    {
+        var l = new Label { Text = text }; l.AddThemeFontSizeOverride("font_size", size); l.AddThemeColorOverride("font_color", color ?? Text);
+        if (bold) l.AddThemeColorOverride("font_outline_color", color ?? Text);
+        return l;
+    }
+    Button Btn(string text, Action onPress, bool accent = false, string? icon = null)
+    {
+        var b = new Button { Text = text, CustomMinimumSize = new Vector2(0, 34) };
+        if (icon != null) { b.Icon = Icon(icon); b.AddThemeConstantOverride("icon_max_width", 20); }
+        if (accent) { b.AddThemeStyleboxOverride("normal", Box(new Color(18 / 255f, 40 / 255f, 84 / 255f, 0.9f), Accent, 2, 8)); }
+        b.Pressed += onPress; return b;
+    }
+    static PanelContainer Panel(Control inner, StyleBox? style = null) { var p = new PanelContainer(); if (style != null) p.AddThemeStyleboxOverride("panel", style); p.AddChild(inner); return p; }
+    static Control Sep() { var h = new HSeparator(); h.AddThemeStyleboxOverride("separator", new StyleBoxLine { Color = Line40, Thickness = 1 }); return h; }
+    HBoxContainer Chip(string icon, string text, Color border, string? tip = null)
+    {
+        var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 6);
+        var i = new TextureRect { Texture = Icon(icon), CustomMinimumSize = new Vector2(22, 22), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered };
+        h.AddChild(i); h.AddChild(Lbl(text, 12));
+        var p = Panel(h, Box(NavyDeep, border, 1, 4)); p.TooltipText = tip ?? ""; var wrap = new HBoxContainer(); wrap.AddChild(p); return wrap;
+    }
+
+    Label _clockBig = null!, _powerText = null!, _status = null!;
+    ProgressBar _powerBar = null!;
+    readonly Dictionary<string, Label> _stockLabels = new();
+    readonly Dictionary<Direction, Button> _dirButtons = new();
+    GridContainer? _sideGrid;
 
     void BuildUi()
     {
-        var ui = new CanvasLayer(); AddChild(ui);
-        // 上の帯
-        var top = new HBoxContainer { Position = new Vector2(16, 16) }; top.AddThemeConstantOverride("separation", 18);
-        _title = Lbl(Building.Name, 15); _clock = Lbl("", 15, Cyan); _power = Lbl("", 13);
-        top.AddChild(Lbl("平地ブロック", 12, Cyan)); top.AddChild(_title); top.AddChild(_clock); top.AddChild(_power);
-        _policy = new OptionButton(); foreach (var (n, _) in new[] { ("不足時: 比例", 0), ("不足時: 優先順位", 1), ("不足時: 全停止", 2) }) _policy.AddItem(n);
-        _policy.AddThemeFontOverride("font", JpFont()); _policy.AddThemeFontSizeOverride("font_size", 13); _policy.AddThemeStyleboxOverride("normal", PanelStyle());
+        var layer = new CanvasLayer(); AddChild(layer);
+        var root = new Control { Theme = MakeTheme(), MouseFilter = Control.MouseFilterEnum.Ignore }; root.SetAnchorsPreset(Control.LayoutPreset.FullRect); layer.AddChild(root);
+
+        // ----- 上の帯 -----
+        var top = new HBoxContainer(); top.AddThemeConstantOverride("separation", 20);
+        var tb = new VBoxContainer(); tb.AddThemeConstantOverride("separation", 0);
+        tb.AddChild(Lbl("平地ブロック", 11, Cyan)); _title = Lbl(Building.Name, 17); tb.AddChild(_title); top.AddChild(tb);
+        top.AddChild(new VSeparator());
+        var cb = new VBoxContainer(); cb.AddThemeConstantOverride("separation", 0);
+        _clock = Lbl("", 11, Cyan); _clockBig = Lbl("", 17); cb.AddChild(_clock); cb.AddChild(_clockBig); top.AddChild(cb);
+        top.AddChild(new VSeparator());
+        var pb = new VBoxContainer { CustomMinimumSize = new Vector2(260, 0) }; pb.AddThemeConstantOverride("separation", 2);
+        var ph = new HBoxContainer(); ph.AddChild(new TextureRect { Texture = Icon("reactor_g2"), CustomMinimumSize = new Vector2(20, 20), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered });
+        ph.AddChild(Lbl("動力", 11, Cyan)); _powerText = Lbl("", 12); ph.AddChild(_powerText); pb.AddChild(ph);
+        _powerBar = new ProgressBar { MinValue = 0, MaxValue = 100, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 8) }; pb.AddChild(_powerBar);
+        _power = Lbl("", 11, Cyan); pb.AddChild(_power); top.AddChild(pb);
+        _policy = new OptionButton(); foreach (var n in new[] { "不足時: 比例", "不足時: 優先順位", "不足時: 全停止" }) _policy.AddItem(n);
         _policy.ItemSelected += i => { _sim.Enqueue(new SetPolicy(1, (PowerPolicy)(int)i)); _sim.Step(); };
         top.AddChild(_policy);
-        ui.AddChild(Panel(top));
-        // 速度
-        var spd = new HBoxContainer { Position = new Vector2(16, 72) };
-        foreach (var (n, v) in new[] { ("停止", 0), ("1x", 1), ("2x", 2), ("4x", 4) }) { var b = Btn(n, () => SetSpeed(v), v == 1); _speedButtons.Add(b); spd.AddChild(b); }
-        spd.AddChild(Btn("取り消し", Undo)); spd.AddChild(Btn("やり直し", Redo));
-        ui.AddChild(spd);
-        // 左: 設備のパレット
-        var pal = new VBoxContainer(); pal.AddChild(Lbl("設備", 12, Cyan));
-        foreach (var def in _data.Structures.Values.OrderBy(d => d.TechLevel).ThenBy(d => d.Id))
+        top.AddChild(new VSeparator());
+        foreach (var (n, v) in new[] { ("停止", 0), ("1x", 1), ("2x", 2), ("4x", 4) }) { var b = Btn(n, () => SetSpeed(v)); b.CustomMinimumSize = new Vector2(48, 34); _speedButtons.Add(b); top.AddChild(b); }
+        top.AddChild(new VSeparator());
+        top.AddChild(Btn("取り消し", Undo)); top.AddChild(Btn("やり直し", Redo));
+        var topPanel = Panel(top); topPanel.Position = new Vector2(16, 16); root.AddChild(topPanel);
+        SetSpeed(1);
+
+        // ----- 左: 設備のパレット(種別ごとの格子) -----
+        var pal = new VBoxContainer(); pal.AddThemeConstantOverride("separation", 8);
+        pal.AddChild(Lbl("設備", 11, Cyan));
+        var groups = new (string name, string[] kinds)[] { ("生産", new[] { "miner", "furnace", "assembler" }), ("物流", new[] { "belt", "inserter", "chest", "port" }), ("流体", new[] { "pump", "pipe", "tank" }), ("動力", new[] { "reactor" }) };
+        foreach (var (gname, kinds) in groups)
         {
-            string id = def.Id;
-            var b = Btn($"{def.Name}  {def.W}x{def.D}", () => SetPalette(id)); b.TooltipText = $"消費 {def.Power} kW / 要員 {def.Workers} / 技術 L{def.TechLevel}";
-            b.Alignment = HorizontalAlignment.Left; _paletteButtons[id] = b; pal.AddChild(b);
+            pal.AddChild(Lbl(gname, 11, Line40));
+            var grid = new GridContainer { Columns = 3 }; grid.AddThemeConstantOverride("h_separation", 6); grid.AddThemeConstantOverride("v_separation", 6);
+            foreach (var def in _data.Structures.Values.Where(d => kinds.Contains(d.Kind)).OrderBy(d => d.TechLevel).ThenBy(d => d.Generation).ThenBy(d => d.Id))
+            {
+                string id = def.Id;
+                var b = new Button { Icon = Icon(id), Text = def.Kind == "reactor" ? $"リアクター\n第 {def.Generation} 世代" : def.Name.Replace("(", "\n("), IconAlignment = HorizontalAlignment.Center, VerticalIconAlignment = VerticalAlignment.Top, ExpandIcon = true, CustomMinimumSize = new Vector2(92, 96), ClipText = true };
+                b.AddThemeFontSizeOverride("font_size", 11); b.AddThemeConstantOverride("icon_max_width", 40);
+                b.TooltipText = $"{def.Name}  {def.W}x{def.D}\n消費 {def.Power} kW  要員 {def.Workers}  技術 L{def.TechLevel}" + (def.Kind == "reactor" ? $"\n第 {def.Generation} 世代  上限 {def.Output} kW" : "");
+                b.Pressed += () => SetPalette(id);
+                var stock = Lbl("", 10, Cyan); stock.SetAnchorsPreset(Control.LayoutPreset.TopRight); stock.OffsetLeft = -40; stock.OffsetRight = -6; stock.OffsetTop = 4; stock.HorizontalAlignment = HorizontalAlignment.Right; stock.MouseFilter = Control.MouseFilterEnum.Ignore;
+                b.AddChild(stock); _stockLabels[id] = stock; _paletteButtons[id] = b; grid.AddChild(b);
+            }
+            pal.AddChild(grid);
         }
-        _dirLabel = Lbl(DirName(_dir), 13, Cyan); var dirRow = new HBoxContainer(); dirRow.AddChild(Lbl("向き", 12, Cyan)); dirRow.AddChild(_dirLabel); dirRow.AddChild(Btn("回す (R)", () => { _dir = (Direction)(((int)_dir + 1) % 6); _dirLabel.Text = DirName(_dir); }));
-        pal.AddChild(dirRow);
-        var palPanel = Panel(pal); palPanel.Position = new Vector2(16, 120); ui.AddChild(palPanel);
-        // 右: 選択中の設備
-        _side = new VBoxContainer { CustomMinimumSize = new Vector2(300, 0) };
-        var sidePanel = Panel(_side); sidePanel.AnchorLeft = 1; sidePanel.AnchorRight = 1; sidePanel.OffsetLeft = -340; sidePanel.OffsetRight = -16; sidePanel.OffsetTop = 72; ui.AddChild(sidePanel);
+        pal.AddChild(Sep());
+        var dirRow = new HBoxContainer(); dirRow.AddThemeConstantOverride("separation", 4); dirRow.AddChild(Lbl("向き", 11, Cyan));
+        foreach (var (d, n) in new[] { (Direction.East, "東"), (Direction.North, "北"), (Direction.West, "西"), (Direction.South, "南"), (Direction.Up, "上"), (Direction.Down, "下") })
+        { var dd = d; var b = Btn(n, () => SetDir(dd)); b.CustomMinimumSize = new Vector2(36, 30); _dirButtons[d] = b; dirRow.AddChild(b); }
+        pal.AddChild(dirRow); SetDir(_dir);
+        var scroll = new ScrollContainer { CustomMinimumSize = new Vector2(330, 0), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; scroll.AddChild(pal);
+        var palPanel = Panel(scroll); palPanel.Position = new Vector2(16, 92); palPanel.AnchorBottom = 1; palPanel.OffsetBottom = -56; palPanel.OffsetTop = 92; palPanel.CustomMinimumSize = new Vector2(0, 0);
+        root.AddChild(palPanel);
+
+        // ----- 右: 選択した設備 -----
+        _side = new VBoxContainer { CustomMinimumSize = new Vector2(340, 0) }; _side.AddThemeConstantOverride("separation", 8);
+        var sidePanel = Panel(_side); sidePanel.AnchorLeft = 1; sidePanel.AnchorRight = 1; sidePanel.OffsetLeft = -392; sidePanel.OffsetRight = -16; sidePanel.OffsetTop = 92; root.AddChild(sidePanel);
+
+        // ----- 下: 状態 -----
+        _status = Lbl("", 12);
+        var st = new HBoxContainer(); st.AddThemeConstantOverride("separation", 10); st.AddChild(new TextureRect { Texture = Icon("assembler"), CustomMinimumSize = new Vector2(20, 20), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered }); st.AddChild(_status);
+        var stPanel = Panel(st); stPanel.AnchorTop = 1; stPanel.AnchorBottom = 1; stPanel.OffsetTop = -44; stPanel.OffsetBottom = -16; stPanel.OffsetLeft = 16; root.AddChild(stPanel);
+        _dirLabel = Lbl("", 1);   // 旧 UI との互換(未使用)
+    }
+
+    void SetDir(Direction d)
+    {
+        _dir = d;
+        foreach (var (k, b) in _dirButtons) b.AddThemeStyleboxOverride("normal", k == d ? Box(new Color(18 / 255f, 40 / 255f, 84 / 255f, 0.9f), Accent, 2, 6) : Box(Navy, Cyan, 1, 6));
     }
 
     static string DirName(Direction d) => d switch { Direction.East => "東 (+x)", Direction.North => "北 (+y)", Direction.West => "西 (-x)", Direction.South => "南 (-y)", Direction.Up => "上", _ => "下" };
@@ -323,14 +417,28 @@ public partial class MicroEditor : Node3D
     void SetPalette(string? id)
     {
         _palette = id;
-        foreach (var (k, b) in _paletteButtons) b.AddThemeStyleboxOverride("normal", k == id ? PanelStyle(true) : PanelStyle());
+        foreach (var (k, b) in _paletteButtons) b.AddThemeStyleboxOverride("normal", k == id ? Box(new Color(18 / 255f, 40 / 255f, 84 / 255f, 0.9f), Accent, 2, 6) : Box(Navy, Cyan, 1, 6));
     }
 
     void SetSpeed(int v)
     {
         _speed = v;
         int[] vals = { 0, 1, 2, 4 };
-        for (int i = 0; i < _speedButtons.Count; i++) _speedButtons[i].AddThemeStyleboxOverride("normal", vals[i] == v ? PanelStyle(true) : PanelStyle());
+        for (int i = 0; i < _speedButtons.Count; i++) _speedButtons[i].AddThemeStyleboxOverride("normal", vals[i] == v ? Box(new Color(18 / 255f, 40 / 255f, 84 / 255f, 0.9f), Accent, 2, 8) : Box(Navy, Cyan, 1, 8));
+    }
+
+    void RefreshTop()
+    {
+        var (y, d, h, mi) = Clock.Of(_sim.Tick);
+        _clock.Text = $"{y} 年目  {d} 日"; _clockBig.Text = $"{h:00}:{mi:00}";
+        var b = Building;
+        _powerText.Text = $"{b.LastSupply} / {b.LastDemand} kW";
+        _powerBar.MaxValue = Math.Max(1, Math.Max(b.LastSupply, b.LastDemand)); _powerBar.Value = Math.Min(b.LastSupply, b.LastDemand);
+        _powerBar.AddThemeStyleboxOverride("fill", Box(b.LastSupply >= b.LastDemand ? Accent : Warm, Color.Color8(0, 0, 0, 0), 0, 0));
+        _power.Text = $"供給 {b.LastSupply} kW  需要 {b.LastDemand} kW  リアクター {Floor.Structures.Count(s => s is Reactor)} 基";
+        foreach (var (id, l) in _stockLabels) l.Text = b.Inventory.GetValueOrDefault(id).ToString();
+        var made = Floor.Structures.OfType<Machine>().Sum(m => m.Made); var failed = Floor.Structures.OfType<Machine>().Sum(m => m.Failed);
+        _status.Text = $"設備 {Floor.Structures.Count} 台   在庫 {b.Inventory.Values.Sum()} 台   製造 {made}   不良 {failed}   {(_palette == null ? "" : _data.Structures[_palette].Name + " を設置中  " + DirName(_dir))}";
     }
 
     int _sideFor = -2; long _sideTick = -1;
@@ -340,65 +448,108 @@ public partial class MicroEditor : Node3D
         _sideTick = _sim.Tick; _sideFor = _selected;
         foreach (var c in _side.GetChildren()) c.QueueFree();
         var s = Building.Find(0, _selected);
-        if (s == null)
-        {
-            _side.AddChild(Lbl("選択なし", 12, Cyan));
-            _side.AddChild(Lbl($"設備 {Floor.Structures.Count} 台  在庫 {Building.Inventory.Values.Sum()} 台", 13));
-            var made = Floor.Structures.OfType<Machine>().Sum(m => m.Made); var failed = Floor.Structures.OfType<Machine>().Sum(m => m.Failed);
-            _side.AddChild(Lbl($"製造 {made}  不良 {failed}", 13));
-            return;
-        }
+        if (s == null) { _side.AddChild(Lbl("選択なし", 11, Cyan)); return; }
         var def = _data.Structures[s.DefId];
-        _side.AddChild(Lbl($"{def.Name}  ({s.X}, {s.Y})  {DirName(s.Dir)}", 15));
-        _side.AddChild(Lbl($"消費 {def.Power} kW  動力 {s.PowerPct}%  要員 {def.Workers}", 13, Cyan));
+        var head = new HBoxContainer(); head.AddThemeConstantOverride("separation", 10);
+        head.AddChild(new TextureRect { Texture = Icon(def.Id), CustomMinimumSize = new Vector2(48, 48), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered });
+        var hv = new VBoxContainer(); hv.AddThemeConstantOverride("separation", 0); hv.AddChild(Lbl(def.Name, 17)); hv.AddChild(Lbl($"({s.X}, {s.Y})  {DirName(s.Dir)}  {def.W}x{def.D}", 11, Cyan)); head.AddChild(hv);
+        _side.AddChild(head); _side.AddChild(Sep());
+        var g = new GridContainer { Columns = 3 }; g.AddThemeConstantOverride("h_separation", 14);
+        void Stat(string k, string v, Color? c = null) { var vb = new VBoxContainer(); vb.AddThemeConstantOverride("separation", 0); vb.AddChild(Lbl(k, 10, Cyan)); vb.AddChild(Lbl(v, 15, c)); g.AddChild(vb); }
+        Stat("消費", $"{def.Power} kW"); Stat("動力", $"{s.PowerPct}%", s.PowerPct >= 100 ? Green : Warm); Stat("要員", def.Workers.ToString());
+        _side.AddChild(g);
         switch (s)
         {
             case Machine m:
             {
-                var opt = new OptionButton(); opt.AddThemeFontOverride("font", JpFont()); opt.AddThemeFontSizeOverride("font_size", 13); opt.AddThemeStyleboxOverride("normal", PanelStyle());
+                _side.AddChild(Sep()); _side.AddChild(Lbl("レシピ", 10, Cyan));
+                var opt = new OptionButton(); opt.AddThemeConstantOverride("icon_max_width", 24);
                 var recipes = _data.Recipes.Values.Where(r => r.Machine == def.Kind).OrderBy(r => r.TechLevel).ThenBy(r => r.Id).ToList();
-                opt.AddItem("レシピなし"); for (int i = 0; i < recipes.Count; i++) { opt.AddItem($"L{recipes[i].TechLevel} {recipes[i].Name}"); if (recipes[i].Id == m.Recipe) opt.Selected = i + 1; }
+                opt.AddItem("レシピなし"); for (int i = 0; i < recipes.Count; i++) { opt.AddIconItem(Icon(recipes[i].Outputs[0].Item), $"L{recipes[i].TechLevel}  {recipes[i].Name}"); if (recipes[i].Id == m.Recipe) opt.Selected = i + 1; }
                 int sid = s.Id; opt.ItemSelected += i => { _sim.Enqueue(new SetRecipe(1, 0, sid, i == 0 ? null : recipes[(int)i - 1].Id)); _sim.Step(); _sideTick = -1; };
                 _side.AddChild(opt);
                 if (m.Recipe != null)
                 {
                     var r = _data.Recipes[m.Recipe];
-                    _side.AddChild(Lbl("入力  " + string.Join("  ", r.Inputs.Select(i => $"{_data.Items[i.Item].Name}×{i.Count} ({TierName(i.MinTier)}以上)")), 12));
-                    _side.AddChild(Lbl($"所要 {r.Ticks} ティック  失敗時の回収 {r.ScrapRate / 100}%", 12));
+                    var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 6);
+                    foreach (var i in r.Inputs) row.AddChild(Chip(i.Item, $"{_data.Items[i.Item].Name} ×{i.Count}", TierColor(i.MinTier), $"品質 {TierName(i.MinTier)} 以上"));
+                    row.AddChild(Lbl("→", 14, Cyan));
+                    foreach (var o in r.Outputs) row.AddChild(Chip(o.Item, $"{_data.Items[o.Item].Name} ×{o.Count}", Accent));
+                    _side.AddChild(row);
+                    _side.AddChild(Lbl($"所要 {r.Ticks} ティック ({r.Ticks / 60.0:F1} 秒)   失敗時の回収 {r.ScrapRate / 100}%", 11, Cyan));
+                    var prog = new ProgressBar { MinValue = 0, MaxValue = r.Ticks * 100, Value = Math.Max(0, m.Progress), ShowPercentage = false, CustomMinimumSize = new Vector2(0, 10) };
+                    _side.AddChild(prog);
                 }
-                _side.AddChild(Lbl($"要員 {m.Staff.Count}/{def.Workers}  " + string.Join(" ", m.Staff.Select(w => $"{w.Name}(技能 {w.Skill})")), 13));
-                var row = new HBoxContainer(); var skill = new SpinBox { MinValue = 0, MaxValue = 10, Value = 3 }; skill.AddThemeStyleboxOverride("normal", PanelStyle());
-                row.AddChild(Lbl("技能", 12, Cyan)); row.AddChild(skill);
-                row.AddChild(Btn("要員を割り当て", () => { _sim.Enqueue(new AssignStaff(1, 0, sid, new Worker(m.Staff.Count + 1, $"作業員 {m.Staff.Count + 1}", (int)skill.Value))); _sim.Step(); _sideTick = -1; }, true));
-                _side.AddChild(row);
-                _side.AddChild(Lbl($"在庫  入力 {Count(m.Inputs)}  出力 {Count(m.Outputs)}", 13));
-                _side.AddChild(Lbl($"進捗 {(m.Progress < 0 ? "待機" : (m.Progress / Math.Max(1, _data.Recipes[m.Recipe ?? ""]?.Ticks ?? 1)) + "%")}  製造 {m.Made}  不良 {m.Failed}", 13));
+                var g2 = new GridContainer { Columns = 3 }; g2.AddThemeConstantOverride("h_separation", 14);
+                void Stat2(string k, string v, Color? c = null) { var vb = new VBoxContainer(); vb.AddThemeConstantOverride("separation", 0); vb.AddChild(Lbl(k, 10, Cyan)); vb.AddChild(Lbl(v, 15, c)); g2.AddChild(vb); }
+                Stat2("状態", m.Recipe == null ? "レシピなし" : m.Staff.Count < def.Workers ? "要員不足" : m.Progress < 0 ? "入力待ち" : "稼働", m.Recipe != null && m.Staff.Count >= def.Workers && m.Progress >= 0 ? Green : Warm);
+                Stat2("製造", m.Made.ToString(), Green); Stat2("不良", m.Failed.ToString(), m.Failed > 0 ? Warm : null);
+                _side.AddChild(g2);
+                if (m.Inputs.Count > 0 || m.Outputs.Count > 0)
+                {
+                    var inv = new HBoxContainer(); inv.AddThemeConstantOverride("separation", 6);
+                    foreach (var grp in m.Inputs.GroupBy(i => i.Item)) inv.AddChild(Chip(grp.Key, $"×{grp.Sum(i => i.Count)}", Line40, "入力の在庫"));
+                    if (m.Outputs.Count > 0) { inv.AddChild(Lbl("|", 12, Line40)); foreach (var grp in m.Outputs.GroupBy(i => (i.Item, i.Tier))) inv.AddChild(Chip(grp.Key.Item, $"×{grp.Sum(i => i.Count)}", TierColor(grp.Key.Tier), $"出力  品質 {TierName(grp.Key.Tier)}")); }
+                    _side.AddChild(inv);
+                }
+                _side.AddChild(Sep()); _side.AddChild(Lbl($"要員  {m.Staff.Count} / {def.Workers}", 10, Cyan));
+                if (m.Staff.Count > 0) { var sr = new HBoxContainer(); sr.AddThemeConstantOverride("separation", 6); foreach (var w in m.Staff) sr.AddChild(Chip("mech_head", $"{w.Name}  技能 {w.Skill}", Line40)); _side.AddChild(sr); }
+                var ar = new HBoxContainer(); ar.AddThemeConstantOverride("separation", 8);
+                var skill = new SpinBox { MinValue = 0, MaxValue = 10, Value = 3, CustomMinimumSize = new Vector2(90, 34) };
+                ar.AddChild(Lbl("技能", 11, Cyan)); ar.AddChild(skill);
+                ar.AddChild(Btn("要員を割り当て", () => { _sim.Enqueue(new AssignStaff(1, 0, sid, new Worker(m.Staff.Count + 1, $"作業員 {m.Staff.Count + 1}", (int)skill.Value))); _sim.Step(); _sideTick = -1; }, true));
+                _side.AddChild(ar);
                 break;
             }
             case Reactor r:
-                _side.AddChild(Lbl($"第 {def.Generation} 世代  品質 {r.Quality}  出力 {Building.ReactorOutput(def, r.Quality, _data)} kW", 13));
+            {
+                _side.AddChild(Sep());
+                var g3 = new GridContainer { Columns = 3 }; g3.AddThemeConstantOverride("h_separation", 14);
+                void S3(string k, string v, Color? c = null) { var vb = new VBoxContainer(); vb.AddThemeConstantOverride("separation", 0); vb.AddChild(Lbl(k, 10, Cyan)); vb.AddChild(Lbl(v, 15, c)); g3.AddChild(vb); }
+                S3("世代", $"第 {def.Generation}", ReactorColor(def.Generation)); S3("品質", r.Quality.ToString(), TierColor(Quality.TierOf(r.Quality))); S3("出力", $"{Building.ReactorOutput(def, r.Quality, _data)} / {def.Output} kW", Green);
+                _side.AddChild(g3);
+                var pr = new ProgressBar { MinValue = 0, MaxValue = def.Output, Value = Building.ReactorOutput(def, r.Quality, _data), ShowPercentage = false, CustomMinimumSize = new Vector2(0, 10) };
+                pr.AddThemeStyleboxOverride("fill", Box(ReactorColor(def.Generation), Color.Color8(0, 0, 0, 0), 0, 0)); _side.AddChild(pr);
                 break;
+            }
             case Chest c:
-                _side.AddChild(Lbl($"{c.Items.Count}/{def.Capacity}  " + Count(c.Items), 13));
+            {
+                _side.AddChild(Sep()); _side.AddChild(Lbl($"在庫  {c.Items.Count} / {def.Capacity}", 10, Cyan));
+                var pr = new ProgressBar { MinValue = 0, MaxValue = def.Capacity, Value = c.Items.Count, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 8) }; _side.AddChild(pr);
+                var inv = new GridContainer { Columns = 2 }; inv.AddThemeConstantOverride("h_separation", 6); inv.AddThemeConstantOverride("v_separation", 6);
+                foreach (var grp in c.Items.GroupBy(i => (i.Item, i.Tier)).OrderBy(g => g.Key.Item).ThenBy(g => g.Key.Tier)) inv.AddChild(Chip(grp.Key.Item, $"{_data.Items[grp.Key.Item].Name} ×{grp.Count()}", TierColor(grp.Key.Tier), $"品質 {TierName(grp.Key.Tier)}"));
+                _side.AddChild(inv);
                 break;
+            }
             case Belt b:
-                _side.AddChild(Lbl("コマ  " + string.Join(" ", b.Slots.Select(x => x is { } it ? _data.Items[it.Item].Name : "-")), 13));
-                break;
+            {
+                _side.AddChild(Sep()); var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 6);
+                for (int i = 0; i < 4; i++) row.AddChild(b.Slots[i] is { } it ? Chip(it.Item, _data.Items[it.Item].Name, TierColor(it.Tier)) : Chip("belt", "-", Line40));
+                _side.AddChild(row); break;
+            }
             case Miner mi:
-                var ore = Floor.OreAt(mi.X, mi.Y);
-                _side.AddChild(Lbl(ore == null ? "鉱脈なし" : $"{_data.Items[ore.Item].Name}  残り {ore.Amount:N0}  品質 {ore.Quality}", 13));
+            {
+                _side.AddChild(Sep()); var ore = Floor.OreAt(mi.X, mi.Y);
+                if (ore == null) _side.AddChild(Lbl("鉱脈なし", 13, Warm));
+                else { var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 10); row.AddChild(Chip(ore.Item, _data.Items[ore.Item].Name, TierColor(Quality.TierOf(ore.Quality)))); row.AddChild(Lbl($"残り {ore.Amount:N0}   品質 {ore.Quality}", 13)); _side.AddChild(row); }
+                if (mi.Output is { } o) _side.AddChild(Chip(o.Item, "出口に 1 個", TierColor(o.Tier)));
                 break;
+            }
             case Tank t:
-                _side.AddChild(Lbl(t.Fluid == null ? "空" : $"{_data.Items[t.Fluid].Name} {t.Amount}/{def.Capacity}", 13));
+            {
+                _side.AddChild(Sep());
+                _side.AddChild(t.Fluid == null ? Lbl("空", 13, Line40) : Chip(t.Fluid, $"{_data.Items[t.Fluid].Name}  {t.Amount} / {def.Capacity}", Accent));
+                var pr = new ProgressBar { MinValue = 0, MaxValue = def.Capacity, Value = t.Amount, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 8) }; _side.AddChild(pr);
                 break;
+            }
             case Port p:
-                _side.AddChild(Lbl(p.LinkBuilding < 0 ? "未接続" : $"接続先 建物 {p.LinkBuilding} 階 {p.LinkFloor}  待ち {p.Buffer.Count}", 13));
+                _side.AddChild(Sep()); _side.AddChild(Lbl(p.LinkBuilding < 0 ? "未接続" : $"接続先  建物 {p.LinkBuilding}  階 {p.LinkFloor}   待ち {p.Buffer.Count}  到着 {p.Inbox.Count}", 13, p.LinkBuilding < 0 ? Warm : null));
                 break;
         }
-        _side.AddChild(Btn("撤去 (Del)", RemoveSelected));
+        _side.AddChild(Sep());
+        var rm = Btn("撤去", RemoveSelected); rm.AddThemeStyleboxOverride("normal", Box(Navy, Warm, 1, 8)); _side.AddChild(rm);
     }
 
-    string Count(IEnumerable<ItemStack> items) => string.Join("  ", items.GroupBy(i => i.Item).Select(g => $"{_data.Items[g.Key].Name}×{g.Sum(i => i.Count)}"));
     static string TierName(QualityTier t) => t switch { QualityTier.Defect => "不良", QualityTier.Normal => "通常", QualityTier.High => "高", _ => "最高" };
 
     // ---------- 動作確認(無人): --demo で見本の生産線を置き、--screenshot で保存 ----------
