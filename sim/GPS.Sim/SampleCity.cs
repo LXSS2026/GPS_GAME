@@ -61,6 +61,8 @@ public static class SampleCity
         // 格納庫: 第 2 世代の汎用機 2 機の隊
         cmds.Add(new CreateMech(1, 2, "general", 72)); cmds.Add(new CreateMech(2, 2, "general", 68)); cmds.Add(new FormSquad(1, 1, "自警団 第 1 隊", new[] { 1, 2 }, 22));
         cmds.Add(new PlaceStructure(22, 0, "turret_live", 1, 1, 0, Direction.East)); cmds.Add(new PlaceStructure(22, 0, "turret_live", 10, 1, 0, Direction.East)); cmds.Add(new PlaceStructure(22, 0, "reactor_g1", 5, 5, 0, Direction.East)); cmds.Add(new BuildWall(22, 1));
+        cmds.Add(new BuildShip(60, "航空戦艦 ハヤテ", "small", 40, 230)); cmds.Add(new PlaceStructure(60, 0, "reactor_g3", 4, 4, 0, Direction.East)); cmds.Add(new PlaceStructure(60, 0, "turret_beam", 2, 60, 0, Direction.East)); cmds.Add(new PlaceStructure(60, 0, "turret_beam", 15, 60, 0, Direction.East));
+        cmds.Add(new CreateMech(3, 3, "fast", 75)); cmds.Add(new CreateMech(4, 3, "fast", 70)); cmds.Add(new FormSquad(2, 1, "艦載 第 1 隊", new[] { 3, 4 }, 60));
         cmds.Add(new SetCapital(22)); cmds.Add(new AddPower(1, 40)); cmds.Add(new AddPower(2, 41)); cmds.Add(new AddPower(3, 42));
         foreach (var c in cmds) s.Enqueue(c);
         s.Step();

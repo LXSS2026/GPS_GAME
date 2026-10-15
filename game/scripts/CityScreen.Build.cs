@@ -7,7 +7,8 @@ using System.Linq;
 /// <summary>都市の画面の建設: 用途・床面積・階数を選んで地面をクリックで建てる、街路を 2 点で敷く、撤去。計算は GPS.Sim の Construction。</summary>
 public partial class CityScreen
 {
-    enum BuildMode { None, Place, Road, RemoveRoad, Demolish }
+    enum BuildMode { None, Place, Road, RemoveRoad, Demolish, ShipMove, ShipPlace }
+    int _shipMoving = -1; string _shipKind = "small";
     BuildMode _buildMode;
     string _buildUse = "residence";
     int _buildSize = 10, _buildFloors = 1;
@@ -29,7 +30,7 @@ public partial class CityScreen
         _sizeSel.ItemSelected += idx => { _buildSize = (int)_sizeSel.GetItemId((int)idx); RefreshBuildInfo(); }; _floorSel.ItemSelected += idx => { _buildFloors = (int)_floorSel.GetItemId((int)idx); RefreshBuildInfo(); };
         row.AddChild(Lbl("床面積")); row.AddChild(_sizeSel); row.AddChild(Lbl("階数")); row.AddChild(_floorSel); box.AddChild(row);
         var ops = new HBoxContainer(); ops.AddThemeConstantOverride("separation", 8);
-        foreach (var (t, m) in new[] { ("建てる", BuildMode.Place), ("街路を敷く", BuildMode.Road), ("街路を外す", BuildMode.RemoveRoad), ("撤去", BuildMode.Demolish) })
+        foreach (var (t, m) in new[] { ("建てる", BuildMode.Place), ("街路を敷く", BuildMode.Road), ("街路を外す", BuildMode.RemoveRoad), ("撤去", BuildMode.Demolish), ("戦艦を建造(小)", BuildMode.ShipPlace) })
         { var mm = m; var b = Btn(t, () => SetBuildMode(_buildMode == mm ? BuildMode.None : mm)); b.CustomMinimumSize = new Vector2(0, 28); ops.AddChild(b); }
         box.AddChild(ops);
         _buildInfo = Lbl("", 12, Line40); box.AddChild(_buildInfo); RefreshBuildInfo();
@@ -46,7 +47,7 @@ public partial class CityScreen
     void RefreshBuildInfo()
     {
         long cost = Construction.Cost(_sim, _buildUse, _buildSize, _buildFloors);
-        string mode = _buildMode switch { BuildMode.Place => "地面をクリックで建てる(右クリックでやめる)", BuildMode.Road => _roadStart == null ? "街路の始点をクリック" : "街路の終点をクリック(幅 4 m)", BuildMode.RemoveRoad => "外す街路の始点と終点をクリック", BuildMode.Demolish => "撤去する建物をクリック", _ => "" };
+        string mode = _buildMode switch { BuildMode.ShipPlace => $"戦艦を置く位置をクリック(費用 {18 * 102 * 2 * 8:N0}、国家の段階から)", BuildMode.ShipMove => "戦艦の移動先をクリック", BuildMode.Place => "地面をクリックで建てる(右クリックでやめる)", BuildMode.Road => _roadStart == null ? "街路の始点をクリック" : "街路の終点をクリック(幅 4 m)", BuildMode.RemoveRoad => "外す街路の始点と終点をクリック", BuildMode.Demolish => "撤去する建物をクリック", _ => "" };
         _buildInfo.Text = $"{UseName(_sim.CityData, _buildUse)} {_buildSize}x{_buildSize} m {_buildFloors} 階  費用 {cost:N0}(国庫 {_sim.Factory.Treasury:N0})   上限 {Construction.MaxSize(_sim)} m 角 {Construction.MaxFloors(_sim)} 階(段階 {StageName(_sim.Factory.City!.Stage)})   {mode}";
     }
     void SetBuildMode(BuildMode m) { _buildMode = m; _roadStart = null; if (_ghost != null) { _ghost.QueueFree(); _ghost = null; } RefreshBuildInfo(); }
@@ -78,6 +79,16 @@ public partial class CityScreen
                 if (_sim.Factory.Buildings.Count > before) { var nb = _sim.Factory.Buildings[^1]; AddBuildingVisual(nb); _kb.Flush(_cityRoot); Notice($"{nb.Name} を建てた(費用 {Construction.Cost(_sim, _buildUse, _buildSize, _buildFloors):N0})"); Select(nb.Id); }
                 else Notice("建てられない: 国庫が足りない");
                 RefreshBuildInfo(); return true;
+            }
+            case BuildMode.ShipMove:
+                _sim.Enqueue(new MoveShip(_shipMoving, gx, gz)); _sim.Step(); SetBuildMode(BuildMode.None); _sideTick = -1; return true;
+            case BuildMode.ShipPlace:
+            {
+                int before = _sim.Factory.Buildings.Count;
+                _sim.Enqueue(new BuildShip(0, $"航空戦艦 {_sim.Factory.Buildings.Count(b => b.IsShip) + 1}", _shipKind, gx - 9, gz - 51)); _sim.Step();
+                if (_sim.Factory.Buildings.Count > before) { var nb = _sim.Factory.Buildings[^1]; AddBuildingVisual(nb); _kb.Flush(_cityRoot); Notice($"{nb.Name} を建造した"); Select(nb.Id); SetBuildMode(BuildMode.None); }
+                else Notice("建造できない(国家の段階と国庫が要る)");
+                return true;
             }
             case BuildMode.Road:
             case BuildMode.RemoveRoad:

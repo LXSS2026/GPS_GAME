@@ -149,6 +149,7 @@ public static class Combat
 {
     public static void Tick(Factory f, GameData data, CombatData c, Rng rng, Simulation? sim = null)
     {
+        Ships.Step(f);
         var field = f.Squads.Where(s => s.State == SquadState.Field).ToList();
         if (field.Count == 0) return;
         StepTurrets(f, data, c, rng, field);
@@ -223,7 +224,7 @@ public static class Combat
                     double bdmg = (bwd.Melee != null ? (bwd.Melee == "sword" ? MechStats.Speed(me, c) * MechStats.Weight(me, c) : MechStats.Speed(me, c)) * bwd.Mul : bwd.Damage * MechStats.WeaponQuality(me) / 70) * MechStats.GenMul(me, c) * bwd.Accuracy;
                     tb.Hp = Math.Max(0, tb.Hp - bdmg);
                     f.Events.Add(new FactoryEvent { Kind = "hit_building", Building = s.Id, Floor = tb.Id, X = (int)u.X, Y = (int)u.Y, Power = (int)bdmg, Radius = bd, Destroyed = 1 });
-                    if (tb.Hp <= 0) { tb.Destroyed = true; f.Events.Add(new FactoryEvent { Kind = "building_destroyed", Building = tb.Id, Power = s.Id }); if (sim != null) DiplomacySim.BuildingFell(sim, tb, s); }
+                    if (tb.Hp <= 0) { tb.Destroyed = true; f.Events.Add(new FactoryEvent { Kind = "building_destroyed", Building = tb.Id, Power = s.Id }); if (tb.IsShip) Ships.Sunk(f, tb); else if (sim != null) DiplomacySim.BuildingFell(sim, tb, s); }
                     continue;
                 }
                 var t = FindUnit(field, u.TargetMech); if (t == null || !t.Alive) { u.TargetMech = -1; continue; }

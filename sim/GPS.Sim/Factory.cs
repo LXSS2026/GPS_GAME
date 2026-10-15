@@ -87,6 +87,12 @@ public sealed class Building
     public bool Destroyed { get; set; }
     /// <summary>防御壁の段階(0〜3)。外周 × 400 × 段階が耐久に加わる。</summary>
     public int WallLevel { get; set; }
+    /// <summary>航空戦艦(空中を動く建物)。</summary>
+    public bool IsShip { get; set; }
+    public string ShipKind { get; set; } = "";
+    public double ShipSpeed { get; set; }
+    public double? MoveTargetX { get; set; }
+    public double? MoveTargetZ { get; set; }
     public int Perimeter => Floors.Count == 0 ? 0 : 2 * (Floors[0].W + Floors[0].D);
     /// <summary>荷下ろし場: 回収した部品・鹵獲したスクラップ・略奪の対象。箱へ移して工場で使う。</summary>
     public List<ItemStack> Cargo { get; set; } = new();

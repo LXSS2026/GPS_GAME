@@ -289,6 +289,7 @@ public static class CitySim
         foreach (var b in f.Buildings)
         {
             if (b.Floors.Count == 0) continue;
+            if (b.IsShip) { b.RoadConnected = true; continue; }
             int x0 = (int)Math.Round(b.X), z0 = (int)Math.Round(b.Y), w = b.Floors[0].W, d = b.Floors[0].D; bool ok = false;
             for (int i = -reach; i < w + reach && !ok; i++) for (int j = -reach; j < d + reach && !ok; j++)
             {

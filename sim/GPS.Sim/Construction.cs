@@ -20,7 +20,7 @@ public static class Construction
         if (x < 0 || z < 0 || x + size > cd.MapSize || z + size > cd.MapSize) return "地図の外";
         foreach (var b in f.Buildings)
         {
-            if (b.Id == ignoreBuilding || b.Floors.Count == 0) continue;
+            if (b.Id == ignoreBuilding || b.Floors.Count == 0 || b.IsShip) continue;
             int bw = b.Floors[0].W, bd = b.Floors[0].D;
             if (x < b.X + bw && x + size > b.X && z < b.Y + bd && z + size > b.Y) return $"{b.Name} と重なる";
         }
