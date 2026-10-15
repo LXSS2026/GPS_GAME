@@ -42,7 +42,8 @@ public sealed class Equipment
     public static Color ReactorColor(int gen) => gen switch { 0 => new Color(1f, 0.2f, 0.15f), 1 => new Color(1f, 0.5f, 0.1f), 2 => new Color(1f, 0.9f, 0.2f), 3 => new Color(0.6f, 1f, 0.2f), 4 => new Color(0.2f, 1f, 0.4f), 5 => new Color(0.25f, 0.5f, 1f), _ => new Color(0.75f, 0.35f, 1f) };
 
     /// <summary>設備 1 台の見た目を置く(部品 + 種類ごとの付属物)。原点はセル (x, z) の床。Flush は呼び出し側。</summary>
-    public static void PlaceVisual(Equipment eq, KitBash kb, Node3D root, StructureDef def, int x, float y, int z, int rot)
+    /// <param name="liftDir">昇降機の口: +1 = 上の階へ、-1 = 下の階へ、0 = 未接続(矢印なし)。</param>
+    public static void PlaceVisual(Equipment eq, KitBash kb, Node3D root, StructureDef def, int x, float y, int z, int rot, int liftDir = 0)
     {
         if (def.Kind == "pipe") { kb.Pipe(root, new Vector3(x, y + 0.3f, z + 0.5f), new Vector3(x + 1, y + 0.3f, z + 0.5f), 0.12f, kb.Rust); kb.Pipe(root, new Vector3(x + 0.5f, y + 0.3f, z), new Vector3(x + 0.5f, y + 0.3f, z + 1), 0.12f, kb.Rust); return; }
         string model = Model(def);
@@ -51,7 +52,9 @@ public sealed class Equipment
         if (def.Kind == "reactor")
         {
             var col = ReactorColor(def.Generation);
-            root.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.35f, Height = 0.7f }, MaterialOverride = new StandardMaterial3D { AlbedoColor = col, EmissionEnabled = true, Emission = col, EmissionEnergyMultiplier = 2.5f }, Position = new Vector3(x + 0.5f, y + 2.3f, z + 0.5f) });
+            var top = new Vector3(x + 0.5f, y + 2.3f, z + 0.5f);
+            root.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.35f, Height = 0.7f }, MaterialOverride = new StandardMaterial3D { AlbedoColor = col, EmissionEnabled = true, Emission = col, EmissionEnergyMultiplier = 2.5f }, Position = top });
+            root.AddChild(ReactorParticles(col, top));   // 発光部から粒子(2026-10-15 指示)
         }
         else if (def.Kind == "battery")
         {   // バッテリー: タンクの部品に世代の色の帯 3 本(専用部品は未作成)。リアクターと同じ大きさ
@@ -66,9 +69,43 @@ public sealed class Equipment
         }
         else if (def.Kind == "port")
         {
+            bool lift = def.Id.Contains("lift");
             kb.Box(root, new Vector3(x + 0.5f, y + 1.3f, z + 0.5f), new Vector3(0.9f, 0.6f, 0.9f), kb.PaintDark);
-            kb.Strip(root, new Vector3(x + 0.5f, y + 1.62f, z + 0.5f), new Vector3(0.6f, 0.04f, 0.6f), def.Id.Contains("lift") ? kb.GlowCyan : kb.GlowOrange);
+            var dim = new StandardMaterial3D { AlbedoColor = lift ? new Color(0.2f, 0.5f, 0.6f) : new Color(0.6f, 0.35f, 0.1f), EmissionEnabled = true, Emission = lift ? new Color(0.25f, 0.85f, 1f) : new Color(1f, 0.5f, 0.1f), EmissionEnergyMultiplier = 0.4f };
+            kb.Box(root, new Vector3(x + 0.5f, y + 1.62f, z + 0.5f), new Vector3(0.6f, 0.04f, 0.6f), dim);
+            if (lift && liftDir != 0)
+            {   // 上り・下りの矢印: 縦の柱と 4 本の斜めの羽根(上り = 水色で上向き、下り = 橙で下向き)。グローで潰れないよう発光は弱め
+                var c = liftDir > 0 ? new Color(0.25f, 0.85f, 1f) : new Color(1f, 0.5f, 0.1f);
+                var glow = new StandardMaterial3D { AlbedoColor = c, EmissionEnabled = true, Emission = c, EmissionEnergyMultiplier = 0.9f };
+                float dir = liftDir > 0 ? 1 : -1, cy = y + 2.1f;
+                kb.Box(root, new Vector3(x + 0.5f, cy, z + 0.5f), new Vector3(0.12f, 1.0f, 0.12f), glow);
+                for (int k = 0; k < 4; k++)
+                {
+                    float ang = k * 90;
+                    var off = new Vector3(Mathf.Cos(Mathf.DegToRad(ang)) * 0.18f, 0, Mathf.Sin(Mathf.DegToRad(ang)) * 0.18f);
+                    kb.Box(root, new Vector3(x + 0.5f, cy + dir * 0.32f, z + 0.5f) + off, new Vector3(0.1f, 0.5f, 0.1f), glow, new Vector3(0, -ang, dir * 45f));
+                }
+                kb.Box(root, new Vector3(x + 0.5f, cy + dir * 0.55f, z + 0.5f), new Vector3(0.28f, 0.06f, 0.28f), glow);
+            }
         }
+    }
+
+    /// <summary>リアクターの発光部から立ち上る粒子。世代の色。</summary>
+    static GpuParticles3D ReactorParticles(Color col, Vector3 at)
+    {
+        var mat = new ParticleProcessMaterial
+        {
+            EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Sphere, EmissionSphereRadius = 0.3f,
+            Direction = new Vector3(0, 1, 0), Spread = 30f, InitialVelocityMin = 0.6f, InitialVelocityMax = 1.4f, Gravity = new Vector3(0, 0.4f, 0),
+            ScaleMin = 0.5f, ScaleMax = 1.0f, Color = col, DampingMin = 0.3f, DampingMax = 0.3f,
+        };
+        var curve = new Curve(); curve.AddPoint(new Vector2(0, 1)); curve.AddPoint(new Vector2(1, 0));
+        mat.ScaleCurve = new CurveTexture { Curve = curve };
+        return new GpuParticles3D
+        {
+            Amount = 40, Lifetime = 1.8f, Position = at, ProcessMaterial = mat, Emitting = true, Preprocess = 1.5f,
+            DrawPass1 = new SphereMesh { Radius = 0.1f, Height = 0.2f, Material = new StandardMaterial3D { AlbedoColor = col, EmissionEnabled = true, Emission = col, EmissionEnergyMultiplier = 3f, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded } },
+        };
     }
 
     /// <summary>溜めた設備を MultiMesh として親に追加する。場面の構築の最後に 1 回呼ぶ。</summary>

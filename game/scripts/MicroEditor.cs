@@ -66,7 +66,7 @@ public partial class MicroEditor : Node3D
         _cam = new Camera3D { Far = 1000, Fov = 45 }; AddChild(_cam); UpdateCamera();
 
         // 工場: 平地ブロック 100x100、鉱脈は北西の 20x20、設備の在庫を支給
-        _sim.Enqueue(new CreateBuilding(1, "平地ブロック A-1", W, D, 1, true));
+        _sim.Enqueue(new CreateBuilding(1, "平地ブロック A-1", W, D, 3, true));   // 3 階建て(昇降機の確認用。編集は 1 階)
         for (int x = 0; x < 20; x++) for (int y = D - 20; y < D; y++) _sim.Enqueue(new SetOre(1, x, y, (x + y) % 7 == 0 ? "copper_ore" : "iron_ore", 20_000_000, 30 + (x * 7 + y * 3) % 41));
         foreach (var def in _data.Structures.Values) _sim.Enqueue(new AddInventory(1, def.Id, 500));
         _sim.Step();
@@ -196,7 +196,7 @@ public partial class MicroEditor : Node3D
     void RebuildEquipment()
     {
         foreach (var c in _eqRoot.GetChildren()) c.QueueFree();
-        foreach (var s in Floor.Structures) Equipment.PlaceVisual(_eq, _kb, _eqRoot, _data.Structures[s.DefId], s.X, FloorY, s.Y, Rot(s.Dir));
+        foreach (var s in Floor.Structures) Equipment.PlaceVisual(_eq, _kb, _eqRoot, _data.Structures[s.DefId], s.X, FloorY, s.Y, Rot(s.Dir), s is Port p && p.LinkBuilding >= 0 ? Math.Sign(p.LinkFloor - 0) : 0);
         _kb.Flush(_eqRoot);
         _eq.Flush(_eqRoot);
         // 鉱脈: 残量のある床を暗い茶で示す
@@ -588,7 +588,7 @@ public partial class MicroEditor : Node3D
                 break;
             }
             case Port p:
-                _side.AddChild(Sep()); _side.AddChild(Lbl(p.LinkBuilding < 0 ? "未接続" : $"接続先  建物 {p.LinkBuilding}  階 {p.LinkFloor}   待ち {p.Buffer.Count}  到着 {p.Inbox.Count}", 13, p.LinkBuilding < 0 ? Warm : null));
+                _side.AddChild(Sep()); _side.AddChild(Lbl(p.LinkBuilding < 0 ? "未接続" : $"接続先  建物 {p.LinkBuilding}  階 {p.LinkFloor + 1}  {(def.Id.Contains("lift") ? (p.LinkFloor > 0 ? "上り" : "下り") : "")}   待ち {p.Buffer.Count}  到着 {p.Inbox.Count}", 13, p.LinkBuilding < 0 ? Warm : null));
                 break;
         }
         _side.AddChild(Sep());
@@ -615,8 +615,15 @@ public partial class MicroEditor : Node3D
             cmds.Add(new PlaceStructure(1, 0, "chest", x, y0 - 5, 0, Direction.South));
         }
         cmds.Add(new PlaceStructure(1, 0, "reactor_g2", 22, y0 - 3, 0, Direction.East)); cmds.Add(new PlaceStructure(1, 0, "reactor_g2", 24, y0 - 3, 0, Direction.East)); cmds.Add(new PlaceStructure(1, 0, "battery_g2", 22, y0 - 7, 0, Direction.East)); cmds.Add(new PlaceStructure(1, 0, "trade", 26, y0 - 5, 0, Direction.East)); cmds.Add(new AddTreasury(5000));
+        // 昇降機の口: 上り(2 階へ)と下り(地下は無いので 2 階側から見た下り = 1 階の口を 2 階から結ぶ)。1 階に上り 1 つ、未接続 1 つ、2 階と 3 階にも置いて 3 階→1 階を下りとして示す
+        cmds.Add(new PlaceStructure(1, 0, "port_lift", 30, y0 - 3, 0, Direction.South)); cmds.Add(new PlaceStructure(1, 1, "port_lift", 30, y0 - 3, 0, Direction.South));
+        cmds.Add(new PlaceStructure(1, 0, "port_lift", 32, y0 - 3, 0, Direction.South));
+        cmds.Add(new PlaceStructure(1, 0, "port_lift", 34, y0 - 3, 0, Direction.South));
         foreach (var c in cmds) _sim.Enqueue(c);
         _sim.Step();
+        var lifts = Floor.Structures.OfType<Port>().OrderBy(p => p.X).ToList(); var up1 = Building.Floors[1].Structures.OfType<Port>().First();
+        _sim.Enqueue(new LinkPorts(1, 0, lifts[0].Id, 1, 1, up1.Id));   // (30): 2 階へ = 上り
+        _sim.Enqueue(new SetLiftDown(lifts[2].Id));                      // (34): 下り(見本用に接続先を -1 階相当として印だけ)
         int wid = 1;
         foreach (var m in Floor.Structures.OfType<Machine>()) { _sim.Enqueue(new SetRecipe(1, 0, m.Id, "iron_plate")); _sim.Enqueue(new AssignStaff(1, 0, m.Id, new Worker(wid, $"作業員 {wid}", 4))); wid++; }
         _sim.Step();
@@ -624,8 +631,16 @@ public partial class MicroEditor : Node3D
         _sim.Run(3600);
         _structureVersion++;
         _selected = Arg("--select") == "reactor" ? Floor.Structures.First(s => s is Reactor).Id : Floor.Structures.First(s => s is Machine).Id;
-        _pivot = new Vector3(10, FloorY, y0 - 2); _dist = 28; _yaw = 0.5f; _elev = 0.7f; UpdateCamera();
+        _pivot = new Vector3(10, FloorY, y0 - 2); _dist = 28; _yaw = 0.5f; _elev = 0.7f;
+        if (Arg("--pivot") is string pv) { var p = pv.Split(','); _pivot = new Vector3(float.Parse(p[0]), float.Parse(p[1]), float.Parse(p[2])); }
+        if (Arg("--dist") is string ds) _dist = float.Parse(ds);
+        if (Arg("--yaw") is string ys) _yaw = float.Parse(ys);
+        if (Arg("--elev") is string es) _elev = float.Parse(es);
+        UpdateCamera();
     }
+
+    /// <summary>見本専用: 下りの口を示すために接続先を仮に下の階にする(計算上は未接続のまま)。</summary>
+    sealed record SetLiftDown(int Id) : ICommand { public void Apply(Simulation s) { if (s.Factory.Get(1)?.Find(0, Id) is Port p) { p.LinkBuilding = 1; p.LinkFloor = -1; p.LinkPort = -1; } } }
 
     void Screenshot()
     {
