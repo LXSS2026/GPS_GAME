@@ -831,7 +831,20 @@
    },
    "shield": {
     "name": "盾",
-    "limit": null
+    "limit": {
+     "heavy": {
+      "arm": 2,
+      "shoulder": 0
+     },
+     "general": {
+      "arm": 1,
+      "shoulder": 0
+     },
+     "fast": {
+      "arm": 1,
+      "shoulder": 0
+     }
+    }
    }
   },
   "spare": {

@@ -67,10 +67,11 @@ public sealed class MechBuilder
         legL.RotationDegrees = new Vector3(0, 6, -3); legR.RotationDegrees = new Vector3(0, -6, 3);   // 足先を少し外へ開く(内股にしない)
         var armL = Attach(torso, lo.ArmL, torsoPart.Sockets["shoulder_l"], mats);
         var armR = Attach(torso, lo.ArmR, torsoPart.Sockets["shoulder_r"], mats);
-        armL.RotationDegrees = new Vector3(lo.WeaponL != null ? -8 : 10, 0, 12); armR.RotationDegrees = new Vector3(-18, 0, -12);   // 武器を持つ腕は少し前へ
-        Bend(armL, 22); Bend(armR, 30);
-        if (lo.WeaponR != null) Hold(armR, lo.ArmR, lo.WeaponR, mats);
-        if (lo.WeaponL != null) Hold(armL, lo.ArmL, lo.WeaponL, mats);
+        bool rangedL = IsRanged(lo.WeaponL), rangedR = IsRanged(lo.WeaponR);   // 射撃武器を持つ腕は肘を 90 度折って腰だめに構え、銃口を前へ向ける
+        armL.RotationDegrees = new Vector3(rangedL ? -20 : 10, 0, 12); armR.RotationDegrees = new Vector3(rangedR ? -20 : -18, 0, -12);
+        Bend(armL, rangedL ? 90 : 22); Bend(armR, rangedR ? 90 : 30);
+        if (lo.WeaponR != null) Hold(armR, lo.ArmR, lo.WeaponR, mats).RotationDegrees = new Vector3(rangedR ? RifleX : 0, 0, 0);
+        if (lo.WeaponL != null) Hold(armL, lo.ArmL, lo.WeaponL, mats).RotationDegrees = new Vector3(rangedL ? RifleX : 0, 0, 0);
         if (lo.Wing != null) { var wg = Attach(torso, lo.Wing, torsoPart.Sockets["back"] + new Vector3(0, -0.3f, -0.2f), mats); wg.RotationDegrees = new Vector3(10, 0, 0); FoldWings(wg, 80); }   // 人型では翼を下向きに畳む
         Pauldron(armL, 70); Pauldron(armR, 70);   // 肩の羽根を立てて肩当てにする
         Holsters(torso, lo, torsoPart, mats);
@@ -155,6 +156,8 @@ public sealed class MechBuilder
     {
         if (leg.FindChild("knee", true, false) is Node3D k) k.RotationDegrees = new Vector3(deg, 0, 0);
     }
+
+    static bool IsRanged(string? id) => id != null && (id.Contains("bazooka") || id.Contains("rifle") || id.Contains("smg"));
 
     /// <summary>腰に吊る形。鞭は伸びた形のままでは向きが崩れるので、巻いた部品に差し替える。</summary>
     static string Stowed(string id) => id.Contains("whip") && !id.EndsWith("_coiled") ? id + "_coiled" : id;

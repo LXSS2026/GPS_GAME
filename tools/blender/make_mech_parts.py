@@ -777,7 +777,7 @@ if __name__ == "__main__":
             "smg": {"name": "サブマシンガン", "limit": {"heavy": {"arm": 2, "shoulder": 0}, "general": {"arm": 2, "shoulder": 0}, "fast": {"arm": 2, "shoulder": 0}}},
             "sword": {"name": "剣", "melee": True, "damage": "speed*weight", "limit": {"heavy": {"arm": 2, "shoulder": 0}, "general": {"arm": 2, "shoulder": 0}, "fast": {"arm": 2, "shoulder": 0}}},
             "whip": {"name": "鞭", "melee": True, "damage": "speed", "limit": {"heavy": {"arm": 2, "shoulder": 0}, "general": {"arm": 2, "shoulder": 0}, "fast": {"arm": 2, "shoulder": 0}}},
-            "shield": {"name": "盾", "limit": None},   # 物理とビームの 2 種(2026-10-14)。装備上限は未指定
+            "shield": {"name": "盾", "limit": {"heavy": {"arm": 2, "shoulder": 0}, "general": {"arm": 1, "shoulder": 0}, "fast": {"arm": 1, "shoulder": 0}}},   # 物理とビームの 2 種。重装 2・他 1(2026-10-15)
         },
         "spare": {"socket": "waist_rear", "count": 1, "counts_toward_limit": False},
         "melee_holsters": {"sockets": ["waist_l", "waist_r"], "count_each": 1},
