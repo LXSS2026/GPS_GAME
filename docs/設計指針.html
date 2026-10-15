@@ -51,6 +51,7 @@
   <a href="#G15"><span class="no">G15</span>マイコン制御</a>
   <a href="#G16"><span class="no">G16</span>手順4 軍と戦闘</a>
   <a href="#G17"><span class="no">G17</span>都市(人口・雇用・税)</a>
+  <a href="#G18"><span class="no">G18</span>マクロのゲーム進行(図解)</a>
 </nav>
 <main>
 
@@ -1377,6 +1378,186 @@ dotnet build game\GPS.csproj
   <tr><td>12</td><td>人物の発生</td><td>1 か月ごとに市民から候補が 1〜3 人現れる。能力(統治・生産・指揮・交渉。各 1〜10)と忠誠・野心(各 1〜10)を持ち、教育の充足率が高いほど能力の上限が上がる。この手順では「発生と一覧」まで。登用・役職・派閥は手順 4.5(登用と政治)</td><td>G3 第 2 節の人物、第 3 節「手順 4 に人物の発生を含める」</td></tr>
   <tr><td>13</td><td>都市の地図(マクロ)での建物</td><td>建物に「用途」を持たせる: 工場(今のまま)、住居、畑、井戸、市場、学校、診療所、警察、公園、下水処理、廃棄物処理。用途ごとの収容・供給能力は床面積と階数から出す(json)。全て 10 m 単位の正方形で、既存の Building(床面積・階)の上に用途を足す。用途が住居以外の建物の中にも設備(工場)は置ける(用途は人の受け入れ、設備は物の処理で独立)</td><td>G1 確定「建物と街区の大きさ」。階モジュール(G9)の見た目は用途ごとに選ぶ</td></tr>
   <tr><td>14</td><td>第 1 段階の範囲</td><td>計算(GPS.Sim): 都市の台帳(人口・労働・技能分布)、住居と用途、食料と水、インフラ 9 種の充足、雇用と失業、軍の要員と徴兵、税と国庫、支持率、段階の昇格、人物の発生。命令: 建物の用途の設定、税率と徴兵率、見本の都市の生成。検証は xunit と、Godot の都市の画面(G5 のマクロ: 上の帯に人口・食料・水・支持率・日時、建物を選ぶと右に概要、「編集」でその階のミクロへ切り替え)。含めない: 登用と役職(手順 4.5)、派閥、外交、公害の描画、道路の自動敷設</td><td>G5「建物の編集(マクロからミクロへ)」のモックを実装に含める</td></tr>
+</table>
+</section>
+
+<section class="page" id="G18">
+<h2>G18 マクロのゲーム進行(図解)</h2>
+<p class="muted">2026-10-15 作成。現在の理解と決定範囲を 1 枚にまとめた図。A は段階の進行(G4)、B は各段階で回る一つの経済(G3 の構想図を実装の状態で塗り分け)、C は時間の刻み(G12 #16)。緑 = 実装済み、橙 = 設計案(G17、承認待ち)、灰 = 未着手。</p>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -8 1400 784" width="100%" style="max-width: 1400px; font-family: 'Yu Gothic UI', Meiryo, sans-serif; display: block"><defs><marker id="ah-done" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#2e8b57"/></marker><marker id="ah-plan" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#d2691e"/></marker><marker id="ah-todo" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#8a8a8a"/></marker></defs><text x="0" y="20" font-size="15" font-weight="bold" fill="currentColor">A. 段階の進行(G4 確定。昇格条件は G17 #11 の案)</text>
+<rect x="0" y="40" width="250" height="150" rx="6" fill="#fff" stroke="#2e8b57" stroke-width="2.5" stroke-dasharray="none"/>
+<text x="125.0" y="64" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">1. 村と自警団</text>
+<text x="125.0" y="82" text-anchor="middle" font-size="12" fill="#2e8b57">数十人</text>
+<text x="10" y="100" font-size="12.5" fill="#333">軍: 自警団(1 人 1 Unit)</text>
+<text x="10" y="118" font-size="12.5" fill="#333">工場: 工房 1 棟・技術 L1</text>
+<text x="10" y="136" font-size="12.5" fill="#333">機体: なし(第 0 世代の試作)</text>
+<text x="10" y="154" font-size="12.5" fill="#333">建物: 10〜20 m 角</text>
+<text x="10" y="172" font-size="12.5" fill="#333">政治: 村長・自警団長</text>
+<path d="M 250,115.0 L 320,115.0" fill="none" stroke="#d2691e" stroke-width="2" stroke-dasharray="7,4" marker-end="url(#ah-plan)"/>
+<text x="285.0" y="101.0" text-anchor="middle" font-size="11.5" fill="#d2691e">人口 +</text>
+<text x="285.0" y="141.0" text-anchor="middle" font-size="11.5" fill="#d2691e">支持率</text>
+<rect x="320" y="40" width="250" height="150" rx="6" fill="#fff" stroke="#2e8b57" stroke-width="2.5" stroke-dasharray="none"/>
+<text x="445.0" y="64" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">2. 町と民兵</text>
+<text x="445.0" y="82" text-anchor="middle" font-size="12" fill="#2e8b57">数百人</text>
+<text x="330" y="100" font-size="12.5" fill="#333">軍: 民兵(分隊 = 1 Unit)</text>
+<text x="330" y="118" font-size="12.5" fill="#333">工場: ベルトと機械・L2</text>
+<text x="330" y="136" font-size="12.5" fill="#333">機体: 第 1 世代(労働の代替)</text>
+<text x="330" y="154" font-size="12.5" fill="#333">建物: 30 m 角まで</text>
+<text x="330" y="172" font-size="12.5" fill="#333">政治: 町長・工場長・隊長</text>
+<path d="M 570,115.0 L 640,115.0" fill="none" stroke="#d2691e" stroke-width="2" stroke-dasharray="7,4" marker-end="url(#ah-plan)"/>
+<text x="605.0" y="101.0" text-anchor="middle" font-size="11.5" fill="#d2691e">人口 +</text>
+<text x="605.0" y="141.0" text-anchor="middle" font-size="11.5" fill="#d2691e">支持率</text>
+<rect x="640" y="40" width="250" height="150" rx="6" fill="#fff" stroke="#2e8b57" stroke-width="2.5" stroke-dasharray="none"/>
+<text x="765.0" y="64" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">3. 都市と常備軍</text>
+<text x="765.0" y="82" text-anchor="middle" font-size="12" fill="#2e8b57">数千〜数万人</text>
+<text x="650" y="100" font-size="12.5" fill="#333">軍: 常備軍(小隊〜中隊)</text>
+<text x="650" y="118" font-size="12.5" fill="#333">工場: 立体工場群・L3</text>
+<text x="650" y="136" font-size="12.5" fill="#333">機体: 第 2〜3 世代(兵役)</text>
+<text x="650" y="154" font-size="12.5" fill="#333">建物: 50 m 角まで</text>
+<text x="650" y="172" font-size="12.5" fill="#333">政治: 市長・将軍・外交官</text>
+<path d="M 890,115.0 L 960,115.0" fill="none" stroke="#d2691e" stroke-width="2" stroke-dasharray="7,4" marker-end="url(#ah-plan)"/>
+<text x="925.0" y="101.0" text-anchor="middle" font-size="11.5" fill="#d2691e">人口 +</text>
+<text x="925.0" y="141.0" text-anchor="middle" font-size="11.5" fill="#d2691e">支持率</text>
+<rect x="960" y="40" width="250" height="150" rx="6" fill="#fff" stroke="#2e8b57" stroke-width="2.5" stroke-dasharray="none"/>
+<text x="1085.0" y="64" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">4. 国家と大軍</text>
+<text x="1085.0" y="82" text-anchor="middle" font-size="12" fill="#2e8b57">数十万人</text>
+<text x="970" y="100" font-size="12.5" fill="#333">軍: 10 万の軍(大隊〜師団)</text>
+<text x="970" y="118" font-size="12.5" fill="#333">工場: 工業地帯・L4</text>
+<text x="970" y="136" font-size="12.5" fill="#333">機体: 第 4〜6 世代が主力</text>
+<text x="970" y="154" font-size="12.5" fill="#333">建物: 100 m 角</text>
+<text x="970" y="172" font-size="12.5" fill="#333">政治: 閣僚・元帥</text>
+<rect x="1240" y="40" width="160" height="150" rx="6" fill="#fff" stroke="#8a8a8a" stroke-width="2.5" stroke-dasharray="3,4"/>
+<text x="1320.0" y="64" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">決着(G3)</text>
+<text x="1250" y="86" font-size="12.5" fill="#333">勝ち: 大陸の制覇</text>
+<text x="1250" y="104" font-size="12.5" fill="#333">      または同盟網による支配</text>
+<text x="1250" y="122" font-size="12.5" fill="#333">負け: 征服、または</text>
+<text x="1250" y="140" font-size="12.5" fill="#333">      支持率の低下による失脚</text>
+<text x="0" y="230" font-size="15" font-weight="bold" fill="currentColor">B. 各段階で回る一つの経済(G3 構想図を、実装の状態で塗り分け)</text>
+<rect x="0" y="250" width="200" height="96" rx="6" fill="#fff" stroke="#2e8b57" stroke-width="2.5" stroke-dasharray="none"/>
+<text x="100.0" y="274" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">鉱脈</text>
+<text x="100.0" y="292" text-anchor="middle" font-size="12" fill="#2e8b57">実装済み</text>
+<text x="10" y="310" font-size="12.5" fill="#333">品質は鉱脈ごと(30〜70)</text>
+<text x="10" y="328" font-size="12.5" fill="#333">枯渇は数十年・輸出入</text>
+<rect x="300" y="250" width="200" height="96" rx="6" fill="#fff" stroke="#2e8b57" stroke-width="2.5" stroke-dasharray="none"/>
+<text x="400.0" y="274" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">工場(立体)</text>
+<text x="400.0" y="292" text-anchor="middle" font-size="12" fill="#2e8b57">実装済み(手順 2)</text>
+<text x="310" y="310" font-size="12.5" fill="#333">品質と歩留まり・技術 L1〜L4</text>
+<text x="310" y="328" font-size="12.5" fill="#333">リアクター・バッテリー・制御室</text>
+<rect x="600" y="250" width="200" height="96" rx="6" fill="#fff" stroke="#2e8b57" stroke-width="2.5" stroke-dasharray="none"/>
+<text x="700.0" y="274" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">人型ロボット</text>
+<text x="700.0" y="292" text-anchor="middle" font-size="12" fill="#2e8b57">実装済み(手順 3)</text>
+<text x="610" y="310" font-size="12.5" fill="#333">世代 1〜6・3 系統・部品の品質</text>
+<text x="610" y="328" font-size="12.5" fill="#333">制御基板・リアクター / バッテリー</text>
+<rect x="900" y="250" width="200" height="96" rx="6" fill="#fff" stroke="#2e8b57" stroke-width="2.5" stroke-dasharray="none"/>
+<text x="1000.0" y="274" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">軍(隊)</text>
+<text x="1000.0" y="292" text-anchor="middle" font-size="12" fill="#2e8b57">実装済み(手順 4 第 1 段階)</text>
+<text x="910" y="310" font-size="12.5" fill="#333">同系統同世代 1〜12 機</text>
+<text x="910" y="328" font-size="12.5" fill="#333">格納庫から出撃・給電</text>
+<rect x="1200" y="250" width="200" height="96" rx="6" fill="#fff" stroke="#2e8b57" stroke-width="2.5" stroke-dasharray="none"/>
+<text x="1300.0" y="274" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">戦争</text>
+<text x="1300.0" y="292" text-anchor="middle" font-size="12" fill="#2e8b57">第 1 段階</text>
+<text x="1210" y="310" font-size="12.5" fill="#333">隊の命令・索敵・射撃・自爆</text>
+<text x="1210" y="328" font-size="12.5" fill="#333">戦艦 / 防御壁・砲塔は次段階</text>
+<rect x="0" y="460" width="200" height="96" rx="6" fill="#fff" stroke="#d2691e" stroke-width="2.5" stroke-dasharray="7,4"/>
+<text x="100.0" y="484" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">農地・水源</text>
+<text x="100.0" y="502" text-anchor="middle" font-size="12" fill="#d2691e">設計案(G17)</text>
+<text x="10" y="520" font-size="12.5" fill="#333">畑と井戸の供給能力</text>
+<text x="10" y="538" font-size="12.5" fill="#333">SimCity 型インフラ 9 種</text>
+<rect x="300" y="460" width="200" height="96" rx="6" fill="#fff" stroke="#d2691e" stroke-width="2.5" stroke-dasharray="7,4"/>
+<text x="400.0" y="484" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">都市</text>
+<text x="400.0" y="502" text-anchor="middle" font-size="12" fill="#d2691e">設計案(G17)</text>
+<text x="310" y="520" font-size="12.5" fill="#333">人口・住居・雇用・失業</text>
+<text x="310" y="538" font-size="12.5" fill="#333">税・支持率・段階の昇格</text>
+<rect x="900" y="460" width="200" height="96" rx="6" fill="#fff" stroke="#8a8a8a" stroke-width="2.5" stroke-dasharray="3,4"/>
+<text x="1000.0" y="484" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">政治(プレイヤー)</text>
+<text x="1000.0" y="502" text-anchor="middle" font-size="12" fill="#8a8a8a">未着手(手順 4.5)</text>
+<text x="910" y="520" font-size="12.5" fill="#333">登用と役職・政策(税率・徴兵率)</text>
+<text x="910" y="538" font-size="12.5" fill="#333">予算(国庫)・派閥</text>
+<rect x="1200" y="460" width="200" height="96" rx="6" fill="#fff" stroke="#8a8a8a" stroke-width="2.5" stroke-dasharray="3,4"/>
+<text x="1300.0" y="484" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">外交(AI 国家)</text>
+<text x="1300.0" y="502" text-anchor="middle" font-size="12" fill="#8a8a8a">未着手(手順 5 後半)</text>
+<text x="1210" y="520" font-size="12.5" fill="#333">同盟・通商・不可侵・戦争</text>
+<text x="1210" y="538" font-size="12.5" fill="#333">AI 国家の軍も同じ仕組み</text>
+<path d="M 200,298.0 L 300,298.0" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
+<rect x="232.5" y="288.0" width="35.0" height="20" fill="#fff" opacity="0.92"/>
+<text x="250.0" y="303.0" text-anchor="middle" font-size="12.5" fill="#2e8b57">鉱石</text>
+<path d="M 500,298.0 L 600,298.0" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
+<rect x="495.0" y="288.0" width="110.0" height="20" fill="#fff" opacity="0.92"/>
+<text x="550.0" y="303.0" text-anchor="middle" font-size="12.5" fill="#2e8b57">製品(品質下限)</text>
+<path d="M 800,298.0 L 900,298.0" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
+<rect x="820.0" y="288.0" width="60.0" height="20" fill="#fff" opacity="0.92"/>
+<text x="850.0" y="303.0" text-anchor="middle" font-size="12.5" fill="#2e8b57">隊を編成</text>
+<path d="M 1100,298.0 L 1200,298.0" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
+<rect x="1113.75" y="288.0" width="72.5" height="20" fill="#fff" opacity="0.92"/>
+<text x="1150.0" y="303.0" text-anchor="middle" font-size="12.5" fill="#2e8b57">出撃・命令</text>
+<path d="M 200,508.0 L 300,508.0" fill="none" stroke="#d2691e" stroke-width="2" stroke-dasharray="7,4" marker-end="url(#ah-plan)"/>
+<rect x="220.0" y="498.0" width="60.0" height="20" fill="#fff" opacity="0.92"/>
+<text x="250.0" y="513.0" text-anchor="middle" font-size="12.5" fill="#d2691e">食料・水</text>
+<path d="M 370.0,460 L 370.0,346" fill="none" stroke="#d2691e" stroke-width="2" stroke-dasharray="7,4" marker-end="url(#ah-plan)"/>
+<rect x="256.25" y="393.0" width="97.5" height="20" fill="#fff" opacity="0.92"/>
+<text x="305.0" y="408.0" text-anchor="middle" font-size="12.5" fill="#d2691e">労働者(要員)</text>
+<path d="M 460.0,460 L 960.0,346" fill="none" stroke="#d2691e" stroke-width="2" stroke-dasharray="7,4" marker-end="url(#ah-plan)"/>
+<rect x="625.0" y="429.0" width="110.0" height="20" fill="#fff" opacity="0.92"/>
+<text x="680.0" y="444.0" text-anchor="middle" font-size="12.5" fill="#d2691e">徴兵(隊の要員)</text>
+<path d="M 680.0,346 L 495.0,460" fill="none" stroke="#d2691e" stroke-width="2" stroke-dasharray="7,4" marker-end="url(#ah-plan)"/>
+<rect x="523.75" y="363.0" width="172.5" height="20" fill="#fff" opacity="0.92"/>
+<text x="610.0" y="378.0" text-anchor="middle" font-size="12.5" fill="#d2691e">労働の代替(製造ロボット)</text>
+<path d="M 440.0,346 L 420.0,460" fill="none" stroke="#d2691e" stroke-width="2" stroke-dasharray="7,4" marker-end="url(#ah-plan)"/>
+<rect x="437.5" y="393.0" width="35.0" height="20" fill="#fff" opacity="0.92"/>
+<text x="455.0" y="408.0" text-anchor="middle" font-size="12.5" fill="#d2691e">公害</text>
+<path d="M 500,508.0 L 900,490" fill="none" stroke="#8a8a8a" stroke-width="2" stroke-dasharray="3,4" marker-end="url(#ah-todo)"/>
+<rect x="663.75" y="476" width="72.5" height="20" fill="#fff" opacity="0.92"/>
+<text x="700" y="491" text-anchor="middle" font-size="12.5" fill="#8a8a8a">税・支持率</text>
+<path d="M 900,530 L 500,530" fill="none" stroke="#8a8a8a" stroke-width="2" stroke-dasharray="3,4" marker-end="url(#ah-todo)"/>
+<rect x="638.75" y="526" width="122.5" height="20" fill="#fff" opacity="0.92"/>
+<text x="700" y="541" text-anchor="middle" font-size="12.5" fill="#8a8a8a">税率・徴兵率・登用</text>
+<path d="M 1000.0,460 L 1000.0,346" fill="none" stroke="#8a8a8a" stroke-width="2" stroke-dasharray="3,4" marker-end="url(#ah-todo)"/>
+<rect x="1048.75" y="393.0" width="122.5" height="20" fill="#fff" opacity="0.92"/>
+<text x="1110.0" y="408.0" text-anchor="middle" font-size="12.5" fill="#8a8a8a">指揮官・出撃の判断</text>
+<path d="M 1100,508.0 L 1200,508.0" fill="none" stroke="#8a8a8a" stroke-width="2" stroke-dasharray="3,4" marker-end="url(#ah-todo)"/>
+<rect x="1113.75" y="498.0" width="72.5" height="20" fill="#fff" opacity="0.92"/>
+<text x="1150.0" y="513.0" text-anchor="middle" font-size="12.5" fill="#8a8a8a">条約・方針</text>
+<path d="M 1300.0,346 L 1300.0,460" fill="none" stroke="#8a8a8a" stroke-width="2" stroke-dasharray="3,4" marker-end="url(#ah-todo)"/>
+<rect x="1191.25" y="393.0" width="97.5" height="20" fill="#fff" opacity="0.92"/>
+<text x="1240.0" y="408.0" text-anchor="middle" font-size="12.5" fill="#8a8a8a">威圧 / 和平</text>
+<path d="M 1240,556 L 1240,596 L 360,596 L 360,350" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
+<rect x="420" y="586" width="170" height="20" fill="#fff" opacity="0.92"/>
+<text x="505" y="601" text-anchor="middle" font-size="12.5" fill="#2e8b57">輸出入(交易所・国庫)</text>
+<text x="700.0" y="244" text-anchor="middle" font-size="12" fill="currentColor" opacity="0.75">上段: 物(鉱石 → 製品 → 機体 → 隊)。品質と世代がそのまま軍の性能差になる。  下段: 人と支持(都市 → 労働者・徴兵、税・支持率 → 政治)</text>
+<text x="0" y="646" font-size="15" font-weight="bold" fill="currentColor">C. 時間の刻み(G12 #16 確定、都市は G17 #1 の案)。ループは一つ、全系統が同じティック台帳</text>
+<rect x="0.0" y="660" width="267.2" height="64" rx="6" fill="#fff" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none"/>
+<text x="133.6" y="684" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">毎ティック(60/秒)</text>
+<text x="133.6" y="706" text-anchor="middle" font-size="12" fill="#333">工場・ベルト・戦闘・給電</text>
+<path d="M 267.2,692 L 283.2,692" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
+<rect x="283.2" y="660" width="267.2" height="64" rx="6" fill="#fff" stroke="#d2691e" stroke-width="2" stroke-dasharray="7,4"/>
+<text x="416.79999999999995" y="684" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">1 時間 = 18,000 ティック = 現実 5 分</text>
+<text x="416.79999999999995" y="706" text-anchor="middle" font-size="12" fill="#333">都市の計算(人口・食料・水・雇用・税・支持率)</text>
+<path d="M 550.4,692 L 566.4,692" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
+<rect x="566.4" y="660" width="267.2" height="64" rx="6" fill="#fff" stroke="#d2691e" stroke-width="2" stroke-dasharray="7,4"/>
+<text x="700.0" y="684" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">1 日 = 現実 2 時間</text>
+<text x="700.0" y="706" text-anchor="middle" font-size="12" fill="#333">人口の増減・段階の判定・外交</text>
+<path d="M 833.5999999999999,692 L 849.5999999999999,692" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
+<rect x="849.5999999999999" y="660" width="267.2" height="64" rx="6" fill="#fff" stroke="#d2691e" stroke-width="2" stroke-dasharray="7,4"/>
+<text x="983.1999999999999" y="684" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">1 か月(30 日)</text>
+<text x="983.1999999999999" y="706" text-anchor="middle" font-size="12" fill="#333">人物の発生</text>
+<path d="M 1116.8,692 L 1132.8,692" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
+<rect x="1132.8" y="660" width="267.2" height="64" rx="6" fill="#fff" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none"/>
+<text x="1266.3999999999999" y="684" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">1 年 = 360 日 = 現実 30 日</text>
+<text x="1266.3999999999999" y="706" text-anchor="middle" font-size="12" fill="#333">鉱脈は数十年</text>
+<rect x="0" y="746" width="40" height="18" rx="4" fill="#fff" stroke="#2e8b57" stroke-width="2.5" stroke-dasharray="none"/>
+<text x="50" y="760" font-size="12.5" fill="currentColor">実装済み(第 1 段階まで)</text>
+<rect x="260" y="746" width="40" height="18" rx="4" fill="#fff" stroke="#d2691e" stroke-width="2.5" stroke-dasharray="7,4"/>
+<text x="310" y="760" font-size="12.5" fill="currentColor">設計案(承認待ち)</text>
+<rect x="520" y="746" width="40" height="18" rx="4" fill="#fff" stroke="#8a8a8a" stroke-width="2.5" stroke-dasharray="3,4"/>
+<text x="570" y="760" font-size="12.5" fill="currentColor">未着手</text></svg>
+<h3>読み方</h3>
+<table>
+  <tr><th>流れ</th><th>現状</th></tr>
+  <tr><td>物の流れ(上段): 鉱脈 → 工場 → 機体 → 隊 → 戦場</td><td>実装済み。鉱石の品質・レシピの品質下限・部品の品質 → 機体の性能値 → 戦闘の命中と耐久まで一本につながっている(G13・G14・G16)</td></tr>
+  <tr><td>人と支持の流れ(下段): 農地・水源 → 都市 → 労働者・徴兵、税・支持率 → 政治 → 政策</td><td>都市は設計案(G17)。工場の要員(Worker)と隊の要員は今は命令で直接与えており、都市の人口から引く形に変える</td></tr>
+  <tr><td>段階の昇格: 人口 + 支持率</td><td>G4 の 4 段階は確定。条件の数値(人口の下限・支持率 60% が 30 日)は G17 #11 の案</td></tr>
+  <tr><td>政治と外交</td><td>未着手。登用と役職は手順 4.5、外交(AI 国家との同盟・通商・不可侵・戦争)は手順 5 の後半。決着(制覇か同盟網、敗北は征服か失脚)は G3</td></tr>
+  <tr><td>時間</td><td>一つのティックループ(60/秒)。都市は 1 時間ごと、人口の増減と外交は 1 日ごと、人物は 1 か月ごとに同じループの中で更新する</td></tr>
 </table>
 </section>
 </main>
