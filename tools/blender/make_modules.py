@@ -143,12 +143,12 @@ def clear():
     M = build_materials()
 
 
-def export(mid, kind, w, d, topw, topd, family="office", length=0):
+def export(mid, kind, w, d, topw, topd, family="office", length=0, floors=1, extra=None):
     for o in bpy.context.scene.objects:
         o.select_set(not o.get("cutter", False))
     path = OUT / f"{mid}.glb"
     bpy.ops.export_scene.gltf(filepath=str(path), export_format="GLB", use_selection=True, export_apply=True, export_yup=True)
-    ENTRIES.append({"id": mid, "kind": kind, "family": family, "w": w, "d": d, "topW": topw, "topD": topd, "length": length})
+    ENTRIES.append({"id": mid, "kind": kind, "family": family, "w": w, "d": d, "topW": topw, "topD": topd, "length": length, "floors": floors, **(extra or {})})
     print("exported", path)
 
 
@@ -472,13 +472,71 @@ def mod_sky_node():
 
 
 # ---------- 航空戦艦の船体部品(x 方向に並べる。幅 W、長さ L。船体は上甲板と下甲板の 2 層 = 高さ 3.8、下に船腹) ----------
-HULL_H = 3.8   # 船体の高さ(2 層)
-BELLY = 1.4    # 船腹(下に絞った部分)の高さ
+def mod_mech_hangar(w, d, floors=6):
+    """機体(15〜20 m)の格納庫: 高さ floors 階分の 1 部品。+Y 面に半開きの大扉、内部に 2 段の作業台と天井クレーン。"""
+    clear()
+    Hh = FH * floors
+    floor_slab(w, d, 0.15, 0.3, M["steel"])
+    add_box("int_floor_grate", (0, 0, 0.16), (w - 0.8, d - 0.8, 0.02), M["grate"], bevel=0)
+    door_w, door_h = w * 0.7, Hh - 1.5
+    cut = cutter("cutter_door", [((0, d / 2, 0.15 + door_h / 2), (door_w, 1.0, door_h))])
+    add_box("ext_wall", (0, 0, 0.15 + (Hh - 0.3) / 2), (w, d, Hh - 0.3), M["paintdark"], bevel=0.03, cutters=[cut])
+    # 柱(四隅は太く、側面は 3 m ごと)と各階の装甲帯(+Y 以外)
+    cols = [((sx * w / 2, sy * d / 2, Hh / 2), (0.4, 0.4, Hh)) for sx in (-1, 1) for sy in (-1, 1)]
+    for sx in (-1, 1):
+        for k in range(1, int(d / 3)):
+            cols.append(((sx * (w / 2 + 0.05), -d / 2 + k * 3, Hh / 2), (0.3, 0.3, Hh)))
+    for k in range(1, int(w / 3)):
+        cols.append(((-w / 2 + k * 3, -(d / 2 + 0.05), Hh / 2), (0.3, 0.3, Hh)))
+    add_boxes("ext_columns", cols, M["steel"], bevel=0.02)
+    bands = []
+    for f in range(1, floors):
+        z = f * FH
+        bands += [((sx * (w / 2 + 0.06), 0, z), (0.08, d, 0.4)) for sx in (-1, 1)] + [((0, -(d / 2 + 0.06), z), (w, 0.08, 0.4))]
+    add_boxes("ext_bands", bands, M["armor"], bevel=0.01)
+    # 大扉: 枠、左右へ開く 2 枚の扉(半開き)、上の発光帯、床の危険帯
+    add_boxes("ext_door_frame", [((sx * (door_w / 2 + 0.25), d / 2, 0.15 + door_h / 2), (0.5, 0.6, door_h)) for sx in (-1, 1)] + [((0, d / 2, 0.15 + door_h + 0.35), (door_w + 1.0, 0.6, 0.7))], M["steel"], bevel=0.02)
+    panel_w = door_w * 0.28
+    for sx in (-1, 1):
+        add_box(f"ext_door{sx+1}", (sx * (door_w / 2 - panel_w / 2), d / 2 + 0.1, 0.15 + door_h / 2), (panel_w, 0.35, door_h - 0.1), M["armor"], bevel=0.03)
+        add_boxes(f"ext_door_ribs{sx+1}", [((sx * (door_w / 2 - panel_w / 2), d / 2 + 0.3, 0.15 + (k + 0.5) * door_h / 6), (panel_w - 0.4, 0.08, 0.3)) for k in range(6)], M["steel"], bevel=0.01)
+        add_box(f"ext_door_hazard{sx+1}", (sx * (door_w / 2 - panel_w / 2), d / 2 + 0.3, 0.15 + door_h - 0.6), (panel_w - 0.4, 0.08, 0.5), M["hazard"], bevel=0)
+    add_box("ext_door_glow", (0, d / 2 + 0.02, 0.15 + door_h + 0.05), (door_w, 0.06, 0.1), M["gloworange"], bevel=0)
+    add_box("ext_floor_hazard", (0, d / 2 - 0.3, 0.17), (door_w, 0.6, 0.03), M["hazard"], bevel=0)
+    # 内部: 2 段の作業台(-Y 側と両側面)、天井クレーンの梁と走行レール、壁の発光帯
+    for k in (2, 4):
+        z = k * FH
+        add_box(f"int_platform{k}", (0, -d / 2 + 0.9, z), (w - 1.2, 1.8, 0.15), M["grate"], bevel=0.01)
+        add_boxes(f"int_platform_side{k}", [((sx * (w / 2 - 0.7), 0, z), (1.4, d - 2.0, 0.15)) for sx in (-1, 1)], M["grate"], bevel=0.01)
+        add_boxes(f"int_rail{k}", [((0, -d / 2 + 1.75, z + 0.55), (w - 1.2, 0.04, 0.04))] + [((sx * (w / 2 - 1.35), 0, z + 0.55), (0.04, d - 2.0, 0.04)) for sx in (-1, 1)], M["steel"], bevel=0)
+        add_boxes(f"int_platform_legs{k}", [((sx * (w / 2 - 1.3), sy * (d / 2 - 1.3), z / 2), (0.15, 0.15, z)) for sx in (-1, 1) for sy in (-1, 1)], M["steel"], bevel=0)
+        add_boxes(f"int_lights{k}", [((sx * (w / 2 - 0.05), 0, z + 1.2), (0.03, d - 1.0, 0.08)) for sx in (-1, 1)], M["glowcyan"], bevel=0)
+    add_boxes("int_crane_rails", [((sx * (w / 2 - 0.6), 0, Hh - 0.6), (0.3, d - 0.8, 0.3)) for sx in (-1, 1)], M["steel"], bevel=0.02)
+    add_box("int_crane_beam", (0, -d * 0.15, Hh - 0.9), (w - 1.0, 0.5, 0.5), M["hazard"], bevel=0.02)
+    add_box("int_crane_trolley", (w * 0.1, -d * 0.15, Hh - 1.4), (0.8, 0.8, 0.6), M["steel"], bevel=0.02)
+    add_box("int_crane_hook", (w * 0.1, -d * 0.15, Hh - 2.2), (0.1, 0.1, 1.2), M["rust"], bevel=0)
+    add_box("int_ceiling", (0, 0, Hh - 0.06), (w, d, 0.12), M["concrete"], bevel=0.02)
+    export(f"hangar_mech_{w}x{d}", "hangar", w, d, w, d, "office", floors=floors)
 
 
-def hull_body(W, L, name="ext_hull", cutters=None):
-    """船体の基本形: 上部の箱 + 下に絞った船腹(台形) + 装甲帯 + 鋲 + 甲板 3 面 + 舷窓。"""
-    add_box(name, (0, 0, BELLY + HULL_H / 2), (L, W, HULL_H), M["armor"], bevel=0.05, cutters=cutters)
+FH_DECK = FH   # 戦艦の甲板高 = 階高 3 m(機体の格納庫は複数甲板を抜く)
+HULL_H = 3.8   # 船体の高さ(hull_body が甲板数から設定し直す)
+BELLY = 1.4    # 船腹(下に絞った部分)の高さ(同上)
+
+
+def set_hull(W, decks):
+    """船体の寸法: 甲板高 3 m × 甲板数、船腹は船体高の 1/3。部品の大きさは幅 7 を基準に比例(s)。"""
+    global HULL_H, BELLY
+    HULL_H = FH_DECK * decks
+    BELLY = round(HULL_H / 3, 2)
+    return W / 7.0
+
+
+def hull_body(W, L, name="ext_hull", cutters=None, decks=2, bay=None):
+    """船体の基本形: 上部の箱 + 下に絞った船腹(台形) + 甲板ごとの装甲帯と舷窓 + 鋲 + 各甲板の床 + 最上甲板。bay = 格納庫の抜き(全甲板を貫く)。"""
+    s_ = set_hull(W, decks)
+    cuts = list(cutters or []) + ([bay] if bay else [])
+    add_box(name, (0, 0, BELLY + HULL_H / 2), (L, W, HULL_H), M["armor"], bevel=0.05 * s_, cutters=cuts)
     verts = [(-L / 2, -W * 0.275, 0), (-L / 2, W * 0.275, 0), (L / 2, -W * 0.275, 0), (L / 2, W * 0.275, 0),
              (-L / 2, -W / 2, BELLY), (-L / 2, W / 2, BELLY), (L / 2, -W / 2, BELLY), (L / 2, W / 2, BELLY)]
     faces_ = [(0, 2, 3, 1), (4, 5, 7, 6), (0, 1, 5, 4), (2, 6, 7, 3), (0, 4, 6, 2), (1, 3, 7, 5)]
@@ -489,51 +547,59 @@ def hull_body(W, L, name="ext_hull", cutters=None):
     bpy.context.collection.objects.link(obj)
     obj.data.materials.append(M["paintdark"])
     b = obj.modifiers.new("bevel", "BEVEL")
-    b.width = 0.04
+    b.width = 0.04 * s_
     b.segments = 2
-    add_boxes("ext_armor_plates", [((0, sy * (W / 2 + 0.03), BELLY + 0.9 + i * 1.6), (L - 0.4, 0.06, 0.5)) for sy in (-1, 1) for i in range(2)], M["steel"], bevel=0.01)
-    add_boxes("ext_rivets", [((-L / 2 + 0.3 + i * (L - 0.6) / 5, sy * (W / 2 + 0.07), BELLY + 1.7), (0.1, 0.06, 0.1)) for sy in (-1, 1) for i in range(6)], M["rust"], bevel=0)
-    add_box("ext_keel_glow", (0, 0, 0.02), (L, 0.2, 0.04), M["glowcyan"], bevel=0)
-    add_box("int_deck_lower", (0, 0, BELLY + 0.08), (L, W - 0.3, 0.16), M["grate"], bevel=0.01)
-    add_box("int_deck_upper", (0, 0, BELLY + HULL_H / 2), (L, W - 0.3, 0.16), M["grate"], bevel=0.01)
-    add_box("ext_deck_top", (0, 0, BELLY + HULL_H - 0.08), (L, W, 0.16), M["steel"], bevel=0.02)
+    add_boxes("ext_armor_plates", [((0, sy * (W / 2 + 0.03 * s_), BELLY + k * FH_DECK + 0.4), (L - 0.4 * s_, 0.06 * s_, 0.6)) for sy in (-1, 1) for k in range(1, decks)], M["steel"], bevel=0.01)
+    n_riv = max(4, int(L / (1.2 * s_)))
+    add_boxes("ext_rivets", [((-L / 2 + 0.3 * s_ + i * (L - 0.6 * s_) / (n_riv - 1), sy * (W / 2 + 0.07 * s_), BELLY + HULL_H - 0.5), (0.1 * s_, 0.06 * s_, 0.1 * s_)) for sy in (-1, 1) for i in range(n_riv)], M["rust"], bevel=0)
+    add_box("ext_keel_glow", (0, 0, 0.02), (L, 0.2 * s_, 0.04), M["glowcyan"], bevel=0)
+    for k in range(decks):
+        z = BELLY + k * FH_DECK
+        add_box(f"int_deck{k}", (0, 0, z + 0.08), (L, W - 0.3, 0.16), M["grate"], bevel=0.01, cutters=[bay] if bay else None)
+        lines = [((-L / 2 + i, 0, z + 0.17), (0.02, W - 0.3, 0.01)) for i in range(int(L) + 1)] + [((0, -(W - 0.3) / 2 + j, z + 0.17), (L, 0.02, 0.01)) for j in range(int(W) + 1)]
+        add_boxes(f"int_grid{k}", lines, M["glowcyan"], bevel=0, cutters=[bay] if bay else None)
+        n_port = int((L - 0.8 * s_) / (0.8 * s_))
+        add_boxes(f"ext_ports{k}", [((-L / 2 + 0.5 * s_ + i * 0.8 * s_, sy * (W / 2 + 0.01), z + 1.6), (0.3 * s_, 0.02, 0.5)) for sy in (-1, 1) for i in range(n_port)], M["wincool"], bevel=0, cutters=[bay] if bay else None)
+    add_box("ext_deck_top", (0, 0, BELLY + HULL_H - 0.08), (L, W, 0.16), M["steel"], bevel=0.02, cutters=[bay] if bay else None)
     lines = [((-L / 2 + i, 0, BELLY + HULL_H + 0.01), (0.02, W, 0.01)) for i in range(int(L) + 1)] + [((0, -W / 2 + j, BELLY + HULL_H + 0.01), (L, 0.02, 0.01)) for j in range(int(W) + 1)]
-    add_boxes("ext_deck_grid", lines, M["rubber"], bevel=0)   # 最上甲板の目盛りは暗い線(遠景で光らせない)
-    for z in (BELLY + 0.08, BELLY + HULL_H / 2):
-        lines = [((-L / 2 + i, 0, z + 0.09), (0.02, W - 0.3, 0.01)) for i in range(int(L) + 1)] + [((0, -(W - 0.3) / 2 + j, z + 0.09), (L, 0.02, 0.01)) for j in range(int(W) + 1)]
-        add_boxes(f"int_grid_{int(z*10)}", lines, M["glowcyan"], bevel=0)
-    for z in (BELLY + 0.9, BELLY + 2.7):
-        add_boxes(f"ext_ports_{int(z*10)}", [((-L / 2 + 0.5 + i * 0.8, sy * (W / 2 + 0.01), z), (0.3, 0.02, 0.2)) for sy in (-1, 1) for i in range(int((L - 0.8) / 0.8))], M["wincool"], bevel=0)
+    add_boxes("ext_deck_grid", lines, M["rubber"], bevel=0, cutters=[bay] if bay else None)   # 最上甲板の目盛りは暗い線(遠景で光らせない)
+    return s_
 
 
-def ship_mid(W, L):
+def ship_export(kind, W, L, decks, extra=None):
+    export(f"ship_{kind}_{W}x{L}", "ship", W, L, W, L, "ship", L, floors=decks, extra={"belly": BELLY, "decks": decks, **(extra or {})})
+
+
+def ship_mid(W, L, decks):
     clear()
-    hull_body(W, L)
-    pipe("ext_hull_pipe", (-L / 2 + 0.2, W / 2 + 0.2, BELLY + 2.0), (L / 2 - 0.2, W / 2 + 0.2, BELLY + 2.0), 0.1, M["rust"])
-    add_boxes("ext_deck_vents", [((-L / 2 + 0.6 + i * 1.2, -W * 0.3, BELLY + HULL_H + 0.2), (0.5, 0.4, 0.4)) for i in range(int((L - 0.6) / 1.2))], M["steel"], bevel=0.02)
-    export(f"ship_mid_{W}x{L}", "ship", W, L, W, L, "ship", L)
+    s_ = hull_body(W, L, decks=decks)
+    pipe("ext_hull_pipe", (-L / 2 + 0.2, W / 2 + 0.2 * s_, BELLY + HULL_H * 0.55), (L / 2 - 0.2, W / 2 + 0.2 * s_, BELLY + HULL_H * 0.55), 0.1 * s_, M["rust"])
+    add_boxes("ext_deck_vents", [((-L / 2 + 0.6 * s_ + i * 1.2 * s_, -W * 0.3, BELLY + HULL_H + 0.2 * s_), (0.5 * s_, 0.4 * s_, 0.4 * s_)) for i in range(int((L - 0.6 * s_) / (1.2 * s_)))], M["steel"], bevel=0.02)
+    ship_export("mid", W, L, decks)
 
 
-def ship_lift(W, L):
+def ship_lift(W, L, decks):
     """浮揚機関の区画: 両舷に大きな機関ポッド、下面に発光する噴射口。"""
     clear()
-    hull_body(W, L)
+    s_ = hull_body(W, L, decks=decks)
+    r = 0.9 * s_
     for sy in (-1, 1):
-        add_cyl(f"ext_lift_pod{sy+1}", (0, sy * (W / 2 + 0.9), BELLY + 1.0), 0.9, L - 0.4, M["steel"], 24, axis="X", bevel=0.03)
-        add_cyl(f"ext_lift_ring{sy+1}", (0, sy * (W / 2 + 0.9), BELLY + 1.0), 0.98, 0.3, M["rust"], 24, axis="X", bevel=0)
-        add_cyl(f"ext_lift_glow{sy+1}", (0, sy * (W / 2 + 0.9), BELLY + 0.05), 0.5, 0.08, M["glowcyan"], 24, bevel=0)
-        add_box(f"ext_lift_strut{sy+1}", (0, sy * (W / 2 + 0.45), BELLY + 1.0), (L * 0.6, 0.9, 0.5), M["armor"], bevel=0.03)
-    add_cyl("ext_belly_glow", (0, 0, 0.0), 0.7, 0.06, M["glowcyan"], 24, bevel=0)
-    export(f"ship_lift_{W}x{L}", "ship", W, L, W, L, "ship", L)
+        add_cyl(f"ext_lift_pod{sy+1}", (0, sy * (W / 2 + r), BELLY + HULL_H * 0.3), r, L - 0.4 * s_, M["steel"], 24, axis="X", bevel=0.03 * s_)
+        add_cyl(f"ext_lift_ring{sy+1}", (0, sy * (W / 2 + r), BELLY + HULL_H * 0.3), r * 1.09, 0.3 * s_, M["rust"], 24, axis="X", bevel=0)
+        add_cyl(f"ext_lift_glow{sy+1}", (0, sy * (W / 2 + r), BELLY + HULL_H * 0.3 - r + 0.05), r * 0.55, 0.08, M["glowcyan"], 24, bevel=0)
+        add_box(f"ext_lift_strut{sy+1}", (0, sy * (W / 2 + r / 2), BELLY + HULL_H * 0.3), (L * 0.6, r, 0.5 * s_), M["armor"], bevel=0.03)
+    add_cyl("ext_belly_glow", (0, 0, 0.0), 0.7 * s_, 0.06, M["glowcyan"], 24, bevel=0)
+    ship_export("lift", W, L, decks)
 
 
-def ship_bow(W, L):
+def ship_bow(W, L, decks):
     """艦首: 平面でも立面でも先細る楔。"""
     clear()
+    s_ = set_hull(W, decks)
     z1 = BELLY + HULL_H
     verts = [(-L / 2, -W / 2, BELLY), (-L / 2, W / 2, BELLY), (-L / 2, -W * 0.275, 0.0), (-L / 2, W * 0.275, 0.0),
              (-L / 2, -W / 2, z1), (-L / 2, W / 2, z1),
-             (L / 2, -0.25, z1 - 0.6), (L / 2, 0.25, z1 - 0.6), (L / 2, -0.15, BELLY + 0.6), (L / 2, 0.15, BELLY + 0.6)]
+             (L / 2, -0.25 * s_, z1 - 0.6 * s_), (L / 2, 0.25 * s_, z1 - 0.6 * s_), (L / 2, -0.15 * s_, BELLY + 0.6 * s_), (L / 2, 0.15 * s_, BELLY + 0.6 * s_)]
     faces_ = [(0, 1, 3, 2), (2, 3, 9, 8), (0, 2, 8, 6, 4), (1, 5, 7, 9, 3), (4, 6, 7, 5), (0, 4, 5, 1), (6, 8, 9, 7)]
     me = bpy.data.meshes.new("ext_bow")
     me.from_pydata(verts, [], faces_)
@@ -542,69 +608,89 @@ def ship_bow(W, L):
     bpy.context.collection.objects.link(obj)
     obj.data.materials.append(M["armor"])
     b = obj.modifiers.new("bevel", "BEVEL")
-    b.width = 0.05
+    b.width = 0.05 * s_
     b.segments = 2
-    add_box("ext_bow_ram", (L / 2 - 0.2, 0, BELLY + 1.9), (0.8, 0.3, 1.0), M["steel"], bevel=0.02)
-    add_box("ext_bow_glow", (L / 2 - 0.1, 0, BELLY + 2.2), (0.3, 0.34, 0.06), M["glowcyan"], bevel=0)
-    add_boxes("ext_bow_plates", [((-L / 2 + 0.6, sy * (W / 2 - 0.1), BELLY + 1.9), (0.8, 0.06, 0.5)) for sy in (-1, 1)], M["steel"], bevel=0.01)
-    add_box("int_deck_upper", (-L * 0.15, 0, BELLY + HULL_H / 2), (L * 0.6, W * 0.55, 0.16), M["grate"], bevel=0.01)
+    add_box("ext_bow_ram", (L / 2 - 0.2 * s_, 0, BELLY + HULL_H * 0.5), (0.8 * s_, 0.3 * s_, 1.0 * s_), M["steel"], bevel=0.02)
+    add_box("ext_bow_glow", (L / 2 - 0.1 * s_, 0, BELLY + HULL_H * 0.58), (0.3 * s_, 0.34 * s_, 0.06), M["glowcyan"], bevel=0)
+    add_boxes("ext_bow_plates", [((-L / 2 + 0.6 * s_, sy * (W / 2 - 0.1 * s_), BELLY + HULL_H * 0.5), (0.8 * s_, 0.06 * s_, 0.5 * s_)) for sy in (-1, 1)], M["steel"], bevel=0.01)
+    for k in range(1, decks):
+        add_box(f"int_deck{k}", (-L * 0.15, 0, BELLY + k * FH_DECK + 0.08), (L * 0.6, W * 0.55, 0.16), M["grate"], bevel=0.01)
     add_box("ext_deck_top", (-L * 0.15, 0, BELLY + HULL_H - 0.08), (L * 0.6, W * 0.55, 0.16), M["steel"], bevel=0.02)
-    export(f"ship_bow_{W}x{L}", "ship", W, L, W, L, "ship", L)
+    ship_export("bow", W, L, decks)
 
 
-def ship_stern(W, L):
+def ship_stern(W, L, decks):
     clear()
-    hull_body(W, L)
-    for i, (y, z) in enumerate(((-W * 0.3, BELLY + 1.0), (W * 0.3, BELLY + 1.0), (0, BELLY + 2.6))):
-        add_cyl(f"ext_engine{i}", (-L / 2 - 0.6, y, z), 0.7, 1.4, M["steel"], 24, r2=0.85, axis="X", bevel=0.02)
-        add_cyl(f"ext_engine_ring{i}", (-L / 2 - 1.3, y, z), 0.9, 0.12, M["rust"], 24, axis="X", bevel=0)
-        add_cyl(f"ext_engine_glow{i}", (-L / 2 - 1.37, y, z), 0.62, 0.08, M["gloworange"], 24, axis="X", bevel=0)
-    add_boxes("ext_fins", [((0, sy * (W / 2 + 0.5), BELLY + 3.0), (L * 0.7, 1.0, 0.1)) for sy in (-1, 1)], M["armor"], bevel=0.02)
-    add_box("ext_fin_top", (-L * 0.2, 0, BELLY + HULL_H + 1.0), (L * 0.5, 0.12, 2.0), M["armor"], bevel=0.02)
-    export(f"ship_stern_{W}x{L}", "ship", W, L, W, L, "ship", L)
+    s_ = hull_body(W, L, decks=decks)
+    r = 0.7 * s_
+    for i, (y, z) in enumerate(((-W * 0.3, BELLY + HULL_H * 0.28), (W * 0.3, BELLY + HULL_H * 0.28), (0, BELLY + HULL_H * 0.7))):
+        add_cyl(f"ext_engine{i}", (-L / 2 - 0.6 * s_, y, z), r, 1.4 * s_, M["steel"], 24, r2=r * 1.2, axis="X", bevel=0.02)
+        add_cyl(f"ext_engine_ring{i}", (-L / 2 - 1.3 * s_, y, z), r * 1.28, 0.12 * s_, M["rust"], 24, axis="X", bevel=0)
+        add_cyl(f"ext_engine_glow{i}", (-L / 2 - 1.37 * s_, y, z), r * 0.88, 0.08, M["gloworange"], 24, axis="X", bevel=0)
+    add_boxes("ext_fins", [((0, sy * (W / 2 + 0.5 * s_), BELLY + HULL_H * 0.8), (L * 0.7, 1.0 * s_, 0.1 * s_)) for sy in (-1, 1)], M["armor"], bevel=0.02)
+    add_box("ext_fin_top", (-L * 0.2, 0, BELLY + HULL_H + 1.0 * s_), (L * 0.5, 0.12 * s_, 2.0 * s_), M["armor"], bevel=0.02)
+    ship_export("stern", W, L, decks)
 
 
-def ship_hangar(W, L):
+def ship_hangar(W, L, decks, bay_h=19.0):
+    """機体格納庫の区画: 全甲板を抜いた高さ bay_h の格納庫。船体の上に格納庫の膨らみ、両舷に半開きの大扉、上甲板に発艦口。"""
     clear()
-    cut = cutter("cutter_side", [((0, sy * W / 2, BELLY + 2.5), (L * 0.7, 0.6, 1.5)) for sy in (-1, 1)])
-    hull_body(W, L, cutters=[cut])
+    s_ = set_hull(W, decks)
+    bay_w, bay_l = W * 0.8, L * 0.8
+    bay = cutter("cutter_bay", [((0, 0, BELLY + 0.3 + bay_h / 2), (bay_l, bay_w, bay_h))])
+    door_l, door_h = L * 0.6, bay_h - 1.0
+    door_z = BELLY + 0.5 + door_h / 2
+    cut = cutter("cutter_side", [((0, sy * W / 2, door_z), (door_l, 2.0, door_h)) for sy in (-1, 1)])
+    hull_body(W, L, cutters=[cut], decks=decks, bay=bay)
+    hump_h = bay_h + 0.3 + 0.6 - HULL_H
+    add_box("ext_hump", (0, 0, BELLY + HULL_H + hump_h / 2), (L * 0.92, W * 0.92, hump_h), M["armor"], bevel=0.06 * s_, cutters=[bay, cut])
+    add_boxes("ext_hump_ribs", [((-L / 2 + 0.6 * s_ + i * (L - 1.2 * s_) / 4, 0, BELLY + HULL_H + hump_h - 0.2), (0.4, W * 0.94, 0.4)) for i in range(5)], M["steel"], bevel=0.02)
+    add_box("int_bay_floor", (0, 0, BELLY + 0.22), (bay_l - 0.4, bay_w - 0.4, 0.12), M["grate"], bevel=0.01)
+    add_boxes("int_bay_lights", [((0, sy * (bay_w / 2 - 0.05), BELLY + 0.3 + k * 6.0), (bay_l - 1.0, 0.04, 0.08)) for sy in (-1, 1) for k in range(1, 3)], M["glowcyan"], bevel=0)
+    add_boxes("int_bay_catwalk", [((0, sy * (bay_w / 2 - 0.8), BELLY + 12.0), (bay_l - 1.0, 1.6, 0.15)) for sy in (-1, 1)], M["grate"], bevel=0.01)
+    add_box("int_bay_crane", (0, 0, BELLY + bay_h - 0.6), (0.5, bay_w - 0.6, 0.5), M["hazard"], bevel=0.02)
     for sy in (-1, 1):
-        add_box(f"ext_door_glow{sy+1}", (0, sy * (W / 2 + 0.02), BELLY + 3.28), (L * 0.7, 0.04, 0.05), M["gloworange"], bevel=0)
-        add_box(f"ext_door_hazard{sy+1}", (0, sy * (W / 2 + 0.06), BELLY + 1.78), (L * 0.7, 0.1, 0.04), M["hazard"], bevel=0)
-    add_box("ext_launch_frame", (0, 0, BELLY + HULL_H + 0.1), (L * 0.6, W * 0.5, 0.2), M["steel"], bevel=0.02)
-    add_box("ext_launch_glow", (0, 0, BELLY + HULL_H + 0.21), (L * 0.55, W * 0.45, 0.02), M["gloworange"], bevel=0)
-    export(f"ship_hangar_{W}x{L}", "ship", W, L, W, L, "ship", L)
+        panel = door_l * 0.3
+        for sx in (-1, 1):
+            add_box(f"ext_door{sy+1}{sx+1}", (sx * (door_l / 2 - panel / 2), sy * (W / 2 + 0.15), door_z), (panel, 0.3, door_h - 0.2), M["armor"], bevel=0.03)
+            add_boxes(f"ext_door_ribs{sy+1}{sx+1}", [((sx * (door_l / 2 - panel / 2), sy * (W / 2 + 0.33), BELLY + 0.5 + (k + 0.5) * door_h / 6), (panel - 0.5, 0.08, 0.3)) for k in range(6)], M["steel"], bevel=0.01)
+        add_boxes(f"ext_door_frame{sy+1}", [((sx * (door_l / 2 + 0.3), sy * W / 2, door_z), (0.6, 0.8, door_h)) for sx in (-1, 1)] + [((0, sy * W / 2, BELLY + 0.5 + door_h + 0.3), (door_l + 1.2, 0.8, 0.6))], M["steel"], bevel=0.02)
+        add_box(f"ext_door_glow{sy+1}", (0, sy * (W / 2 + 0.02), BELLY + 0.5 + door_h + 0.05), (door_l, 0.06, 0.1), M["gloworange"], bevel=0)
+        add_box(f"ext_door_hazard{sy+1}", (0, sy * (W / 2 + 0.06), BELLY + 0.6), (door_l, 0.1, 0.3), M["hazard"], bevel=0)
+    add_box("ext_launch_frame", (0, 0, BELLY + HULL_H + hump_h + 0.1), (L * 0.6, W * 0.5, 0.2), M["steel"], bevel=0.02)
+    add_box("ext_launch_glow", (0, 0, BELLY + HULL_H + hump_h + 0.21), (L * 0.55, W * 0.45, 0.02), M["gloworange"], bevel=0)
+    ship_export("hangar", W, L, decks, {"bayH": bay_h})
 
 
-def ship_turret(W, L):
+def ship_turret(W, L, decks):
     clear()
-    hull_body(W, L)
+    s_ = hull_body(W, L, decks=decks)
     z = BELLY + HULL_H
-    add_cyl("ext_barbette", (0, 0, z + 0.3), W * 0.32, 0.6, M["armor"], 24)
-    add_box("ext_turret", (0, 0, z + 1.15), (W * 0.55, W * 0.5, 1.1), M["armor"], bevel=0.05)
-    add_box("ext_turret_top", (-0.2, 0, z + 1.85), (W * 0.35, W * 0.35, 0.3), M["paintdark"], bevel=0.03)
+    add_cyl("ext_barbette", (0, 0, z + 0.3 * s_), W * 0.32, 0.6 * s_, M["armor"], 24)
+    add_box("ext_turret", (0, 0, z + 1.15 * s_), (W * 0.55, W * 0.5, 1.1 * s_), M["armor"], bevel=0.05 * s_)
+    add_box("ext_turret_top", (-0.2 * s_, 0, z + 1.85 * s_), (W * 0.35, W * 0.35, 0.3 * s_), M["paintdark"], bevel=0.03 * s_)
     for y in (-W * 0.12, 0, W * 0.12):
-        add_cyl(f"ext_gun{int(y*100)}", (W * 0.27 + 1.3, y, z + 1.2), 0.11, 2.6, M["steel"], 12, axis="X", bevel=0)
-        add_cyl(f"ext_gun_muzzle{int(y*100)}", (W * 0.27 + 2.6, y, z + 1.2), 0.14, 0.2, M["rust"], 12, axis="X", bevel=0)
-    add_box("ext_turret_glow", (0, 0, z + 1.72), (W * 0.4, 0.04, 0.04), M["glowred"], bevel=0)
-    export(f"ship_turret_{W}x{L}", "ship", W, L, W, L, "ship", L)
+        add_cyl(f"ext_gun{int(y*100)}", (W * 0.27 + 1.3 * s_, y, z + 1.2 * s_), 0.11 * s_, 2.6 * s_, M["steel"], 12, axis="X", bevel=0)
+        add_cyl(f"ext_gun_muzzle{int(y*100)}", (W * 0.27 + 2.6 * s_, y, z + 1.2 * s_), 0.14 * s_, 0.2 * s_, M["rust"], 12, axis="X", bevel=0)
+    add_box("ext_turret_glow", (0, 0, z + 1.72 * s_), (W * 0.4, 0.04 * s_, 0.04 * s_), M["glowred"], bevel=0)
+    ship_export("turret", W, L, decks)
 
 
-def ship_bridge(W, L):
+def ship_bridge(W, L, decks):
     clear()
-    hull_body(W, L)
+    s_ = hull_body(W, L, decks=decks)
     z = BELLY + HULL_H
-    add_box("ext_tower1", (0, 0, z + 0.9), (L * 0.6, W * 0.5, 1.8), M["armor"], bevel=0.04)
-    add_box("ext_tower2", (0.2, 0, z + 2.5), (L * 0.5, W * 0.4, 1.4), M["armor"], bevel=0.04)
-    add_box("ext_tower3", (0.5, 0, z + 3.6), (L * 0.55, W * 0.55, 0.8), M["paintdark"], bevel=0.03)
-    add_box("ext_tower_glass", (L * 0.275 + 0.5, 0, z + 3.6), (0.04, W * 0.5, 0.5), M["wincool"], bevel=0)
-    add_boxes("ext_tower_wings", [((0.5, sy * (W * 0.275 + 0.4), z + 3.5), (L * 0.3, 0.8, 0.12)) for sy in (-1, 1)], M["steel"], bevel=0.02)
-    add_boxes("ext_tower_ports", [((L * 0.3 + 0.01, sy * 0.5, z + 2.5), (0.02, 0.4, 0.3)) for sy in (-1, 1)], M["wincool"], bevel=0)
-    add_cyl("ext_tower_mast", (-0.6, 0, z + 5.2), 0.04, 2.4, M["steel"], 8, bevel=0)
-    add_cyl("ext_tower_beacon", (-0.6, 0, z + 6.45), 0.09, 0.14, M["glowred"], 8, bevel=0)
-    add_cyl("ext_radar", (0.4, 0.8, z + 4.3), 0.5, 0.06, M["steel"], 16, bevel=0)
-    add_box("ext_radar_arm", (0.4, 0.8, z + 4.15), (0.08, 0.08, 0.3), M["steel"], bevel=0)
-    export(f"ship_bridge_{W}x{L}", "ship", W, L, W, L, "ship", L)
+    add_box("ext_tower1", (0, 0, z + 0.9 * s_), (L * 0.6, W * 0.5, 1.8 * s_), M["armor"], bevel=0.04 * s_)
+    add_box("ext_tower2", (0.2 * s_, 0, z + 2.5 * s_), (L * 0.5, W * 0.4, 1.4 * s_), M["armor"], bevel=0.04 * s_)
+    add_box("ext_tower3", (0.5 * s_, 0, z + 3.6 * s_), (L * 0.55, W * 0.55, 0.8 * s_), M["paintdark"], bevel=0.03 * s_)
+    add_box("ext_tower_glass", (L * 0.275 + 0.5 * s_, 0, z + 3.6 * s_), (0.04 * s_, W * 0.5, 0.5 * s_), M["wincool"], bevel=0)
+    add_boxes("ext_tower_wings", [((0.5 * s_, sy * (W * 0.275 + 0.4 * s_), z + 3.5 * s_), (L * 0.3, 0.8 * s_, 0.12 * s_)) for sy in (-1, 1)], M["steel"], bevel=0.02)
+    add_boxes("ext_tower_ports", [((L * 0.3 + 0.01, sy * 0.5 * s_, z + 2.5 * s_), (0.02, 0.4 * s_, 0.3 * s_)) for sy in (-1, 1)], M["wincool"], bevel=0)
+    add_cyl("ext_tower_mast", (-0.6 * s_, 0, z + 5.2 * s_), 0.04 * s_, 2.4 * s_, M["steel"], 8, bevel=0)
+    add_cyl("ext_tower_beacon", (-0.6 * s_, 0, z + 6.45 * s_), 0.09 * s_, 0.14 * s_, M["glowred"], 8, bevel=0)
+    add_cyl("ext_radar", (0.4 * s_, 0.8 * s_, z + 4.3 * s_), 0.5 * s_, 0.06 * s_, M["steel"], 16, bevel=0)
+    add_box("ext_radar_arm", (0.4 * s_, 0.8 * s_, z + 4.15 * s_), (0.08 * s_, 0.08 * s_, 0.3 * s_), M["steel"], bevel=0)
+    ship_export("bridge", W, L, decks)
 
 
 if __name__ == "__main__":
@@ -636,14 +722,19 @@ if __name__ == "__main__":
         mod_bridge(L)
         mod_bridge(L, wide=True)
     mod_sky_node()
-    for (W, L) in ((5, 3), (7, 4)):
-        ship_mid(W, L)
-        ship_lift(W, L)
-        ship_bow(W, L + 3)
-        ship_stern(W, L)
-        ship_hangar(W, L)
-        ship_turret(W, L)
-        ship_bridge(W, L)
+    # 機体格納庫(12x12 m・6 階分)と、その建物用の基壇・屋上
+    mod_mech_hangar(12, 12, 6)
+    mod_base(12, 12, "office")
+    mod_roof(12, 12, "heli")
+    # 航空戦艦: 大型(幅 30 m・4 甲板・区画 16 m、格納庫 24 m、艦首 28 m)と小型(幅 18 m・3 甲板・区画 12 m、格納庫 18 m、艦首 20 m)
+    for (W, L, decks) in ((30, 16, 4), (18, 12, 3)):
+        ship_mid(W, L, decks)
+        ship_lift(W, L, decks)
+        ship_bow(W, L + 12, decks)
+        ship_stern(W, L, decks)
+        ship_hangar(W, L + (8 if W == 30 else 6), decks)
+        ship_turret(W, L, decks)
+        ship_bridge(W, L, decks)
     JSON_OUT.parent.mkdir(parents=True, exist_ok=True)
     JSON_OUT.write_text(json.dumps({"floorHeight": FH, "modules": ENTRIES}, ensure_ascii=False, indent=1), encoding="utf-8")
     print("modules:", len(ENTRIES))

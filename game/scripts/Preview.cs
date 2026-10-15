@@ -32,6 +32,7 @@ public partial class Preview : Node3D
         if (scene == "city") { BuildCity(); pivot = new Vector3(30, 18, 30); dist = 122; }
         else if (scene == "buildings") { BuildShowcase(); pivot = new Vector3(60, 17, 12); dist = 112; }
         else if (scene == "modules") { BuildModules(); pivot = new Vector3(48, 14, 16); dist = 100; }
+        else if (scene == "ship") { BuildShip(); pivot = new Vector3(0f, 22f, 10f); dist = 230f; }
         else if (scene == "robots") { BuildRobots(); pivot = new Vector3(48f, 9f, 34f); dist = 80f; }
         else { BuildVillage(); pivot = new Vector3(22, 6, 27); dist = 40; }
         if (Arg(args, "--view") == "close") { pivot = scene == "city" ? new Vector3(24, 9, 20) : new Vector3(24, 6, 33); dist = scene == "city" ? 34 : 16; }
@@ -47,7 +48,7 @@ public partial class Preview : Node3D
 
         _cam = new Camera3D { Fov = 38, Far = 800 };
         AddChild(_cam);
-        float yaw = scene == "buildings" ? 0.35f : scene == "modules" ? 0.6f : scene == "robots" ? 0.2f : 0.78f, elev = scene == "buildings" ? 0.30f : scene == "modules" ? 0.38f : scene == "robots" ? 0.16f : 0.52f;
+        float yaw = scene == "buildings" ? 0.35f : scene == "modules" ? 0.6f : scene == "robots" ? 0.2f : scene == "ship" ? 2.3f : 0.78f, elev = scene == "buildings" ? 0.30f : scene == "modules" ? 0.38f : scene == "robots" ? 0.16f : scene == "ship" ? 0.3f : 0.52f;
         if (Arg(args, "--yaw") is string ys) yaw = float.Parse(ys);     // 視点の向き(ラジアン)を明示する
         if (Arg(args, "--elev") is string es) elev = float.Parse(es);
         _cam.Position = pivot + new Vector3(Mathf.Cos(elev) * Mathf.Sin(yaw), Mathf.Sin(elev), Mathf.Cos(elev) * Mathf.Cos(yaw)) * dist;
@@ -180,6 +181,36 @@ public partial class Preview : Node3D
         _kb.Light(this, new Vector3(10f, 10f, 30f), new Color(1.0f, 0.8f, 0.6f), 30f, 1.0f);
     }
 
+    static readonly List<string> MechHangar = new() { "base_12x12_office", "hangar_mech_12x12", "roof_12x12_heli_office" };
+    static readonly List<string> BigShip = new() { "ship_stern_30x16", "ship_turret_30x16", "ship_lift_30x16", "ship_mid_30x16", "ship_hangar_30x24", "ship_hangar_30x24", "ship_mid_30x16", "ship_bridge_30x16", "ship_lift_30x16", "ship_turret_30x16", "ship_bow_30x28" };   // 全長 204 m
+    static readonly List<string> SmallShip = new() { "ship_stern_18x12", "ship_lift_18x12", "ship_mid_18x12", "ship_hangar_18x18", "ship_bridge_18x12", "ship_turret_18x12", "ship_bow_18x24" };   // 全長 102 m
+
+    // ---------- 航空戦艦と機体格納庫(機体 15〜20 m に合わせた寸法の確認) ----------
+    void BuildShip()
+    {
+        byte stone = B("Stone"), plaza = B("Plaza");
+        for (int x = -140; x < 140; x++) for (int z = -60; z < 80; z++) { _world.Set(x, 0, z, stone); _world.Set(x, 1, z, stone); _world.Set(x, 2, z, plaza); }
+        _world.Dirty.Clear();
+        // 大型(全長 204 m): 第 1 格納庫区画を切り取り表示し、中に機体 2 体
+        _fm.Ship(this, 0, 36f, 40, BigShip, 0, cutawayIndex: 4);
+        var bay = _fm.ShipBayFloor(BigShip, 4);
+        _mb.Build(this, "general", "g2", bay.X - 5f, 36f + bay.Y, 40 + bay.Z, 0);
+        _mb.Build(this, "heavy", "g2", bay.X + 6f, 36f + bay.Y, 40 + bay.Z, 0);
+        // 小型(全長 102 m): 格納庫区画を切り取り表示
+        _fm.Ship(this, -20, 24f, -20, SmallShip, 20, cutawayIndex: 3);
+        // 地上: 機体格納庫の建物(切り取り表示、中に機体)と、比較用の機体・人間・7 階の塔
+        _fm.Build(this, 60, 3, -10, MechHangar, 0, cutawayBelow: 2);
+        _mb.Build(this, "general", "g4", 60, 3 + 3.15f, -10, 0);
+        _fm.Build(this, 60, 3, -30, MechHangar, 0);   // 閉じた状態(大扉は -Z 側)
+        _mb.Build(this, "heavy", "g1", 50, 3, -42, 150);
+        _kb.Light(this, new Vector3(60f, 14f, -48f), new Color(1.0f, 0.85f, 0.7f), 40f, 1.5f);
+        _mb.Build(this, "fast", "g3", 78, 3, -4, 20);
+        _fm.Character(this, "citizen", 72, 3, 0, 20); _fm.Character(this, "soldier", 73.2f, 3, 0.5f, 0);
+        _fm.Build(this, 92, 3, -10, _fm.Plan("office", 5, 5, 7, false, "heli"), 0);
+        _kb.Light(this, new Vector3(0, 60f, 60f), new Color(0.9f, 0.92f, 1.0f), 160f, 1.4f);
+        _kb.Light(this, new Vector3(60f, 30f, -30f), new Color(1.0f, 0.9f, 0.8f), 80f, 1.2f);
+    }
+
     // ---------- 階モジュール方式の確認(系統・床面積・双塔・戦艦) ----------
     void BuildModules()
     {
@@ -197,13 +228,13 @@ public partial class Preview : Node3D
         fm.Build(this, xx, 3, 8, fm.Plan("concrete", 5, 5, 10), 0); xx += 9;
         fm.Build(this, xx, 3, 8, fm.Plan("res", 4, 6, 9, true, "mech"), 0); xx += 10;
         fm.Twin(this, xx + 1, 3, 8, "office", 12, 3, 7, 0); xx += 12;
-        // 格納庫付きの塔(下 4 階を切り取り表示)
-        var hangarTower = new List<string> { "base_5x5_office", "hangar_5x5", "office_5x5", "office_5x5_c", "mech_5x5_office", "office_5x5", "transfer_5x5_3x3_office", "office_3x3_c", "office_3x3", "roof_3x3_heli_office" };
-        fm.Build(this, xx + 1, 3, 8, hangarTower, 0, cutawayBelow: 4);
-        // 手前: 戦艦(艦尾 → 艦首)。中央の 1 区画を切り取り表示
-        // 航空戦艦 2 隻を上空に(大型は中央区画を切り取り表示)
-        fm.Ship(this, 40, 24f, 24, new List<string> { "ship_stern_7x4", "ship_turret_7x4", "ship_lift_7x4", "ship_mid_7x4", "ship_hangar_7x4", "ship_bridge_7x4", "ship_lift_7x4", "ship_turret_7x4", "ship_bow_7x7" }, 0, cutawayIndex: 3);
-        fm.Ship(this, 18, 16f, 27, new List<string> { "ship_stern_5x3", "ship_lift_5x3", "ship_mid_5x3", "ship_bridge_5x3", "ship_turret_5x3", "ship_bow_5x6" }, 0);
+        // 機体格納庫の建物(基壇 + 6 階分の格納庫 + 屋上。基壇と格納庫を切り取り表示し、中に機体)
+        fm.Build(this, xx + 5, 3, 8, MechHangar, 0, cutawayBelow: 2);
+        _mb.Build(this, "general", "g2", xx + 5, 3 + 3.15f, 8, 0);
+        // 小型の航空戦艦を上空に(格納庫区画を切り取り表示、中に機体)
+        fm.Ship(this, 48, 30f, 24, SmallShip, 0, cutawayIndex: 3);
+        var bay = fm.ShipBayFloor(SmallShip, 3);
+        _mb.Build(this, "fast", "g3", 48 + bay.X, 30f + bay.Y, 24 + bay.Z, 0);
         // 空中の接続: 奥の塔どうしを異なる階で結び(普通幅と広幅)、4 棟の中心に結節点を置いて放射状に結ぶ
         var b = fm.Buildings;
         fm.Connect(this, b[0], b[1], 5, false);
@@ -259,10 +290,12 @@ public partial class Preview : Node3D
         _world.Dirty.Clear();
         const float Y = 4f;
 
+        var used = new HashSet<(int, int)>();
         for (int bx = 0; bx < N; bx += 7)
             for (int bz = 0; bz < N; bz += 7)
             {
                 int x0 = bx + 1, z0 = bz + 1;
+                if (used.Contains((bx, bz))) continue;
                 if (x0 + 5 >= N || z0 + 5 >= N) continue;
                 if (z0 <= 29 && z0 + 5 >= 28) continue;
                 if (NearRiver(x0, z0)) continue;
@@ -306,8 +339,17 @@ public partial class Preview : Node3D
                         _fm.Character(this, "citizen", x0 + 5.5f, Y, z0 + 2.6f, -90);
                         break;
                     case "military":
-                        _fm.Build(this, x0 + 3f, Y, z0 + 3f, new List<string> { "base_5x5_office", "hangar_5x5", "hangar_5x5", "mech_5x5_office", "roof_5x5_heli_office" }, 0);
-                        _mb.Build(this, _rnd.NextDouble() < 0.5 ? "heavy" : "general", _rnd.NextDouble() < 0.5 ? "g1" : "g2", x0 + 3f, Y, z0 + 8.5f, 180);
+                        if (!used.Contains((bx + 7, bz)) && !used.Contains((bx, bz + 7)) && x0 + 12 < N && z0 + 12 < N && District(x0 + 9, z0 + 9) == "military")
+                        {   // 街区 4 つを併合して機体格納庫(12x12・6 階分)。扉の前に機体
+                            used.Add((bx + 7, bz)); used.Add((bx, bz + 7)); used.Add((bx + 7, bz + 7));
+                            _fm.Build(this, x0 + 6f, Y, z0 + 6f, MechHangar, 0);
+                            _mb.Build(this, _rnd.NextDouble() < 0.5 ? "heavy" : "general", _rnd.NextDouble() < 0.5 ? "g1" : "g2", x0 + 6f, Y, z0 + 14f, 180);
+                        }
+                        else
+                        {
+                            _fm.Build(this, x0 + 3f, Y, z0 + 3f, _fm.Plan("svc", 5, 5, 3, false, "heli"), 0);
+                            _mb.Build(this, "general", "g1", x0 + 3f, Y, z0 + 8.5f, 180);
+                        }
                         break;
                     case "solar":
                         for (int i = 0; i < 5; i++) for (int j = 0; j < 3; j++) _kb.Solar(this, x0 + 0.8f + i * 1.1f, Y, z0 + 1.0f + j * 1.8f, 0);
@@ -315,8 +357,7 @@ public partial class Preview : Node3D
                 }
             }
         // メガタワー間の空中回廊(2 層目のデッキ高さ)
-        _fm.Ship(this, 28.5f, Y + 22f, 46f, new List<string> { "ship_stern_7x4", "ship_turret_7x4", "ship_lift_7x4", "ship_mid_7x4", "ship_hangar_7x4", "ship_bridge_7x4", "ship_lift_7x4", "ship_turret_7x4", "ship_bow_7x7" }, 90);
-        _fm.Ship(this, 48f, Y + 14f, 20f, new List<string> { "ship_stern_5x3", "ship_lift_5x3", "ship_mid_5x3", "ship_bridge_5x3", "ship_turret_5x3", "ship_bow_5x6" }, 30);
+        _fm.Ship(this, 32f, Y + 44f, 40f, SmallShip, 60);   // 小型の航空戦艦(全長 102 m)が市街の上空を通過
         // 空中の物流路: 近い建物どうしを自動で結ぶ
         _fm.AutoConnect(this, _rnd);
         // 高架の軌道(x = 21 の道路上)と列車

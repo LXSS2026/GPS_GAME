@@ -9,7 +9,8 @@
    "d": 3,
    "topW": 3,
    "topD": 3,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "mech_3x3_office",
@@ -19,7 +20,8 @@
    "d": 3,
    "topW": 3,
    "topD": 3,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "base_3x3_concrete",
@@ -29,7 +31,8 @@
    "d": 3,
    "topW": 3,
    "topD": 3,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "mech_3x3_concrete",
@@ -39,7 +42,8 @@
    "d": 3,
    "topW": 3,
    "topD": 3,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "office_3x3",
@@ -49,7 +53,8 @@
    "d": 3,
    "topW": 3,
    "topD": 3,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "office_3x3_c",
@@ -59,7 +64,8 @@
    "d": 3,
    "topW": 3,
    "topD": 3,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "res_3x3",
@@ -69,7 +75,8 @@
    "d": 3,
    "topW": 3,
    "topD": 3,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "concrete_3x3",
@@ -79,7 +86,8 @@
    "d": 3,
    "topW": 3,
    "topD": 3,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "deco_3x3",
@@ -89,7 +97,8 @@
    "d": 3,
    "topW": 3,
    "topD": 3,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "exo_3x3",
@@ -99,7 +108,8 @@
    "d": 3,
    "topW": 3,
    "topD": 3,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "svc_3x3",
@@ -109,7 +119,8 @@
    "d": 3,
    "topW": 3,
    "topD": 3,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "roof_3x3_mech_office",
@@ -119,7 +130,8 @@
    "d": 3,
    "topW": 0,
    "topD": 0,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "roof_3x3_heli_office",
@@ -129,7 +141,8 @@
    "d": 3,
    "topW": 0,
    "topD": 0,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "roof_3x3_spire_office",
@@ -139,7 +152,8 @@
    "d": 3,
    "topW": 0,
    "topD": 0,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "roof_3x3_boiler_concrete",
@@ -149,7 +163,8 @@
    "d": 3,
    "topW": 0,
    "topD": 0,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "roof_3x3_mech_concrete",
@@ -159,7 +174,8 @@
    "d": 3,
    "topW": 0,
    "topD": 0,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "hangar_3x3",
@@ -169,7 +185,8 @@
    "d": 3,
    "topW": 3,
    "topD": 3,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "base_2x2_office",
@@ -179,7 +196,8 @@
    "d": 2,
    "topW": 2,
    "topD": 2,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "mech_2x2_office",
@@ -189,7 +207,8 @@
    "d": 2,
    "topW": 2,
    "topD": 2,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "base_2x2_concrete",
@@ -199,7 +218,8 @@
    "d": 2,
    "topW": 2,
    "topD": 2,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "mech_2x2_concrete",
@@ -209,7 +229,8 @@
    "d": 2,
    "topW": 2,
    "topD": 2,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "office_2x2",
@@ -219,7 +240,8 @@
    "d": 2,
    "topW": 2,
    "topD": 2,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "office_2x2_c",
@@ -229,7 +251,8 @@
    "d": 2,
    "topW": 2,
    "topD": 2,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "res_2x2",
@@ -239,7 +262,8 @@
    "d": 2,
    "topW": 2,
    "topD": 2,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "concrete_2x2",
@@ -249,7 +273,8 @@
    "d": 2,
    "topW": 2,
    "topD": 2,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "deco_2x2",
@@ -259,7 +284,8 @@
    "d": 2,
    "topW": 2,
    "topD": 2,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "exo_2x2",
@@ -269,7 +295,8 @@
    "d": 2,
    "topW": 2,
    "topD": 2,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "svc_2x2",
@@ -279,7 +306,8 @@
    "d": 2,
    "topW": 2,
    "topD": 2,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "roof_2x2_mech_office",
@@ -289,7 +317,8 @@
    "d": 2,
    "topW": 0,
    "topD": 0,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "roof_2x2_heli_office",
@@ -299,7 +328,8 @@
    "d": 2,
    "topW": 0,
    "topD": 0,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "roof_2x2_spire_office",
@@ -309,7 +339,8 @@
    "d": 2,
    "topW": 0,
    "topD": 0,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "roof_2x2_boiler_concrete",
@@ -319,7 +350,8 @@
    "d": 2,
    "topW": 0,
    "topD": 0,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "roof_2x2_mech_concrete",
@@ -329,7 +361,8 @@
    "d": 2,
    "topW": 0,
    "topD": 0,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "hangar_2x2",
@@ -339,7 +372,8 @@
    "d": 2,
    "topW": 2,
    "topD": 2,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "base_5x5_office",
@@ -349,7 +383,8 @@
    "d": 5,
    "topW": 5,
    "topD": 5,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "mech_5x5_office",
@@ -359,7 +394,8 @@
    "d": 5,
    "topW": 5,
    "topD": 5,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "base_5x5_concrete",
@@ -369,7 +405,8 @@
    "d": 5,
    "topW": 5,
    "topD": 5,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "mech_5x5_concrete",
@@ -379,7 +416,8 @@
    "d": 5,
    "topW": 5,
    "topD": 5,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "office_5x5",
@@ -389,7 +427,8 @@
    "d": 5,
    "topW": 5,
    "topD": 5,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "office_5x5_c",
@@ -399,7 +438,8 @@
    "d": 5,
    "topW": 5,
    "topD": 5,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "res_5x5",
@@ -409,7 +449,8 @@
    "d": 5,
    "topW": 5,
    "topD": 5,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "concrete_5x5",
@@ -419,7 +460,8 @@
    "d": 5,
    "topW": 5,
    "topD": 5,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "deco_5x5",
@@ -429,7 +471,8 @@
    "d": 5,
    "topW": 5,
    "topD": 5,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "exo_5x5",
@@ -439,7 +482,8 @@
    "d": 5,
    "topW": 5,
    "topD": 5,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "svc_5x5",
@@ -449,7 +493,8 @@
    "d": 5,
    "topW": 5,
    "topD": 5,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "roof_5x5_mech_office",
@@ -459,7 +504,8 @@
    "d": 5,
    "topW": 0,
    "topD": 0,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "roof_5x5_heli_office",
@@ -469,7 +515,8 @@
    "d": 5,
    "topW": 0,
    "topD": 0,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "roof_5x5_spire_office",
@@ -479,7 +526,8 @@
    "d": 5,
    "topW": 0,
    "topD": 0,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "roof_5x5_boiler_concrete",
@@ -489,7 +537,8 @@
    "d": 5,
    "topW": 0,
    "topD": 0,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "roof_5x5_mech_concrete",
@@ -499,7 +548,8 @@
    "d": 5,
    "topW": 0,
    "topD": 0,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "hangar_5x5",
@@ -509,7 +559,8 @@
    "d": 5,
    "topW": 5,
    "topD": 5,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "base_4x6_office",
@@ -519,7 +570,8 @@
    "d": 6,
    "topW": 4,
    "topD": 6,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "mech_4x6_office",
@@ -529,7 +581,8 @@
    "d": 6,
    "topW": 4,
    "topD": 6,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "base_4x6_concrete",
@@ -539,7 +592,8 @@
    "d": 6,
    "topW": 4,
    "topD": 6,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "mech_4x6_concrete",
@@ -549,7 +603,8 @@
    "d": 6,
    "topW": 4,
    "topD": 6,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "office_4x6",
@@ -559,7 +614,8 @@
    "d": 6,
    "topW": 4,
    "topD": 6,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "office_4x6_c",
@@ -569,7 +625,8 @@
    "d": 6,
    "topW": 4,
    "topD": 6,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "res_4x6",
@@ -579,7 +636,8 @@
    "d": 6,
    "topW": 4,
    "topD": 6,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "concrete_4x6",
@@ -589,7 +647,8 @@
    "d": 6,
    "topW": 4,
    "topD": 6,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "deco_4x6",
@@ -599,7 +658,8 @@
    "d": 6,
    "topW": 4,
    "topD": 6,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "exo_4x6",
@@ -609,7 +669,8 @@
    "d": 6,
    "topW": 4,
    "topD": 6,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "svc_4x6",
@@ -619,7 +680,8 @@
    "d": 6,
    "topW": 4,
    "topD": 6,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "roof_4x6_mech_office",
@@ -629,7 +691,8 @@
    "d": 6,
    "topW": 0,
    "topD": 0,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "roof_4x6_heli_office",
@@ -639,7 +702,8 @@
    "d": 6,
    "topW": 0,
    "topD": 0,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "roof_4x6_spire_office",
@@ -649,7 +713,8 @@
    "d": 6,
    "topW": 0,
    "topD": 0,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "roof_4x6_boiler_concrete",
@@ -659,7 +724,8 @@
    "d": 6,
    "topW": 0,
    "topD": 0,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "roof_4x6_mech_concrete",
@@ -669,7 +735,8 @@
    "d": 6,
    "topW": 0,
    "topD": 0,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "hangar_4x6",
@@ -679,7 +746,8 @@
    "d": 6,
    "topW": 4,
    "topD": 6,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "transfer_3x3_2x2_office",
@@ -689,7 +757,8 @@
    "d": 3,
    "topW": 2,
    "topD": 2,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "transfer_5x5_3x3_office",
@@ -699,7 +768,8 @@
    "d": 5,
    "topW": 3,
    "topD": 3,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "transfer_4x6_3x3_office",
@@ -709,7 +779,8 @@
    "d": 6,
    "topW": 3,
    "topD": 3,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "transfer_5x5_4x6_office",
@@ -719,7 +790,8 @@
    "d": 5,
    "topW": 4,
    "topD": 6,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "transfer_3x3_2x2_concrete",
@@ -729,7 +801,8 @@
    "d": 3,
    "topW": 2,
    "topD": 2,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "transfer_5x5_3x3_concrete",
@@ -739,7 +812,8 @@
    "d": 5,
    "topW": 3,
    "topD": 3,
-   "length": 0
+   "length": 0,
+   "floors": 1
   },
   {
    "id": "bridge_2",
@@ -749,7 +823,8 @@
    "d": 0,
    "topW": 0,
    "topD": 0,
-   "length": 2
+   "length": 2,
+   "floors": 1
   },
   {
    "id": "bridgew_2",
@@ -759,7 +834,8 @@
    "d": 0,
    "topW": 0,
    "topD": 0,
-   "length": 2
+   "length": 2,
+   "floors": 1
   },
   {
    "id": "bridge_3",
@@ -769,7 +845,8 @@
    "d": 0,
    "topW": 0,
    "topD": 0,
-   "length": 3
+   "length": 3,
+   "floors": 1
   },
   {
    "id": "bridgew_3",
@@ -779,7 +856,8 @@
    "d": 0,
    "topW": 0,
    "topD": 0,
-   "length": 3
+   "length": 3,
+   "floors": 1
   },
   {
    "id": "bridge_4",
@@ -789,7 +867,8 @@
    "d": 0,
    "topW": 0,
    "topD": 0,
-   "length": 4
+   "length": 4,
+   "floors": 1
   },
   {
    "id": "bridgew_4",
@@ -799,7 +878,8 @@
    "d": 0,
    "topW": 0,
    "topD": 0,
-   "length": 4
+   "length": 4,
+   "floors": 1
   },
   {
    "id": "bridge_5",
@@ -809,7 +889,8 @@
    "d": 0,
    "topW": 0,
    "topD": 0,
-   "length": 5
+   "length": 5,
+   "floors": 1
   },
   {
    "id": "bridgew_5",
@@ -819,7 +900,8 @@
    "d": 0,
    "topW": 0,
    "topD": 0,
-   "length": 5
+   "length": 5,
+   "floors": 1
   },
   {
    "id": "bridge_6",
@@ -829,7 +911,8 @@
    "d": 0,
    "topW": 0,
    "topD": 0,
-   "length": 6
+   "length": 6,
+   "floors": 1
   },
   {
    "id": "bridgew_6",
@@ -839,7 +922,8 @@
    "d": 0,
    "topW": 0,
    "topD": 0,
-   "length": 6
+   "length": 6,
+   "floors": 1
   },
   {
    "id": "bridge_7",
@@ -849,7 +933,8 @@
    "d": 0,
    "topW": 0,
    "topD": 0,
-   "length": 7
+   "length": 7,
+   "floors": 1
   },
   {
    "id": "bridgew_7",
@@ -859,7 +944,8 @@
    "d": 0,
    "topW": 0,
    "topD": 0,
-   "length": 7
+   "length": 7,
+   "floors": 1
   },
   {
    "id": "bridge_8",
@@ -869,7 +955,8 @@
    "d": 0,
    "topW": 0,
    "topD": 0,
-   "length": 8
+   "length": 8,
+   "floors": 1
   },
   {
    "id": "bridgew_8",
@@ -879,7 +966,8 @@
    "d": 0,
    "topW": 0,
    "topD": 0,
-   "length": 8
+   "length": 8,
+   "floors": 1
   },
   {
    "id": "sky_node",
@@ -889,147 +977,225 @@
    "d": 2,
    "topW": 2,
    "topD": 2,
-   "length": 2
+   "length": 2,
+   "floors": 1
   },
   {
-   "id": "ship_mid_5x3",
-   "kind": "ship",
-   "family": "ship",
-   "w": 5,
-   "d": 3,
-   "topW": 5,
-   "topD": 3,
-   "length": 3
+   "id": "hangar_mech_12x12",
+   "kind": "hangar",
+   "family": "office",
+   "w": 12,
+   "d": 12,
+   "topW": 12,
+   "topD": 12,
+   "length": 0,
+   "floors": 6
   },
   {
-   "id": "ship_lift_5x3",
-   "kind": "ship",
-   "family": "ship",
-   "w": 5,
-   "d": 3,
-   "topW": 5,
-   "topD": 3,
-   "length": 3
+   "id": "base_12x12_office",
+   "kind": "base",
+   "family": "office",
+   "w": 12,
+   "d": 12,
+   "topW": 12,
+   "topD": 12,
+   "length": 0,
+   "floors": 1
   },
   {
-   "id": "ship_bow_5x6",
-   "kind": "ship",
-   "family": "ship",
-   "w": 5,
-   "d": 6,
-   "topW": 5,
-   "topD": 6,
-   "length": 6
+   "id": "roof_12x12_heli_office",
+   "kind": "roof",
+   "family": "office",
+   "w": 12,
+   "d": 12,
+   "topW": 0,
+   "topD": 0,
+   "length": 0,
+   "floors": 1
   },
   {
-   "id": "ship_stern_5x3",
+   "id": "ship_mid_30x16",
    "kind": "ship",
    "family": "ship",
-   "w": 5,
-   "d": 3,
-   "topW": 5,
-   "topD": 3,
-   "length": 3
+   "w": 30,
+   "d": 16,
+   "topW": 30,
+   "topD": 16,
+   "length": 16,
+   "floors": 4,
+   "belly": 4.0,
+   "decks": 4
   },
   {
-   "id": "ship_hangar_5x3",
+   "id": "ship_lift_30x16",
    "kind": "ship",
    "family": "ship",
-   "w": 5,
-   "d": 3,
-   "topW": 5,
-   "topD": 3,
-   "length": 3
+   "w": 30,
+   "d": 16,
+   "topW": 30,
+   "topD": 16,
+   "length": 16,
+   "floors": 4,
+   "belly": 4.0,
+   "decks": 4
   },
   {
-   "id": "ship_turret_5x3",
+   "id": "ship_bow_30x28",
    "kind": "ship",
    "family": "ship",
-   "w": 5,
-   "d": 3,
-   "topW": 5,
-   "topD": 3,
-   "length": 3
+   "w": 30,
+   "d": 28,
+   "topW": 30,
+   "topD": 28,
+   "length": 28,
+   "floors": 4,
+   "belly": 4.0,
+   "decks": 4
   },
   {
-   "id": "ship_bridge_5x3",
+   "id": "ship_stern_30x16",
    "kind": "ship",
    "family": "ship",
-   "w": 5,
-   "d": 3,
-   "topW": 5,
-   "topD": 3,
-   "length": 3
+   "w": 30,
+   "d": 16,
+   "topW": 30,
+   "topD": 16,
+   "length": 16,
+   "floors": 4,
+   "belly": 4.0,
+   "decks": 4
   },
   {
-   "id": "ship_mid_7x4",
+   "id": "ship_hangar_30x24",
    "kind": "ship",
    "family": "ship",
-   "w": 7,
-   "d": 4,
-   "topW": 7,
-   "topD": 4,
-   "length": 4
+   "w": 30,
+   "d": 24,
+   "topW": 30,
+   "topD": 24,
+   "length": 24,
+   "floors": 4,
+   "belly": 4.0,
+   "decks": 4,
+   "bayH": 19.0
   },
   {
-   "id": "ship_lift_7x4",
+   "id": "ship_turret_30x16",
    "kind": "ship",
    "family": "ship",
-   "w": 7,
-   "d": 4,
-   "topW": 7,
-   "topD": 4,
-   "length": 4
+   "w": 30,
+   "d": 16,
+   "topW": 30,
+   "topD": 16,
+   "length": 16,
+   "floors": 4,
+   "belly": 4.0,
+   "decks": 4
   },
   {
-   "id": "ship_bow_7x7",
+   "id": "ship_bridge_30x16",
    "kind": "ship",
    "family": "ship",
-   "w": 7,
-   "d": 7,
-   "topW": 7,
-   "topD": 7,
-   "length": 7
+   "w": 30,
+   "d": 16,
+   "topW": 30,
+   "topD": 16,
+   "length": 16,
+   "floors": 4,
+   "belly": 4.0,
+   "decks": 4
   },
   {
-   "id": "ship_stern_7x4",
+   "id": "ship_mid_18x12",
    "kind": "ship",
    "family": "ship",
-   "w": 7,
-   "d": 4,
-   "topW": 7,
-   "topD": 4,
-   "length": 4
+   "w": 18,
+   "d": 12,
+   "topW": 18,
+   "topD": 12,
+   "length": 12,
+   "floors": 3,
+   "belly": 3.0,
+   "decks": 3
   },
   {
-   "id": "ship_hangar_7x4",
+   "id": "ship_lift_18x12",
    "kind": "ship",
    "family": "ship",
-   "w": 7,
-   "d": 4,
-   "topW": 7,
-   "topD": 4,
-   "length": 4
+   "w": 18,
+   "d": 12,
+   "topW": 18,
+   "topD": 12,
+   "length": 12,
+   "floors": 3,
+   "belly": 3.0,
+   "decks": 3
   },
   {
-   "id": "ship_turret_7x4",
+   "id": "ship_bow_18x24",
    "kind": "ship",
    "family": "ship",
-   "w": 7,
-   "d": 4,
-   "topW": 7,
-   "topD": 4,
-   "length": 4
+   "w": 18,
+   "d": 24,
+   "topW": 18,
+   "topD": 24,
+   "length": 24,
+   "floors": 3,
+   "belly": 3.0,
+   "decks": 3
   },
   {
-   "id": "ship_bridge_7x4",
+   "id": "ship_stern_18x12",
    "kind": "ship",
    "family": "ship",
-   "w": 7,
-   "d": 4,
-   "topW": 7,
-   "topD": 4,
-   "length": 4
+   "w": 18,
+   "d": 12,
+   "topW": 18,
+   "topD": 12,
+   "length": 12,
+   "floors": 3,
+   "belly": 3.0,
+   "decks": 3
+  },
+  {
+   "id": "ship_hangar_18x18",
+   "kind": "ship",
+   "family": "ship",
+   "w": 18,
+   "d": 18,
+   "topW": 18,
+   "topD": 18,
+   "length": 18,
+   "floors": 3,
+   "belly": 3.0,
+   "decks": 3,
+   "bayH": 19.0
+  },
+  {
+   "id": "ship_turret_18x12",
+   "kind": "ship",
+   "family": "ship",
+   "w": 18,
+   "d": 12,
+   "topW": 18,
+   "topD": 12,
+   "length": 12,
+   "floors": 3,
+   "belly": 3.0,
+   "decks": 3
+  },
+  {
+   "id": "ship_bridge_18x12",
+   "kind": "ship",
+   "family": "ship",
+   "w": 18,
+   "d": 12,
+   "topW": 18,
+   "topD": 12,
+   "length": 12,
+   "floors": 3,
+   "belly": 3.0,
+   "decks": 3
   }
  ]
 }

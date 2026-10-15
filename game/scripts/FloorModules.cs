@@ -11,7 +11,8 @@ using System.Text.Json;
 /// </summary>
 public sealed class FloorModules
 {
-    public sealed record Module(string Id, string Kind, string Family, int W, int D, int TopW, int TopD, int Length);
+    /// <summary>Floors: 部品が占める階数(格納庫は 6)。戦艦の部品は Belly(船腹の高さ)・Decks(甲板数)・BayH(格納庫の高さ、格納庫区画のみ)を持つ。</summary>
+    public sealed record Module(string Id, string Kind, string Family, int W, int D, int TopW, int TopD, int Length, int Floors = 1, float Belly = 0, int Decks = 0, float BayH = 0);
     public readonly float FloorHeight;
     public readonly Dictionary<string, Module> Defs = new();
     readonly Dictionary<string, PackedScene> _scenes = new();
@@ -27,7 +28,8 @@ public sealed class FloorModules
         FloorHeight = (float)doc.RootElement.GetProperty("floorHeight").GetDouble();
         foreach (var m in doc.RootElement.GetProperty("modules").EnumerateArray())
             Defs[m.GetProperty("id").GetString()!] = new Module(m.GetProperty("id").GetString()!, m.GetProperty("kind").GetString()!, m.GetProperty("family").GetString()!,
-                m.GetProperty("w").GetInt32(), m.GetProperty("d").GetInt32(), m.GetProperty("topW").GetInt32(), m.GetProperty("topD").GetInt32(), m.GetProperty("length").GetInt32());
+                m.GetProperty("w").GetInt32(), m.GetProperty("d").GetInt32(), m.GetProperty("topW").GetInt32(), m.GetProperty("topD").GetInt32(), m.GetProperty("length").GetInt32(),
+                m.TryGetProperty("floors", out var fl) ? fl.GetInt32() : 1, m.TryGetProperty("belly", out var be) ? be.GetSingle() : 0, m.TryGetProperty("decks", out var dk) ? dk.GetInt32() : 0, m.TryGetProperty("bayH", out var bh) ? bh.GetSingle() : 0);
         var winLit = new StandardMaterial3D { AlbedoColor = new Color(1.0f, 0.82f, 0.55f), EmissionEnabled = true, Emission = new Color(1.0f, 0.82f, 0.55f), EmissionEnergyMultiplier = 1.8f, Roughness = 0.2f };
         var winCool = new StandardMaterial3D { AlbedoColor = new Color(0.55f, 0.85f, 1.0f), EmissionEnabled = true, Emission = new Color(0.55f, 0.85f, 1.0f), EmissionEnergyMultiplier = 1.8f, Roughness = 0.2f };
         var armor = (StandardMaterial3D)kb.Paint.Duplicate(); armor.AlbedoColor = new Color(0.42f, 0.45f, 0.5f); armor.Metallic = 0.6f;
@@ -126,14 +128,15 @@ public sealed class FloorModules
             if (f < cutawayBelow && def.Kind != "roof")
             {
                 SetExteriorVisible(n, false);
-                Interior(root, cy + 0.12f, def.W, def.D, f);
+                if (def.Kind != "hangar") Interior(root, cy + 0.12f, def.W, def.D, f);   // 格納庫は設備を置かず(機体が入る)
             }
+            float h = FloorHeight * def.Floors;
             if (def.Kind != "roof")
             {
                 float w = def.TopW > 0 ? def.TopW : def.W, d = def.TopD > 0 ? def.TopD : def.D;
-                _kb.Box(root, new Vector3(0, cy + FloorHeight, 0), new Vector3(w + 0.36f, 0.08f, d + 0.36f), _kb.Steel);
+                _kb.Box(root, new Vector3(0, cy + h, 0), new Vector3(w + 0.36f, 0.08f, d + 0.36f), _kb.Steel);
             }
-            cy += def.Kind == "roof" ? 0 : FloorHeight;
+            cy += def.Kind == "roof" ? 0 : h;
         }
         float cx = maxW / 2f - 0.35f, cz = maxD / 2f - 0.35f;
         _kb.Box(root, new Vector3(-cx, cy / 2, -cz), new Vector3(0.5f, cy, 0.5f), _kb.PaintDark);
@@ -312,14 +315,24 @@ public sealed class FloorModules
             if (i == cutawayIndex)
             {
                 SetExteriorVisible(n, false);
-                Interior(root, 1.4f + 0.16f, def.Length, def.W, 1, cursor + def.Length / 2f);          // 下甲板
-                Interior(root, 1.4f + 1.9f + 0.08f, def.Length, def.W, 2, cursor + def.Length / 2f);   // 上甲板
+                if (def.BayH <= 0)   // 格納庫区画は設備を置かず(機体が入る)
+                    for (int k = 0; k < def.Decks; k++) Interior(root, def.Belly + k * FloorHeight + 0.16f, def.Length, def.W, k + 1, cursor + def.Length / 2f);
             }
             cursor += def.Length;
         }
         // 航空戦艦: 空中に浮かぶ。下面の噴射口の光を地面側へ
         _kb.Light(root, new Vector3(0, -0.5f, 0), new Color(0.25f, 0.85f, 1.0f), total * 0.6f, 1.5f);
         return root;
+    }
+
+    /// <summary>戦艦の区画 i の格納庫の床の世界座標(x 中心, y, z 中心)。機体を置くのに使う。</summary>
+    public Vector3 ShipBayFloor(IList<string> segments, int i)
+    {
+        float total = 0; foreach (var id in segments) total += Defs[id].Length;
+        float cursor = -total / 2;
+        for (int k = 0; k < i; k++) cursor += Defs[segments[k]].Length;
+        var def = Defs[segments[i]];
+        return new Vector3(cursor + def.Length / 2f, def.Belly + 0.3f, 0);
     }
 
     void Interior(Node3D root, float y, int w, int d, int floor, float ox = 0)
