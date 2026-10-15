@@ -19,6 +19,7 @@ public sealed class CityData
     public Dictionary<string, double> Support = new();
     public List<Band> Bands = new();   // 高い順
     public int RiotEfficiencyPct = 70, CollapseDays = 30, RoadReach = 6;
+    public int MapSize = 364; public List<int> BuildMaxSize = new() { 20, 30, 50, 100 }, BuildMaxFloors = new() { 2, 4, 8, 12 }; public double BuildRefund = 0.5, RoadCostPerCell = 1; public Dictionary<string, double> BuildCostPerCell = new();
     public List<int> StagePopulationMin = new();
     public double StageSupportMin = 60; public int StageDays = 30;
     public int PersonsPerMonthMin = 1, PersonsPerMonthMax = 3, AbilityBase = 5, AbilityByEducation = 5;
@@ -44,6 +45,11 @@ public sealed class CityData
         }
         c.Bands = c.Bands.OrderByDescending(b => b.Min).ToList();
         c.RiotEfficiencyPct = I("riotEfficiencyPct"); c.CollapseDays = I("collapseDays"); c.RoadReach = I("roadReach");
+        if (r.TryGetProperty("build", out var bd))
+        {
+            c.MapSize = bd.GetProperty("mapSize").GetInt32(); c.BuildMaxSize = bd.GetProperty("maxSizeByStage").EnumerateArray().Select(e => e.GetInt32()).ToList(); c.BuildMaxFloors = bd.GetProperty("maxFloorsByStage").EnumerateArray().Select(e => e.GetInt32()).ToList();
+            c.BuildRefund = bd.GetProperty("refund").GetDouble(); c.RoadCostPerCell = bd.GetProperty("roadCostPerCell").GetDouble(); c.BuildCostPerCell = bd.GetProperty("costPerCell").EnumerateObject().ToDictionary(x => x.Name, x => x.Value.GetDouble());
+        }
         c.StagePopulationMin = r.GetProperty("stages").GetProperty("populationMin").EnumerateArray().Select(e => e.GetInt32()).ToList();
         c.StageSupportMin = r.GetProperty("stages").GetProperty("supportMin").GetDouble(); c.StageDays = r.GetProperty("stages").GetProperty("days").GetInt32();
         var ps = r.GetProperty("persons"); c.PersonsPerMonthMin = ps.GetProperty("perMonthMin").GetInt32(); c.PersonsPerMonthMax = ps.GetProperty("perMonthMax").GetInt32(); c.AbilityBase = ps.GetProperty("abilityBase").GetInt32(); c.AbilityByEducation = ps.GetProperty("abilityByEducation").GetInt32();

@@ -59,9 +59,11 @@ public partial class CityScreen : Node3D
             _sim.Step();
         }
         if (Arg("--ticks") is string tk) _sim.Run(long.Parse(tk));
+        if (Arg("--road") is string rd) { var a = rd.Split(','); _sim.Enqueue(new BuildRoad(int.Parse(a[0]), int.Parse(a[1]), int.Parse(a[2]), int.Parse(a[3]))); _sim.Step(); }
+        if (Arg("--build") is string bl) { var a = bl.Split(','); _sim.Enqueue(new BuildBuilding(0, $"{a[0]} 新", a[0], int.Parse(a[1]), int.Parse(a[2]), int.Parse(a[3]), int.Parse(a[4]))); _sim.Step(); }
         _kb = new KitBash(11); _fm = new FloorModules(_kb, 9); _mb = new MechBuilder(_fm);
         _cityRoot = new Node3D { Name = "city" }; AddChild(_cityRoot);
-        var tr = new TerrainRenderer(); _cityRoot.AddChild(tr); tr.Init(_sim.World, _sim.Blocks); tr.BuildAll();
+        var tr = new TerrainRenderer(); _cityRoot.AddChild(tr); tr.Init(_sim.World, _sim.Blocks); tr.BuildAll(); _terrain = tr;
         _cityRoot.AddChild(SceneSetup.Lighting());
         BuildBuildings();
         _kb.Flush(_cityRoot);
@@ -72,6 +74,7 @@ public partial class CityScreen : Node3D
         _cam = new Camera3D { Fov = 40, Far = 3000 }; _cityRoot.AddChild(_cam); PlaceCamera();
         BuildHud();
         if (Arg("--select") is string sel) Select(int.Parse(sel));
+        if (Arg("--mode") is string md) { SetBuildMode(md == "place" ? BuildMode.Place : md == "road" ? BuildMode.Road : BuildMode.Demolish); if (md == "place") UpdateGhost(Arg("--ghost") is string gh ? _cam.UnprojectPosition(new Vector3(float.Parse(gh.Split(',')[0]), Y, float.Parse(gh.Split(',')[1]))) : GetViewport().GetVisibleRect().Size / 2); }
         if (Arg("--office") is string of) _pickOffice = of;
         if (Arg("--pick") is string pk) _pickPerson = int.Parse(pk);
         if (Arg("--screen") is string sc) OpenOverlay(sc);
@@ -81,33 +84,7 @@ public partial class CityScreen : Node3D
     // ---------- 建物の見た目(用途ごと) ----------
     void BuildBuildings()
     {
-        foreach (var b in _sim.Factory.Buildings)
-        {
-            if (b.Floors.Count == 0) continue;
-            int w = b.Floors[0].W, d = b.Floors[0].D, floors = b.Floors.Count; float x = (float)b.X, z = (float)b.Y;
-            float h = floors * 3f;
-            switch (b.Use)
-            {
-                case "farm":
-                    for (int i = 0; i < w; i += 4) _kb.Strip(_cityRoot, new Vector3(x + i + 1.5f, Y + 0.15f, z + d / 2f), new Vector3(1.2f, 0.3f, d - 2), _kb.PaintDark);   // 畝
-                    h = 1; break;
-                case "park":
-                    for (int i = 0; i < 6; i++) _kb.Cyl(_cityRoot, new Vector3(x + 3 + (i % 3) * (w - 6) / 2f, Y + 2.2f, z + 3 + (i / 3) * (d - 6)), 1.6f, 3.4f, _kb.PaintDark, topR: 0.2f);   // 木
-                    h = 4; break;
-                case "well":
-                    _kb.Cyl(_cityRoot, new Vector3(x + w / 2f, Y + 0.8f, z + d / 2f), 2.5f, 1.6f, _kb.PaintDark); _kb.Box(_cityRoot, new Vector3(x + w / 2f, Y + 3f, z + d / 2f), new Vector3(1.2f, 4f, 1.2f), _kb.PaintDark);
-                    h = 5; break;
-                default:
-                    if (b.Name.Contains("格納庫")) { _fm.Build(_cityRoot, x, Y, z, MechHangar, 0); h = 9; }
-                    else
-                    {
-                        string fam = b.Use == "residence" ? "res" : b.Use == "factory" ? "concrete" : "office";
-                        _fm.Build(_cityRoot, x, Y, z, _fm.Plan(fam, w, d, floors, false), 0);
-                    }
-                    break;
-            }
-            _hit.Add((new Aabb(new Vector3(x, Y, z), new Vector3(w, h, d)), b.Id));
-        }
+        foreach (var b in _sim.Factory.Buildings) AddBuildingVisual(b);
         // 見本の隊の機体を格納庫の前に(待機中の表示。出撃中は RefreshField が描く)
         var hangar = _sim.Factory.Get(22);
         if (hangar != null) foreach (var (m, i) in _sim.Factory.Mechs.Where(m => _sim.Factory.Squads.Any(s => s.Faction == 1 && s.Members.Any(u => u.MechId == m.Id))).Select((m, i) => (m, i))) { var n = _mb.Build(_cityRoot, m.Archetype, $"g{m.Generation}", (float)hangar.X + 3 + i * 6, Y, (float)hangar.Y - 8, 180); _idleMechs[m.Id] = n; }
@@ -118,6 +95,36 @@ public partial class CityScreen : Node3D
             var tag = new Label3D { Text = p.Name, FontSize = 48, PixelSize = 0.05f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, NoDepthTest = true, OutlineSize = 12, Modulate = Red, Position = new Vector3((float)hb.X + 6, Y + 14, (float)hb.Y + 6) };
             _cityRoot.AddChild(tag);
         }
+    }
+
+    /// <summary>建物 1 棟の見た目(用途ごと)。撤去できるよう建物ごとの子ノードにまとめる。KitBash の物は呼び出し側で Flush する。</summary>
+    void AddBuildingVisual(Building b)
+    {
+        if (b.Floors.Count == 0) return;
+        int w = b.Floors[0].W, d = b.Floors[0].D, floors = b.Floors.Count; float x = (float)b.X, z = (float)b.Y;
+        float h = floors * 3f;
+        var node = new Node3D { Name = $"b{b.Id}" }; _cityRoot.AddChild(node); _buildingNodes[b.Id] = node;
+        switch (b.Use)
+        {
+            case "farm":
+                for (int i = 0; i < w; i += 4) _kb.Strip(node, new Vector3(x + i + 1.5f, Y + 0.15f, z + d / 2f), new Vector3(1.2f, 0.3f, d - 2), _kb.PaintDark);   // 畝
+                h = 1; break;
+            case "park":
+                for (int i = 0; i < 6; i++) _kb.Cyl(node, new Vector3(x + 3 + (i % 3) * (w - 6) / 2f, Y + 2.2f, z + 3 + (i / 3) * (d - 6)), 1.6f, 3.4f, _kb.PaintDark, topR: 0.2f);   // 木
+                h = 4; break;
+            case "well":
+                _kb.Cyl(node, new Vector3(x + w / 2f, Y + 0.8f, z + d / 2f), 2.5f, 1.6f, _kb.PaintDark); _kb.Box(node, new Vector3(x + w / 2f, Y + 3f, z + d / 2f), new Vector3(1.2f, 4f, 1.2f), _kb.PaintDark);
+                h = 5; break;
+            default:
+                if (b.Name.Contains("格納庫")) { _fm.Build(node, x, Y, z, MechHangar, 0); h = 9; }
+                else
+                {
+                    string fam = b.Use == "residence" ? "res" : b.Use == "factory" ? "concrete" : "office";
+                    _fm.Build(node, x, Y, z, _fm.Plan(fam, w, d, floors, false), 0);
+                }
+                break;
+        }
+        _hit.Add((new Aabb(new Vector3(x, Y, z), new Vector3(w, h, d)), b.Id));
     }
 
     // ---------- 計算と描画 ----------
@@ -135,7 +142,7 @@ public partial class CityScreen : Node3D
         {
             var e = ev[_seenEvents];
             var pw = _sim.Factory.Diplomacy?.Powers.FirstOrDefault(p => p.Id == e.Building);
-            string? s = e.Kind switch { "war_declared" => $"{pw?.Name} に宣戦した", "war_received" => $"{pw?.Name} が宣戦してきた", "raid" => $"{pw?.Name} の襲撃隊が来た", "offer" => $"{pw?.Name} から申し出(政治画面で回答)", "warning" => $"{pw?.Name} の兵力が増えている(侵攻の恐れ)", "treaty" => $"{pw?.Name} と条約を結んだ", "proposal_failed" => $"{pw?.Name} は提案を断った", "threat_ok" => $"{pw?.Name} が貢納を飲んだ(月 {e.Power})", "threat_failed" => $"{pw?.Name} は威圧に応じない", "peace" => $"{pw?.Name} と和平した", "peace_failed" => $"{pw?.Name} は和平を断った", "vassal" => $"{pw?.Name} の拠点が落ち属国になった(スクラップ {e.Power})", "raided" => $"建物 #{e.Building} が略奪された", "conquered" => "拠点が落ちた(征服)", "building_destroyed" => $"建物 #{e.Building} が落ちた", "victory" => e.Power == 1 ? "勝利: 大陸の制覇" : "勝利: 同盟網による支配", "faction" => $"派閥ができた(首領 #{e.Power})", "faction_end" => $"派閥が解消した(首領 #{e.Power})", "defect" => $"派閥が離反した(首領 #{e.Power}、{e.Destroyed} 人が去った)", "rebellion" => "反乱が起きた", "rebellion_end" => "反乱が鎮圧された", "collected" => $"隊 #{e.Building} が部品 {e.Destroyed} 個を回収した", "repaired" => $"機体 #{e.Power} を修理(耐久 {e.Destroyed}%)", "no_ammo" => $"隊 #{e.Building} は弾薬が尽きて補給に戻る", "robot_cap" => "製造ロボットの導入率の上限を超えるため配置できない", "stage" => $"段階が {StageName(e.Power)} に進んだ", "defeat" => "支持率の低下により失脚(敗北)", "no_crew" => $"隊 #{e.Building} は要員不足で出撃できない", "mech" => $"機体が完成(第 {e.Power} 世代)", _ => null };
+            string? s = e.Kind switch { "war_declared" => $"{pw?.Name} に宣戦した", "war_received" => $"{pw?.Name} が宣戦してきた", "raid" => $"{pw?.Name} の襲撃隊が来た", "offer" => $"{pw?.Name} から申し出(政治画面で回答)", "warning" => $"{pw?.Name} の兵力が増えている(侵攻の恐れ)", "treaty" => $"{pw?.Name} と条約を結んだ", "proposal_failed" => $"{pw?.Name} は提案を断った", "threat_ok" => $"{pw?.Name} が貢納を飲んだ(月 {e.Power})", "threat_failed" => $"{pw?.Name} は威圧に応じない", "peace" => $"{pw?.Name} と和平した", "peace_failed" => $"{pw?.Name} は和平を断った", "vassal" => $"{pw?.Name} の拠点が落ち属国になった(スクラップ {e.Power})", "raided" => $"建物 #{e.Building} が略奪された", "conquered" => "拠点が落ちた(征服)", "building_destroyed" => $"建物 #{e.Building} が落ちた", "victory" => e.Power == 1 ? "勝利: 大陸の制覇" : "勝利: 同盟網による支配", "faction" => $"派閥ができた(首領 #{e.Power})", "faction_end" => $"派閥が解消した(首領 #{e.Power})", "defect" => $"派閥が離反した(首領 #{e.Power}、{e.Destroyed} 人が去った)", "rebellion" => "反乱が起きた", "rebellion_end" => "反乱が鎮圧された", "built" => $"建物 #{e.Building} を建てた(費用 {e.Power:N0})", "demolished" => $"建物 #{e.Building} を撤去した(戻り {e.Power:N0})", "road_built" => $"街路を {e.Destroyed} セル敷いた(費用 {e.Power:N0})", "build_failed" => "建てられない(場所か国庫)", "collected" => $"隊 #{e.Building} が部品 {e.Destroyed} 個を回収した", "repaired" => $"機体 #{e.Power} を修理(耐久 {e.Destroyed}%)", "no_ammo" => $"隊 #{e.Building} は弾薬が尽きて補給に戻る", "robot_cap" => "製造ロボットの導入率の上限を超えるため配置できない", "stage" => $"段階が {StageName(e.Power)} に進んだ", "defeat" => "支持率の低下により失脚(敗北)", "no_crew" => $"隊 #{e.Building} は要員不足で出撃できない", "mech" => $"機体が完成(第 {e.Power} 世代)", _ => null };
             if (s != null) Notice(s);
         }
         var path = Arg("--screenshot"); if (path == null || _micro != null) return;
@@ -171,7 +178,7 @@ public partial class CityScreen : Node3D
             sb.AppendLine($"  {InfraName(k),-7} {Bar(s.Ratio)} {s.Have:0} / {s.Need:0}" + (locked ? "  (未解放)" : ""));
         }
         sb.AppendLine($"段階の昇格: 人口 {(c.Stage - 1 < cd.StagePopulationMin.Count ? cd.StagePopulationMin[c.Stage - 1].ToString() : "-")} 人以上 かつ 支持率 {cd.StageSupportMin}% を {cd.StageDays} 日  (現在 {c.StageDays} 日)");
-        if (c.Persons.Count > 0) { sb.AppendLine("人物(登用候補)"); foreach (var p in c.Persons.TakeLast(4)) sb.AppendLine($"  {p.Name}  統治 {p.Govern} 生産 {p.Produce} 指揮 {p.Command} 交渉 {p.Negotiate}  忠誠 {p.Loyalty} 野心 {p.Ambition}"); }
+        if (c.Persons.Count > 0) { sb.AppendLine("人物(登用候補)"); foreach (var p in c.Persons.TakeLast(2)) sb.AppendLine($"  {p.Name}  統治 {p.Govern} 生産 {p.Produce} 指揮 {p.Command} 交渉 {p.Negotiate}  忠誠 {p.Loyalty} 野心 {p.Ambition}"); }
         _city.Text = sb.ToString().TrimEnd();
         _notice.Text = _notices.Count == 0 ? "(通知なし)" : string.Join("\n", _notices);
     }
@@ -300,6 +307,7 @@ public partial class CityScreen : Node3D
         // 右: 選択した建物
         _side = new VBoxContainer(); _side.AddThemeConstantOverride("separation", 6);
         _sidePanel = Panel(_side); _sidePanel.AnchorLeft = 1; _sidePanel.AnchorRight = 1; _sidePanel.OffsetLeft = -420; _sidePanel.OffsetRight = -16; _sidePanel.OffsetTop = 72; _sidePanel.Visible = false; root.AddChild(_sidePanel);
+        BuildPalette(root);
         var keys = Lbl("左クリック 建物を選ぶ   中ドラッグ 回転   ホイール 距離", 12, Line40); var kp = Panel(keys); kp.AnchorTop = 1; kp.AnchorBottom = 1; kp.OffsetTop = -52; kp.OffsetBottom = -16; kp.OffsetLeft = 16; root.AddChild(kp);
     }
 
@@ -344,6 +352,8 @@ public partial class CityScreen : Node3D
     public override void _UnhandledInput(InputEvent ev)
     {
         if (_micro != null) return;
+        if (ev is InputEventMouseMotion mv) UpdateGhost(mv.Position);
+        if (ev is InputEventMouseButton mb0 && mb0.Pressed && HandleBuildClick(mb0)) return;
         if (ev is InputEventMouseMotion mm && (mm.ButtonMask & MouseButtonMask.Middle) != 0) { _yaw -= mm.Relative.X * 0.005f; _elev = Mathf.Clamp(_elev + mm.Relative.Y * 0.005f, 0.2f, 1.5f); PlaceCamera(); }
         if (ev is InputEventMouseButton mb && mb.Pressed)
         {

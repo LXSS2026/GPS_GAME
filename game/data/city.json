@@ -30,6 +30,11 @@
     "waste":     { "name": "廃棄物処理", "supplies": { "waste": 2.0 },      "staffPerCell": 0.01, "maxFloors": 1, "priority": 6 }
   },
   "roadReach": 6,
+  "build": {
+    "_comment": "建設(2026-10-15 実装時の決定)。費用 = 床面積(セル) × 階数 × costPerCell(国庫)。床面積の上限は段階ごと(G4: 村 20 / 町 30 / 都市 50 / 国家 100)、階数の上限も段階ごと。撤去は費用の refund が戻る。街路は 1 セル roadCostPerCell。建設は即時(工期は後)。",
+    "mapSize": 364, "maxSizeByStage": [ 20, 30, 50, 100 ], "maxFloorsByStage": [ 2, 4, 8, 12 ], "refund": 0.5, "roadCostPerCell": 1,
+    "costPerCell": { "factory": 3, "residence": 2, "farm": 0.5, "well": 5, "market": 3, "school": 3, "clinic": 3, "police": 3, "park": 0.5, "sewage": 4, "waste": 4 }
+  },
   "housingPrerequisites": [ "water", "power", "sewage", "road" ],
   "support": {
     "base": 50, "food": 30, "water": 30, "unemployment": 40, "tax": 80, "conscription": 60, "security": 10, "park": 10, "waste": 10,
