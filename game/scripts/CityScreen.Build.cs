@@ -7,8 +7,8 @@ using System.Linq;
 /// <summary>都市の画面の建設: 用途・床面積・階数を選んで地面をクリックで建てる、街路を 2 点で敷く、撤去。計算は GPS.Sim の Construction。</summary>
 public partial class CityScreen
 {
-    enum BuildMode { None, Place, Road, RemoveRoad, Demolish, ShipMove, ShipPlace }
-    int _shipMoving = -1; string _shipKind = "small";
+    enum BuildMode { None, Place, Road, RemoveRoad, Demolish, ShipMove, ShipPlace, SquadMove }
+    int _shipMoving = -1, _squadMoving = -1; string _shipKind = "small";
     BuildMode _buildMode;
     string _buildUse = "residence";
     int _buildSize = 10, _buildFloors = 1;
@@ -47,7 +47,7 @@ public partial class CityScreen
     void RefreshBuildInfo()
     {
         long cost = Construction.Cost(_sim, _buildUse, _buildSize, _buildFloors);
-        string mode = _buildMode switch { BuildMode.ShipPlace => $"戦艦を置く位置をクリック(費用 {18 * 102 * 2 * 8:N0}、国家の段階から)", BuildMode.ShipMove => "戦艦の移動先をクリック", BuildMode.Place => "地面をクリックで建てる(右クリックでやめる)", BuildMode.Road => _roadStart == null ? "街路の始点をクリック" : "街路の終点をクリック(幅 4 m)", BuildMode.RemoveRoad => "外す街路の始点と終点をクリック", BuildMode.Demolish => "撤去する建物をクリック", _ => "" };
+        string mode = _buildMode switch { BuildMode.SquadMove => "隊の移動先をクリック(右クリックでやめる)", BuildMode.ShipPlace => $"戦艦を置く位置をクリック(費用 {18 * 102 * 2 * 8:N0}、国家の段階から)", BuildMode.ShipMove => "戦艦の移動先をクリック", BuildMode.Place => "地面をクリックで建てる(右クリックでやめる)", BuildMode.Road => _roadStart == null ? "街路の始点をクリック" : "街路の終点をクリック(幅 4 m)", BuildMode.RemoveRoad => "外す街路の始点と終点をクリック", BuildMode.Demolish => "撤去する建物をクリック", _ => "" };
         _buildInfo.Text = $"{UseName(_sim.CityData, _buildUse)} {_buildSize}x{_buildSize} m {_buildFloors} 階  費用 {cost:N0}(国庫 {_sim.Factory.Treasury:N0})   上限 {Construction.MaxSize(_sim)} m 角 {Construction.MaxFloors(_sim)} 階(段階 {StageName(_sim.Factory.City!.Stage)})   {mode}";
     }
     void SetBuildMode(BuildMode m) { _buildMode = m; _roadStart = null; if (_ghost != null) { _ghost.QueueFree(); _ghost = null; } RefreshBuildInfo(); }
@@ -82,6 +82,8 @@ public partial class CityScreen
             }
             case BuildMode.ShipMove:
                 _sim.Enqueue(new MoveShip(_shipMoving, gx, gz)); _sim.Step(); SetBuildMode(BuildMode.None); _sideTick = -1; return true;
+            case BuildMode.SquadMove:
+                _sim.Enqueue(new OrderSquad(_squadMoving, SquadOrder.Move, gx, gz)); _sim.Step(); SetBuildMode(BuildMode.None); Notice($"隊 #{_squadMoving} を ({gx}, {gz}) へ"); return true;
             case BuildMode.ShipPlace:
             {
                 int before = _sim.Factory.Buildings.Count;

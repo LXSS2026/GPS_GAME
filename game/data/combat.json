@@ -32,7 +32,7 @@
   "selfDestruct": { "radiusPerKw": 0.02, "damagePerKw": 5 },
   "lootRate": 0.3,
   "collectRange": 3.0,
-  "cover": { "_comment": "遮蔽(G16 #1 の将来分、2026-10-16)。高さ minHeight 以上の建物が占める cellSize の粗格子で、射線上に占有セルがあると closeRange より遠い相手は見えない", "cellSize": 16, "minHeight": 6, "closeRange": 20 },
+  "cover": { "_comment": "遮蔽(G16 #1 の将来分、2026-10-16)。高さ minHeight 以上の建物が占める cellSize の粗格子で、射線上に占有セルがあると closeRange より遠い相手は見えない。射線は DDA の格子走査、索敵は senseEvery ティックに 1 回", "cellSize": 16, "minHeight": 6, "closeRange": 20, "senseEvery": 3 },
   "flight": { "_comment": "航空戦の第 1 段階: 高速機は目標が fighterMinDist より遠いと戦闘機モードで飛ぶ(速度 × speedMul、近接が当たらず、射撃と砲塔の命中 × hitMul)。戦艦の砲塔は機体がいなければ射程内の敵の建物を砲撃する", "fighterMinDist": 60, "speedMul": 2.0, "hitMul": 0.7 },
   "wall": { "_comment": "防御壁(G1 確定要件・2026-10-16)。建物の外周 1 セルごとに hpPerCell × 段階が耐久に加わる。費用は外周 1 セル costPerCell × 段階(国庫)", "hpPerCell": 400, "costPerCell": 5, "maxLevel": 3 },
   "repair": { "perPart": 0.25, "partsPerHour": 1, "items": [ "mech_head", "mech_torso", "mech_arm", "mech_leg", "mech_back", "mech_weapon", "armor_plate" ] },

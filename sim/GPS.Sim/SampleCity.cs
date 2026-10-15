@@ -36,6 +36,13 @@ public static class SampleCity
             int x0 = Gap + bi * (Block + Gap), z0 = Gap + bj * (Block + Gap);
             for (int k = 0; k < Block; k++) foreach (int o in new[] { 40, 41, 66, 67 }) { s.World.Set(x0 + o, GroundTop, z0 + k, asphalt); s.World.Set(x0 + k, GroundTop, z0 + o, asphalt); }
         }
+        // 丘(地形の起伏): 東の空き街区の中央に高さ 6 m の土の山
+        byte dirt = s.Blocks.IdOf("Dirt");
+        for (int x = 150; x < 215; x++) for (int z = 266; z < 331; z++)
+        {
+            double d = Math.Sqrt((x - 182) * (x - 182) + (z - 298) * (z - 298)); int h = (int)Math.Round(Math.Max(0, 6 - d / 5));
+            for (int y = 1; y <= h; y++) s.World.Set(x, GroundTop + y, z, y == h ? grass : dirt);
+        }
         foreach (var l in Lots)
         {
             byte fill = l.Use is "farm" or "park" ? grass : l.Use == "factory" ? conc : plaza;

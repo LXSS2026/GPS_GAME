@@ -29,7 +29,7 @@ public sealed class CombatData
     public double SelfDestructDamagePerKw { get; set; } = 5;
     public double LootRate { get; set; } = 0.3;
     public double CollectRange { get; set; } = 3;
-    public int CoverCell { get; set; } = 16; public double CoverMinHeight { get; set; } = 6; public double CoverCloseRange { get; set; } = 20;
+    public int CoverCell { get; set; } = 16; public double CoverMinHeight { get; set; } = 6; public double CoverCloseRange { get; set; } = 20; public int SenseEvery { get; set; } = 3;
     public double FighterMinDist { get; set; } = 60; public double FighterSpeedMul { get; set; } = 2; public double FlyingHitMul { get; set; } = 0.7;
     public double WallHpPerCell { get; set; } = 400;
     public double WallCostPerCell { get; set; } = 5;
@@ -63,7 +63,7 @@ public sealed class CombatData
         c.AmmoCapacity = r.GetProperty("ammoCapacity").GetInt32(); c.ReactorEnergySeconds = r.GetProperty("reactorEnergySeconds").GetInt32(); c.FieldChargeMul = r.GetProperty("fieldChargeMul").GetDouble();
         c.SelfDestructRadiusPerKw = r.GetProperty("selfDestruct").GetProperty("radiusPerKw").GetDouble(); c.SelfDestructDamagePerKw = r.GetProperty("selfDestruct").GetProperty("damagePerKw").GetDouble();
         c.LootRate = r.GetProperty("lootRate").GetDouble(); c.CollectRange = r.GetProperty("collectRange").GetDouble();
-        var cv = r.GetProperty("cover"); c.CoverCell = cv.GetProperty("cellSize").GetInt32(); c.CoverMinHeight = cv.GetProperty("minHeight").GetDouble(); c.CoverCloseRange = cv.GetProperty("closeRange").GetDouble();
+        var cv = r.GetProperty("cover"); c.CoverCell = cv.GetProperty("cellSize").GetInt32(); c.CoverMinHeight = cv.GetProperty("minHeight").GetDouble(); c.CoverCloseRange = cv.GetProperty("closeRange").GetDouble(); c.SenseEvery = cv.TryGetProperty("senseEvery", out var se) ? se.GetInt32() : 3;
         var fy = r.GetProperty("flight"); c.FighterMinDist = fy.GetProperty("fighterMinDist").GetDouble(); c.FighterSpeedMul = fy.GetProperty("speedMul").GetDouble(); c.FlyingHitMul = fy.GetProperty("hitMul").GetDouble();
         var wl = r.GetProperty("wall"); c.WallHpPerCell = wl.GetProperty("hpPerCell").GetDouble(); c.WallCostPerCell = wl.GetProperty("costPerCell").GetDouble(); c.WallMaxLevel = wl.GetProperty("maxLevel").GetInt32();
         var rp = r.GetProperty("repair"); c.RepairPerPart = rp.GetProperty("perPart").GetDouble(); c.RepairPartsPerHour = rp.GetProperty("partsPerHour").GetInt32(); c.RepairItems = rp.GetProperty("items").EnumerateArray().Select(e => e.GetString()!).ToList(); c.DefaultRetreatHp = r.GetProperty("defaultRetreatHp").GetDouble(); c.SquadMax = r.GetProperty("squadMax").GetInt32(); c.FormationSpacing = r.GetProperty("formationSpacing").GetDouble();
@@ -164,7 +164,7 @@ public static class Combat
             foreach (var u in s.Members.Where(u => u.Alive))
             {
                 var me = mechs[u.MechId];
-                Sense(f, s, u, me, field, mechs, data, c);
+                if ((f.TickCount + u.MechId) % c.SenseEvery == 0 || (u.TargetMech >= 0 && FindUnit(field, u.TargetMech) is not { Alive: true })) Sense(f, s, u, me, field, mechs, data, c);   // 索敵は間引く(遮蔽の射線が重いため)
                 if (me.Program != null && ++u.McuTimer >= Math.Max(1, me.Program.Interval)) { u.McuTimer = 0; RunBoard(s, u, me, f, data); }
                 else if (me.Program == null) { u.Retreat = u.Hp < u.MaxHp * f.RetreatHp ? 1 : 0; u.Engage = 1; }
             }
@@ -311,7 +311,7 @@ public static class Combat
                 var tm = mechs[t.MechId];
                 double d = Dist(u, t);
                 double range = search * c.StealthSearchMul.GetValueOrDefault(tm.Generation, 1.0);
-                if (d <= Math.Max(range, c.VisualRange) && (d <= c.CoverCloseRange || !LineBlocked(f, u.X, u.Y, t.X, t.Y, c))) seen.Add((t, tm, d));   // 遮蔽: 近距離以外は射線が通るときだけ
+                if (d <= Math.Max(range, c.VisualRange) && (d <= c.CoverCloseRange || !LineBlocked(f, u.X, u.Y, t.X, t.Y, c) && !(f.Owner != null && TerrainBlocked(f.Owner, u.X, u.Y, u.Flying, t.X, t.Y, t.Flying)))) seen.Add((t, tm, d));   // 遮蔽: 近距離以外は射線が通るときだけ
             }
         u.LastEnemyCount = seen.Count; u.LastEnemyDist = seen.Count == 0 ? 1e9 : seen.Min(x => x.d);
         u.LastEnemyGen = seen.Count == 0 ? 0 : seen.OrderBy(x => x.d).First().tm.Generation;
@@ -360,7 +360,7 @@ public static class Combat
         foreach (var b in f.Buildings)
         {
             if (b.Destroyed || b.LastSupply <= 0) continue;
-            int owner = f.Diplomacy?.Powers.FirstOrDefault(p => p.HomeBuilding == b.Id)?.Faction ?? 1;
+            int owner = b.OwnerPower > 0 ? 100 + b.OwnerPower : 1;
             foreach (var fl in b.Floors) foreach (var s in fl.Structures)
             {
                 if (s is not Turret t || !t.Enabled || t.PowerPct <= 0) continue;
@@ -368,15 +368,16 @@ public static class Combat
                 if (t.Cooldown > 0) { t.Cooldown--; continue; }
                 double tx = b.X + s.X + 0.5, ty = b.Y + s.Y + 0.5;
                 MechUnit? best = null; double bestD = def.Range;
-                foreach (var sq in field) { if (sq.Faction == owner) continue; foreach (var u in sq.Members) { if (!u.Alive) continue; double d = Math.Sqrt((u.X - tx) * (u.X - tx) + (u.Y - ty) * (u.Y - ty)); if (d <= bestD && (d <= c.CoverCloseRange || !LineBlocked(f, tx, ty, u.X, u.Y, c))) { bestD = d; best = u; } } }
+                foreach (var sq in field) { if (sq.Faction == owner) continue; foreach (var u in sq.Members) { if (!u.Alive) continue; double d = Math.Sqrt((u.X - tx) * (u.X - tx) + (u.Y - ty) * (u.Y - ty)); if (d <= bestD && (d <= c.CoverCloseRange || !LineBlocked(f, tx, ty, u.X, u.Y, c) && !(f.Owner != null && TerrainBlocked(f.Owner, tx, ty, false, u.X, u.Y, u.Flying)))) { bestD = d; best = u; } } }
                 if (best == null)
                 {   // 機体がいなければ、戦争中の敵の建物(勢力の拠点・プレイヤーの拠点)を砲撃する(戦艦の砲撃戦。地上の砲塔も同じ)
                     Building? tb = null; double td = def.Range;
                     foreach (var ob in f.Buildings)
                     {
                         if (ob == b || ob.Destroyed || ob.Floors.Count == 0) continue;
-                        var pw = f.Diplomacy?.Powers.FirstOrDefault(p => p.HomeBuilding == ob.Id);
-                        bool enemy = owner == 1 ? pw != null && pw.AtWar && !pw.Vassal : (ob.Id == f.City?.Capital && (f.Diplomacy?.Powers.FirstOrDefault(p => p.Faction == owner)?.AtWar ?? false));
+                        bool enemy;
+                        if (owner == 1) { var pw = ob.OwnerPower > 0 ? f.Diplomacy?.Powers.FirstOrDefault(p => p.Id == ob.OwnerPower) : null; enemy = pw != null && pw.AtWar && !pw.Vassal; }   // 戦争中の勢力の拠点と戦艦
+                        else { var me = f.Diplomacy?.Powers.FirstOrDefault(p => p.Faction == owner); enemy = me != null && me.AtWar && ob.OwnerPower == 0 && (ob.Id == f.City?.Capital || ob.IsShip); }   // プレイヤーの拠点と戦艦
                         if (!enemy) continue;
                         double cx = ob.X + ob.Floors[0].W / 2.0, cy = ob.Y + ob.Floors[0].D / 2.0, d = Math.Sqrt((cx - tx) * (cx - tx) + (cy - ty) * (cy - ty));
                         if (d <= td) { td = d; tb = ob; }
@@ -424,17 +425,41 @@ public static class Combat
         f.CoverGrid = grid;
     }
     /// <summary>射線が建物の粗格子に遮られるか(両端のセルは除く)。</summary>
+    /// <summary>射線が建物の粗格子に遮られるか。レイトレーシングの格子走査(Amanatides–Woo の DDA)で、射線が通るセルだけを順に見る(点を等間隔に打つ方式のように取りこぼさず、長さに比例した整数演算)。
+    /// 両端のセルは除く。</summary>
     public static bool LineBlocked(Factory f, double x0, double y0, double x1, double y1, CombatData c)
     {
         var grid = f.CoverGrid; if (grid == null) return false;
-        int cs = c.CoverCell, n = (int)Math.Ceiling(Math.Sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0)) / (cs / 2.0)); if (n < 2) return false;
-        int sx = (int)x0 / cs, sy = (int)y0 / cs, ex = (int)x1 / cs, ey = (int)y1 / cs;
-        for (int i = 1; i < n; i++)
+        int cs = c.CoverCell;
+        int sx = (int)Math.Floor(x0 / cs), sy = (int)Math.Floor(y0 / cs), ex = (int)Math.Floor(x1 / cs), ey = (int)Math.Floor(y1 / cs);
+        if (sx == ex && sy == ey) return false;
+        return Dda(grid, cs, x0, y0, x1, y1, sx, sy, ex, ey);   // 記憶(セル対のキャッシュ)は計測で DDA 本体より高くついたので持たない
+    }
+    /// <summary>地面の最上段の高さ(y)。地形が無ければ 0。</summary>
+    public static int GroundHeight(Simulation sim, double x, double y) { int ix = (int)Math.Floor(x), iz = (int)Math.Floor(y); for (int h = 15; h >= 0; h--) if (sim.World.Get(ix, h, iz) != BlockRegistry.Air) return h; return 0; }
+    /// <summary>地形の起伏による遮蔽: 射線(目の高さ 2 m、飛行中は 18 m)より高い地面が 4 m ごとの標本にあれば遮られる。</summary>
+    public static bool TerrainBlocked(Simulation sim, double x0, double y0, bool fly0, double x1, double y1, bool fly1)
+    {
+        double h0 = GroundHeight(sim, x0, y0) + (fly0 ? 18 : 2), h1 = GroundHeight(sim, x1, y1) + (fly1 ? 18 : 2);
+        double len = Math.Sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0)); int n = (int)(len / 4); if (n < 2) return false;
+        for (int i = 1; i < n; i++) { double t = (double)i / n; if (GroundHeight(sim, x0 + (x1 - x0) * t, y0 + (y1 - y0) * t) > h0 + (h1 - h0) * t) return true; }
+        return false;
+    }
+
+    static bool Dda(bool[,] grid, int cs, double x0, double y0, double x1, double y1, int sx, int sy, int ex, int ey)
+    {
+        double dx = x1 - x0, dy = y1 - y0;
+        int stepX = dx > 0 ? 1 : dx < 0 ? -1 : 0, stepY = dy > 0 ? 1 : dy < 0 ? -1 : 0;
+        double tDeltaX = stepX == 0 ? double.PositiveInfinity : cs / Math.Abs(dx), tDeltaY = stepY == 0 ? double.PositiveInfinity : cs / Math.Abs(dy);
+        double nextX = stepX > 0 ? (sx + 1) * (double)cs : sx * (double)cs, nextY = stepY > 0 ? (sy + 1) * (double)cs : sy * (double)cs;
+        double tMaxX = stepX == 0 ? double.PositiveInfinity : (nextX - x0) / dx, tMaxY = stepY == 0 ? double.PositiveInfinity : (nextY - y0) / dy;
+        int gx = sx, gy = sy, w = grid.GetLength(0), h = grid.GetLength(1);
+        for (int guard = 0; guard < 4096; guard++)
         {
-            double t = (double)i / n; int gx = (int)(x0 + (x1 - x0) * t) / cs, gy = (int)(y0 + (y1 - y0) * t) / cs;
-            if ((gx == sx && gy == sy) || (gx == ex && gy == ey)) continue;
-            if (gx < 0 || gy < 0 || gx >= grid.GetLength(0) || gy >= grid.GetLength(1)) continue;
-            if (grid[gx, gy]) return true;
+            if (tMaxX < tMaxY) { gx += stepX; tMaxX += tDeltaX; } else { gy += stepY; tMaxY += tDeltaY; }
+            if (gx == ex && gy == ey) return false;                      // 相手のセルに着いた
+            if (gx >= 0 && gy >= 0 && gx < w && gy < h && grid[gx, gy]) return true;
+            if ((stepX > 0 ? gx > ex : stepX < 0 ? gx < ex : false) || (stepY > 0 ? gy > ey : stepY < 0 ? gy < ey : false)) return false;
         }
         return false;
     }

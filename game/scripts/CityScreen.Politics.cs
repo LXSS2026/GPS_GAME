@@ -36,7 +36,7 @@ public partial class CityScreen
         if (!force && _sim.Tick - _overlayTick < Clock.TicksPerSecond) return;
         _overlayTick = _sim.Tick;
         foreach (var ch in _overlay.GetChildren()) ch.QueueFree();
-        if (_overlayKind == "recruit") BuildRecruit(_overlay); else BuildPolitics(_overlay);
+        if (_overlayKind == "recruit") BuildRecruit(_overlay); else if (_overlayKind == "army") BuildArmy(_overlay); else BuildPolitics(_overlay);
     }
 
     static string Risk(Person p) => p.Ambition - p.Loyalty >= 5 ? "高" : p.Ambition - p.Loyalty >= 1 ? "中" : "低";

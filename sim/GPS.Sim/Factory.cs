@@ -89,6 +89,8 @@ public sealed class Building
     public int WallLevel { get; set; }
     /// <summary>航空戦艦(空中を動く建物)。</summary>
     public bool IsShip { get; set; }
+    /// <summary>持ち主の勢力(0 = プレイヤー)。勢力の拠点と勢力の戦艦。</summary>
+    public int OwnerPower { get; set; }
     public string ShipKind { get; set; } = "";
     public double ShipSpeed { get; set; }
     public double? MoveTargetX { get; set; }

@@ -349,7 +349,7 @@ public partial class CityScreen : Node3D
         _top = Lbl("", 14); top.AddChild(_top);
         foreach (var (t, sp) in new[] { ("停止", 0), ("1x", 1), ("2x", 2), ("4x", 4) }) { int s = sp; var bt = Btn(t, () => _speed = s); bt.CustomMinimumSize = new Vector2(0, 28); top.AddChild(bt); }
         top.AddChild(new VSeparator());
-        foreach (var (t, k) in new[] { ("登用", "recruit"), ("政治", "politics") }) { string kk = k; var bt = Btn(t, () => { if (_overlayKind == kk) CloseOverlay(); else OpenOverlay(kk); }); bt.CustomMinimumSize = new Vector2(0, 28); top.AddChild(bt); }
+        foreach (var (t, k) in new[] { ("登用", "recruit"), ("政治", "politics"), ("軍", "army") }) { string kk = k; var bt = Btn(t, () => { if (_overlayKind == kk) CloseOverlay(); else OpenOverlay(kk); }); bt.CustomMinimumSize = new Vector2(0, 28); top.AddChild(bt); }
         var topPanel = Panel(top); topPanel.Position = new Vector2(16, 16); root.AddChild(topPanel);
         // 左: 都市の板
         var left = new VBoxContainer(); left.AddThemeConstantOverride("separation", 6);

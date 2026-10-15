@@ -87,6 +87,7 @@ public static class DiplomacySim
         var p = new Power { Id = def.Id, Name = def.Name, Personality = def.Personality, Population = def.Population, Support = def.Support, Tech = def.Tech, Treasury = def.Treasury, Relation = def.Relation, HomeBuilding = homeBuilding };
         p.Strength = p.Population * sim.DiplomacyData.War["mechsPerPopulation"] * sim.DiplomacyData.Personalities[p.Personality].ArmyRatio;
         p.Scrap = p.Population * p.Tech * sim.DiplomacyData.War["scrapPerPopulationTech"];
+        var hb = sim.Factory.Get(homeBuilding); if (hb != null) hb.OwnerPower = p.Id;
         dip.Powers.Add(p); return p;
     }
 
@@ -164,10 +165,23 @@ public static class DiplomacySim
         return sq;
     }
 
-    /// <summary>1 時間ごと: 戦争中の AI は補給で戻った隊を再出撃させる。</summary>
+    /// <summary>1 時間ごと: 戦争中の AI は補給で戻った隊を再出撃させ、戦艦をプレイヤーの拠点の手前(砲塔の射程の 8 割)へ進める。</summary>
     public static void Hour(Simulation sim)
     {
         var f = sim.Factory; var dip = f.Diplomacy; if (dip == null) return;
+        foreach (var p in dip.Powers)
+            foreach (var ship in f.Buildings.Where(b => b.IsShip && b.OwnerPower == p.Id && !b.Destroyed))
+            {
+                var home = f.Get(p.HomeBuilding); var cap = f.Get(f.City?.Capital ?? -1);
+                if (p.AtWar && !p.Vassal && cap != null)
+                {
+                    double range = ship.Floors.SelectMany(fl => fl.Structures).OfType<Turret>().Select(t => sim.Data.Structures[t.DefId].Range).DefaultIfEmpty(100).Min() * 0.8;
+                    double cx = cap.X + cap.Floors[0].W / 2.0, cy = cap.Y + cap.Floors[0].D / 2.0, sx = ship.X + ship.Floors[0].W / 2.0, sy = ship.Y + ship.Floors[0].D / 2.0;
+                    double dx = cx - sx, dy = cy - sy, d = Math.Sqrt(dx * dx + dy * dy);
+                    if (d > range && ship.MoveTargetX == null) { ship.MoveTargetX = cx - dx / d * range - ship.Floors[0].W / 2.0; ship.MoveTargetZ = cy - dy / d * range - ship.Floors[0].D / 2.0; }
+                }
+                else if (home != null && ship.MoveTargetX == null && (Math.Abs(ship.X - (home.X + 20)) > 1 || Math.Abs(ship.Y - (home.Y - 40)) > 1)) { ship.MoveTargetX = home.X + 20; ship.MoveTargetZ = home.Y - 40; }
+            }
         foreach (var p in dip.Powers.Where(p => p.AtWar && !p.Vassal))
             foreach (var sq in f.Squads.Where(s => s.Faction == p.Faction && s.State == SquadState.InHangar && s.Alive > 0).ToList())
             {
@@ -240,6 +254,20 @@ public static class DiplomacySim
                 p.Strength = Math.Min(maxStrength, p.Strength + maxStrength * 0.25);
                 p.Scrap += p.Population * p.Tech * d.War["scrapPerPopulationTech"] * 0.1;
                 p.Treasury += (long)(p.Population * 2);
+                // 戦艦(G2 第 5 節): 技術 L4 で国庫が足りれば小型を 1 隻(拠点の隣に置き、リアクターとビーム砲塔 2 基)
+                if (p.Tech >= 4 && !f.Buildings.Any(b => b.IsShip && b.OwnerPower == p.Id && !b.Destroyed))
+                {
+                    var k = Ships.Kinds["small"]; long cost = (long)Math.Round(k.W * k.D * k.Floors * k.CostPerCell);
+                    var home = f.Get(p.HomeBuilding);
+                    if (home != null && p.Treasury >= cost)
+                    {
+                        int sid = f.Buildings.Max(b => b.Id) + 1; bool cre = f.Creative; f.Creative = true;
+                        new BuildShip(sid, $"{p.Name} の戦艦", "small", home.X + 20, home.Y - 40).Apply(sim);
+                        new PlaceStructure(sid, 0, "reactor_g3", 2, 2, 0, Direction.East).Apply(sim); new PlaceStructure(sid, 0, "turret_beam", 2, 50, 0, Direction.East).Apply(sim); new PlaceStructure(sid, 0, "turret_beam", 15, 50, 0, Direction.East).Apply(sim);
+                        f.Creative = cre; p.Treasury -= cost; var ship = f.Get(sid)!; ship.OwnerPower = p.Id;
+                        f.Events.Add(new FactoryEvent { Kind = "power_ship", Building = p.Id, Power = sid });
+                    }
+                }
                 // 関係の自然回復と条約
                 if (p.Relation > 0) p.Relation = Math.Max(0, p.Relation - (int)d.Relation["decayPerMonth"]); else if (p.Relation < 0) p.Relation = Math.Min(0, p.Relation + (int)d.Relation["decayPerMonth"]);
                 if (p.Treaties.Contains("trade")) { Relate(sim, p, (int)d.Treaty["tradeRelationPerMonth"]); p.Treasury += (long)(city.Population); }

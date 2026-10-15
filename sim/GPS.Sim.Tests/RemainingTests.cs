@@ -48,7 +48,7 @@ public class RemainingTests
         Do(s, new Deploy(1, 80, 10), new Deploy(2, 150, 10), new OrderSquad(1, SquadOrder.Hold), new OrderSquad(2, SquadOrder.Hold));
         s.Run(5);
         Assert.Equal(-1, f.Squads[0].Members[0].TargetMech);   // 70 m 先だが間にビル
-        Do(s, new Deploy(2, 150, 90)); s.Run(5);   // ビルの南を回り込めば見える(射線 (80,10)-(150,90) は x 100〜130 で y 33 以上 = ビルの区画 y 0〜31 を通らない)
+        Do(s, new Deploy(2, 150, 110)); s.Run(5);   // ビルの南を回り込めば見える(射線 (80,10)-(150,110) は x 96 以降で y 32 以上 = ビルの粗格子の区画(x 96〜143, y 0〜31)を通らない)
         Assert.Equal(11, f.Squads[0].Members[0].TargetMech);
         Do(s, new Deploy(2, 95, 10)); s.Run(5); Assert.Equal(11, f.Squads[0].Members[0].TargetMech);   // 15 m なら見える
     }
@@ -71,5 +71,27 @@ public class RemainingTests
         s2.Run(60 * 5); Assert.Equal(hp0, baseB.Hp);   // 戦争前は撃たない
         Do(s2, new DeclareWar(2), new MoveShip(50, 240, 0)); s2.Run(60 * 40);
         Assert.True(baseB.Hp < hp0, $"hp {baseB.Hp}/{hp0}"); Assert.Contains(f2.Events, e => e.Kind == "hit_building" && e.Building == -50);
+    }
+}
+
+public class TerrainTests
+{
+    static readonly GameData Data = GameData.Load(GameData.FindDataDir());
+    static BlockRegistry Blocks() => BlockRegistry.FromJson(File.ReadAllText(Path.Combine(GameData.FindDataDir(), "blocks.json")));
+    static void Do(Simulation s, params ICommand[] cmds) { foreach (var c in cmds) s.Enqueue(c); s.Step(); }
+
+    [Fact]
+    public void Hill_BlocksSight_FlyingSeesOver()
+    {
+        var s = new Simulation(Blocks(), Data, 11); s.Factory.Creative = true; var f = s.Factory;
+        byte dirt = s.Blocks.IdOf("Dirt"); for (int x = 0; x < 200; x++) for (int z = 0; z < 40; z++) s.World.Set(x, 0, z, dirt);
+        for (int x = 90; x < 110; x++) for (int z = 0; z < 40; z++) for (int y = 1; y <= 8; y++) s.World.Set(x, y, z, dirt);   // 高さ 8 m の尾根
+        Do(s, new CreateBuilding(1, "a", 12, 12, 1, false), new SetBuildingPosition(1, 0, 100), new CreateBuilding(2, "b", 12, 12, 1, false), new SetBuildingPosition(2, 300, 100),
+            new CreateMech(1, 3, "general", 80), new CreateMech(11, 3, "general", 80), new CreateMech(12, 3, "fast", 80));
+        Do(s, new FormSquad(1, 1, "a", new[] { 1 }, 1), new FormSquad(2, 2, "e", new[] { 11 }, 2), new FormSquad(3, 2, "f", new[] { 12 }, 2));
+        Do(s, new Deploy(1, 60, 20), new Deploy(2, 140, 20), new OrderSquad(1, SquadOrder.Hold), new OrderSquad(2, SquadOrder.Hold));
+        s.Run(6); Assert.Equal(-1, f.Squads[0].Members[0].TargetMech);   // 尾根の向こうは見えない
+        Do(s, new Deploy(2, 100, 20)); s.Run(6); Assert.Equal(11, f.Squads[0].Members[0].TargetMech);   // 尾根の上に立てば見える
+        Assert.Equal(8, Combat.GroundHeight(s, 100, 20)); Assert.Equal(0, Combat.GroundHeight(s, 60, 20));
     }
 }
