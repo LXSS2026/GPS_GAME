@@ -860,4 +860,10 @@
    "count_each": 1
   }
  }
+,
+ "powerSources": {
+  "_comment": "機体の動力源(2026-10-15 指示): リアクター(世代の出力・燃料不要)か、バッテリー(容量 kW·ティック、放電 kW。戦闘中に尽きる)。計算は戦闘の実装時",
+  "reactor": {"name": "リアクター", "perMech": 1},
+  "battery": {"name": "バッテリー", "capacity": 1800000, "discharge": 2000}
+ }
 }

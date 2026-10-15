@@ -79,8 +79,11 @@ public sealed class Building
     /// <summary>設備のストック(撤去したものと支給されたもの)。</summary>
     public SortedDictionary<string, int> Inventory { get; set; } = new(StringComparer.Ordinal);
     public int NextStructureId { get; set; } = 1;
+    /// <summary>見ていない建物の集計近似。null なら全計算。</summary>
+    public AggregateState? Aggregate { get; set; }
     [JsonIgnore] public int LastSupply { get; private set; }
     [JsonIgnore] public int LastDemand { get; private set; }
+    public void SetPowerSummary(int supply, int demand) { LastSupply = supply; LastDemand = demand; }
 
     public Structure? Find(int floor, int id) => floor < 0 || floor >= Floors.Count ? null : Floors[floor].Structures.FirstOrDefault(s => s.Id == id);
 
@@ -100,6 +103,37 @@ public sealed class Building
                 else s.PowerPct = 100;
             }
         int demand = consumers.Sum(c => c.def.Power);
+        int reactorSupply = supply;
+        // バッテリー: 余剰で充電、不足で方式に応じて放電(1 ティック分)
+        var batteries = Floors.SelectMany(fl => fl.Structures).OfType<Battery>().ToList();
+        if (batteries.Count > 0)
+        {
+            int surplus = supply - demand;
+            if (surplus > 0)
+            {
+                foreach (var bt in batteries.OrderBy(x => x.Id))
+                {
+                    if (bt.Mode == BatteryMode.Off || surplus <= 0) continue;
+                    var bd = data.Structures[bt.DefId];
+                    long room = bd.Capacity - bt.Stored; if (room <= 0) continue;
+                    int take = (int)Math.Min(Math.Min(surplus, bd.ChargeRate), room);
+                    bt.Stored += take; surplus -= take;
+                }
+            }
+            else if (surplus < 0)
+            {
+                int deficit = -surplus;
+                foreach (var bt in batteries.OrderBy(x => x.Id))
+                {
+                    if (deficit <= 0) break;
+                    bool allow = bt.Mode == BatteryMode.Peak || (bt.Mode == BatteryMode.Emergency && reactorSupply == 0);
+                    if (!allow || bt.Stored <= 0) continue;
+                    var bd = data.Structures[bt.DefId];
+                    int give = (int)Math.Min(Math.Min(deficit, bd.DischargeRate), bt.Stored);
+                    bt.Stored -= give; supply += give; deficit -= give;
+                }
+            }
+        }
         LastSupply = supply; LastDemand = demand;
         if (demand == 0) return;
         switch (Policy)
@@ -152,6 +186,7 @@ public sealed class Factory
     {
         foreach (var b in Buildings)
         {
+            if (b.Aggregate != null && !Aggregation.BeforeTick(b, this, data, rng)) continue;   // 集計近似で済ませた
             b.AssignPower(data);
             foreach (var fl in b.Floors)
             {
@@ -162,6 +197,7 @@ public sealed class Factory
                 StepBelts(fl, data);
                 foreach (var s in fl.Structures) if (s is Port po) StepPort(po, fl, data);
             }
+            if (b.Aggregate != null) Aggregation.AfterTick(b);
         }
     }
 

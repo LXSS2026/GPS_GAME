@@ -356,7 +356,7 @@ public partial class MicroEditor : Node3D
         // ----- 左: 設備のパレット(種別ごとの格子) -----
         var pal = new VBoxContainer(); pal.AddThemeConstantOverride("separation", 8);
         pal.AddChild(Lbl("設備", 11, Cyan));
-        var groups = new (string name, string[] kinds)[] { ("生産", new[] { "miner", "furnace", "assembler" }), ("物流", new[] { "belt", "inserter", "chest", "port" }), ("流体", new[] { "pump", "pipe", "tank" }), ("動力", new[] { "reactor" }) };
+        var groups = new (string name, string[] kinds)[] { ("生産", new[] { "miner", "furnace", "assembler" }), ("物流", new[] { "belt", "inserter", "chest", "port" }), ("流体", new[] { "pump", "pipe", "tank" }), ("動力", new[] { "reactor", "battery" }) };
         foreach (var (gname, kinds) in groups)
         {
             pal.AddChild(Lbl(gname, 11, Line40));
@@ -425,7 +425,8 @@ public partial class MicroEditor : Node3D
         _power.Text = $"供給 {b.LastSupply} kW  需要 {b.LastDemand} kW  リアクター {Floor.Structures.Count(s => s is Reactor)} 基";
         foreach (var (id, l) in _stockLabels) l.Text = b.Inventory.GetValueOrDefault(id).ToString();
         var made = Floor.Structures.OfType<Machine>().Sum(m => m.Made); var failed = Floor.Structures.OfType<Machine>().Sum(m => m.Failed);
-        _status.Text = $"設備 {Floor.Structures.Count} 台   在庫 {b.Inventory.Values.Sum()} 台   製造 {made}   不良 {failed}   {(_palette == null ? "" : _data.Structures[_palette].Name + " を設置中  " + DirName(_dir))}";
+        long stored = Floor.Structures.OfType<Battery>().Sum(x => x.Stored);
+        _status.Text = $"設備 {Floor.Structures.Count} 台   在庫 {b.Inventory.Values.Sum()} 台   製造 {made}   不良 {failed}   蓄電 {stored / 60 / 1000.0:F1} kWmin   {(_palette == null ? "" : _data.Structures[_palette].Name + " を設置中  " + DirName(_dir))}";
     }
 
     int _sideFor = -2; long _sideTick = -1;
@@ -529,6 +530,21 @@ public partial class MicroEditor : Node3D
                 var pr = new ProgressBar { MinValue = 0, MaxValue = def.Capacity, Value = t.Amount, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 8) }; _side.AddChild(pr);
                 break;
             }
+            case Battery bt:
+            {
+                _side.AddChild(Sep());
+                var bd = def;
+                var g4 = new GridContainer { Columns = 3 }; g4.AddThemeConstantOverride("h_separation", 14);
+                void S4(string k, string v, Color? c = null) { var vb = new VBoxContainer(); vb.AddThemeConstantOverride("separation", 0); vb.AddChild(Lbl(k, 10, Cyan)); vb.AddChild(Lbl(v, 15, c)); g4.AddChild(vb); }
+                S4("蓄電", $"{bt.Stored / 60 / 1000.0:F1} / {bd.Capacity / 60 / 1000.0:F1} kWmin", Accent); S4("充電", $"{bd.ChargeRate} kW"); S4("放電", $"{bd.DischargeRate} kW");
+                _side.AddChild(g4);
+                var pr = new ProgressBar { MinValue = 0, MaxValue = bd.Capacity, Value = bt.Stored, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 10) }; _side.AddChild(pr);
+                _side.AddChild(Lbl("方式", 10, Cyan));
+                var mode = new OptionButton(); foreach (var n in new[] { "ピーク用(不足時に放電)", "非常用(リアクター停止時だけ)", "停止" }) mode.AddItem(n); mode.Selected = (int)bt.Mode;
+                int bid = s.Id; mode.ItemSelected += i => { _sim.Enqueue(new SetBatteryMode(1, 0, bid, (BatteryMode)(int)i)); _sim.Step(); _sideTick = -1; };
+                _side.AddChild(mode);
+                break;
+            }
             case Port p:
                 _side.AddChild(Sep()); _side.AddChild(Lbl(p.LinkBuilding < 0 ? "未接続" : $"接続先  建物 {p.LinkBuilding}  階 {p.LinkFloor}   待ち {p.Buffer.Count}  到着 {p.Inbox.Count}", 13, p.LinkBuilding < 0 ? Warm : null));
                 break;
@@ -555,7 +571,7 @@ public partial class MicroEditor : Node3D
             cmds.Add(new PlaceStructure(1, 0, "inserter", x, y0 - 4, 0, Direction.South));
             cmds.Add(new PlaceStructure(1, 0, "chest", x, y0 - 5, 0, Direction.South));
         }
-        cmds.Add(new PlaceStructure(1, 0, "reactor_g2", 22, y0 - 3, 0, Direction.East)); cmds.Add(new PlaceStructure(1, 0, "reactor_g2", 24, y0 - 3, 0, Direction.East));
+        cmds.Add(new PlaceStructure(1, 0, "reactor_g2", 22, y0 - 3, 0, Direction.East)); cmds.Add(new PlaceStructure(1, 0, "reactor_g2", 24, y0 - 3, 0, Direction.East)); cmds.Add(new PlaceStructure(1, 0, "battery_l", 22, y0 - 7, 0, Direction.East));
         foreach (var c in cmds) _sim.Enqueue(c);
         _sim.Step();
         int wid = 1;

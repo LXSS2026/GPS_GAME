@@ -42,6 +42,28 @@ public static class SampleFactory
     }
 }
 
+/// <summary>独立した生産線 n 本(採掘機 → インサータ → 炉 → インサータ → 箱)。試験の精度比較用。</summary>
+public static class SampleLines
+{
+    public static List<ICommand> Build(int building, int n, int reactors = 4, string reactor = "reactor_g3")
+    {
+        var cmds = new List<ICommand> { new CreateBuilding(building, "生産線", Math.Max(n, 8), 6, 1, true) };
+        int sid = 1; var machines = new List<int>();
+        for (int x = 0; x < n; x++)
+        {
+            cmds.Add(new SetOre(building, x, 4, "iron_ore", 20_000_000, 30 + (x * 7) % 41));
+            cmds.Add(new PlaceStructure(building, 0, "miner", x, 4, 0, Direction.South)); sid++;
+            cmds.Add(new PlaceStructure(building, 0, "inserter", x, 3, 0, Direction.South)); sid++;
+            cmds.Add(new PlaceStructure(building, 0, "furnace", x, 2, 0, Direction.South)); machines.Add(sid++);
+            cmds.Add(new PlaceStructure(building, 0, "inserter", x, 1, 0, Direction.South)); sid++;
+            cmds.Add(new PlaceStructure(building, 0, "chest", x, 0, 0, Direction.South)); sid++;
+        }
+        for (int k = 0; k < reactors; k++) { cmds.Add(new PlaceStructure(building, 0, reactor, k, 5, 0, Direction.East)); sid++; }
+        foreach (var id in machines) { cmds.Add(new SetRecipe(building, 0, id, "iron_plate")); cmds.Add(new AssignStaff(building, 0, id, new Worker(id, "作業員", 3))); }
+        return cmds;
+    }
+}
+
 /// <summary>設備の種類に応じて既定のレシピを付ける(炉 = 鉄板、組立機 = 歯車)。見本専用。</summary>
 public sealed record SetRecipeByKind(int Building, int Floor, int Id) : ICommand
 {

@@ -1,5 +1,5 @@
 {
-  "_comment": "設備の定義。大きさはセル(w × d × h)。power は消費電力(kW)。workers は必要な要員数。priority は動力の優先順位(小さいほど先)。品質の倍率はパーセント(100 = 変化なし)。ティックは 60/秒、1 ゲーム時間 = 18,000 ティック。",
+  "_comment": "設備の定義。バッテリーの capacity は kW·ティック(120,000 = 100 kW を 20 秒)、chargeRate/dischargeRate は kW。大きさはセル(w × d × h)。power は消費電力(kW)。workers は必要な要員数。priority は動力の優先順位(小さいほど先)。品質の倍率はパーセント(100 = 変化なし)。ティックは 60/秒、1 ゲーム時間 = 18,000 ティック。",
   "structures": [
     { "id": "belt",      "name": "ベルト",       "kind": "belt",      "w": 1, "d": 1, "h": 1, "power": 0,   "workers": 0, "priority": 9, "techLevel": 2, "ticksPerStep": 10 },
     { "id": "inserter",  "name": "インサータ",   "kind": "inserter",  "w": 1, "d": 1, "h": 1, "power": 2,   "workers": 0, "priority": 5, "techLevel": 2, "ticks": 30 },
@@ -13,6 +13,8 @@
     { "id": "pump",      "name": "揚水機",       "kind": "pump",      "w": 1, "d": 1, "h": 1, "power": 10,  "workers": 0, "priority": 1, "techLevel": 1, "ticks": 60, "fluid": "water", "amount": 10 },
     { "id": "port_lift", "name": "昇降機の口",   "kind": "port",      "w": 1, "d": 1, "h": 1, "power": 5,   "workers": 0, "priority": 4, "techLevel": 3, "perSecond": 4 },
     { "id": "port_bridge", "name": "渡り廊下の口", "kind": "port",    "w": 1, "d": 1, "h": 1, "power": 5,   "workers": 0, "priority": 4, "techLevel": 3, "perSecond": 4 },
+    { "id": "battery_s",  "name": "バッテリー(小)", "kind": "battery", "w": 1, "d": 1, "h": 1, "power": 0, "workers": 0, "priority": 0, "techLevel": 2, "capacity": 120000, "chargeRate": 100, "dischargeRate": 300 },
+    { "id": "battery_l",  "name": "バッテリー(大)", "kind": "battery", "w": 2, "d": 2, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 3, "capacity": 600000, "chargeRate": 400, "dischargeRate": 1200 },
     { "id": "reactor_g0", "name": "リアクター(工作機)", "kind": "reactor", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 1, "generation": 0, "output": 100 },
     { "id": "reactor_g1", "name": "リアクター(第 1 世代)", "kind": "reactor", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 2, "generation": 1, "output": 200 },
     { "id": "reactor_g2", "name": "リアクター(第 2 世代)", "kind": "reactor", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 3, "generation": 2, "output": 400 },

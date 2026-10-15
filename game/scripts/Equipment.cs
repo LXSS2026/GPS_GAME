@@ -36,7 +36,7 @@ public sealed class Equipment
     public static string Model(StructureDef def) => def.Kind switch
     {
         "furnace" => "furnace", "assembler" => "assembler", "miner" => "miner", "belt" => "belt", "inserter" => "inserter", "chest" => "chest",
-        "tank" => "tank", "reactor" => "tank", "port" => "chest", "pump" => "miner", _ => "pole",
+        "tank" => "tank", "reactor" => "tank", "port" => "chest", "pump" => "miner", "battery" => "chest", _ => "pole",
     };
 
     public static Color ReactorColor(int gen) => gen switch { 0 => new Color(1f, 0.2f, 0.15f), 1 => new Color(1f, 0.5f, 0.1f), 2 => new Color(1f, 0.9f, 0.2f), 3 => new Color(0.6f, 1f, 0.2f), 4 => new Color(0.2f, 1f, 0.4f), 5 => new Color(0.25f, 0.5f, 1f), _ => new Color(0.75f, 0.35f, 1f) };
@@ -52,6 +52,10 @@ public sealed class Equipment
         {
             var col = ReactorColor(def.Generation);
             root.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.35f, Height = 0.7f }, MaterialOverride = new StandardMaterial3D { AlbedoColor = col, EmissionEnabled = true, Emission = col, EmissionEnergyMultiplier = 2.5f }, Position = new Vector3(x + 0.5f, y + 2.3f, z + 0.5f) });
+        }
+        else if (def.Kind == "battery")
+        {   // バッテリー: 箱の部品の上に水色の充電帯(専用部品は未作成)
+            for (int i = 0; i < def.W; i++) for (int j = 0; j < def.D; j++) kb.Strip(root, new Vector3(x + i + 0.5f, y + 0.96f, z + j + 0.5f), new Vector3(0.7f, 0.04f, 0.12f), kb.GlowCyan);
         }
         else if (def.Kind == "port")
         {

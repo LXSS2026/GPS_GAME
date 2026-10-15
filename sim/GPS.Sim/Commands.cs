@@ -110,3 +110,8 @@ public sealed record AddItems(int Building, int Floor, int Id, string Item, int 
         }
     }
 }
+
+public sealed record SetBatteryMode(int Building, int Floor, int Id, BatteryMode Mode) : ICommand
+{
+    public void Apply(Simulation s) { if (s.Factory.Get(Building)?.Find(Floor, Id) is Battery b) b.Mode = Mode; }
+}

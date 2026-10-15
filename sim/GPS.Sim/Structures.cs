@@ -20,7 +20,7 @@ public static class Directions
 /// <summary>設備の定義(structures.json)。大きさはセル。Power は消費電力(kW)。Workers は必要な要員数。</summary>
 public sealed record StructureDef(string Id, string Name, string Kind, int W, int D, int H, int Power, int Workers, int Priority, int TechLevel,
                                   int TicksPerStep = 10, int Ticks = 30, int Capacity = 100, int PerSecond = 4, int Generation = 0, int Output = 0,
-                                  string? Fluid = null, int Amount = 0, int QualityTopMul = 100, int QualityHighMul = 100, int QualityDefectMul = 100);
+                                  string? Fluid = null, int Amount = 0, int QualityTopMul = 100, int QualityHighMul = 100, int QualityDefectMul = 100, int ChargeRate = 0, int DischargeRate = 0);
 
 /// <summary>動力不足時の挙動(2026-10-15 確定: プレイヤーが設定する)。</summary>
 public enum PowerPolicy { Proportional = 0, Priority = 1, Stop = 2 }
@@ -39,6 +39,7 @@ public sealed record Worker(int Id, string Name, int Skill);   // 技能 0〜10�
 [JsonDerivedType(typeof(Pipe), "pipe")]
 [JsonDerivedType(typeof(Pump), "pump")]
 [JsonDerivedType(typeof(Port), "port")]
+[JsonDerivedType(typeof(Battery), "battery")]
 public abstract class Structure
 {
     public int Id { get; set; }
@@ -53,7 +54,7 @@ public abstract class Structure
     public static Structure Create(StructureDef def) => def.Kind switch
     {
         "belt" => new Belt(), "inserter" => new Inserter(), "miner" => new Miner(), "chest" => new Chest(),
-        "furnace" or "assembler" => new Machine(), "reactor" => new Reactor(), "tank" => new Tank(), "pipe" => new Pipe(), "pump" => new Pump(), "port" => new Port(),
+        "furnace" or "assembler" => new Machine(), "reactor" => new Reactor(), "battery" => new Battery(), "tank" => new Tank(), "pipe" => new Pipe(), "pump" => new Pump(), "port" => new Port(),
         _ => throw new InvalidDataException($"unknown structure kind {def.Kind}"),
     };
 }
@@ -109,6 +110,16 @@ public sealed class Tank : Structure
 }
 
 public sealed class Pipe : Structure { }
+
+/// <summary>バッテリーの方式(2026-10-15 指示): ピーク用 = 需要が供給を超えたときだけ放電、非常用 = リアクターの供給が止まったときだけ放電、停止 = 充電も放電もしない。</summary>
+public enum BatteryMode { Peak = 0, Emergency = 1, Off = 2 }
+
+/// <summary>バッテリー: 余剰電力で充電(kW·ティック)、方式に応じて放電。機体はリアクターの代わりに搭載できる(機体側のデータ)。</summary>
+public sealed class Battery : Structure
+{
+    public long Stored { get; set; }
+    public BatteryMode Mode { get; set; } = BatteryMode.Peak;
+}
 
 /// <summary>揚水機: 一定ティックごとに流体を出す(つながる配管網へ)。</summary>
 public sealed class Pump : Structure
