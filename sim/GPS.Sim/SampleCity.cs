@@ -60,6 +60,7 @@ public static class SampleCity
         cmds.Add(new PlaceStructure(21, 0, "furnace", 4, 4, 0, Direction.South)); cmds.Add(new PlaceStructure(21, 0, "reactor_g0", 8, 8, 0, Direction.East));
         // 格納庫: 第 2 世代の汎用機 2 機の隊
         cmds.Add(new CreateMech(1, 2, "general", 72)); cmds.Add(new CreateMech(2, 2, "general", 68)); cmds.Add(new FormSquad(1, 1, "自警団 第 1 隊", new[] { 1, 2 }, 22));
+        cmds.Add(new PlaceStructure(22, 0, "turret_live", 1, 1, 0, Direction.East)); cmds.Add(new PlaceStructure(22, 0, "turret_live", 10, 1, 0, Direction.East)); cmds.Add(new PlaceStructure(22, 0, "reactor_g1", 5, 5, 0, Direction.East)); cmds.Add(new BuildWall(22, 1));
         cmds.Add(new SetCapital(22)); cmds.Add(new AddPower(1, 40)); cmds.Add(new AddPower(2, 41)); cmds.Add(new AddPower(3, 42));
         foreach (var c in cmds) s.Enqueue(c);
         s.Step();
@@ -69,6 +70,7 @@ public static class SampleCity
         foreach (var m in b20.Floors[1].Structures.OfType<Machine>()) { s.Enqueue(new SetRecipe(20, 1, m.Id, "gear")); s.Enqueue(new HireStaff(20, 1, m.Id)); }
         foreach (var m in s.Factory.Get(21)!.Floors[0].Structures.OfType<Machine>()) { s.Enqueue(new SetRecipe(21, 0, m.Id, "iron_plate")); s.Enqueue(new HireStaff(21, 0, m.Id)); }
         s.Step();
+        s.Factory.Get(22)!.Cargo.Add(new ItemStack("ammo", 60, 200));   // 砲塔の弾薬
         s.Factory.Creative = false;
         // 登用候補(人物は本来 30 日ごとに現れる。見本では最初から 6 人)
         var city = s.Factory.City!;

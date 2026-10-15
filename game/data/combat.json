@@ -32,6 +32,7 @@
   "selfDestruct": { "radiusPerKw": 0.02, "damagePerKw": 5 },
   "lootRate": 0.3,
   "collectRange": 3.0,
+  "wall": { "_comment": "防御壁(G1 確定要件・2026-10-16)。建物の外周 1 セルごとに hpPerCell × 段階が耐久に加わる。費用は外周 1 セル costPerCell × 段階(国庫)", "hpPerCell": 400, "costPerCell": 5, "maxLevel": 3 },
   "repair": { "perPart": 0.25, "partsPerHour": 1, "items": [ "mech_head", "mech_torso", "mech_arm", "mech_leg", "mech_back", "mech_weapon", "armor_plate" ] },
   "defaultRetreatHp": 0.25,
   "squadMax": 12,

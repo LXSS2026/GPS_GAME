@@ -29,6 +29,9 @@ public sealed class CombatData
     public double SelfDestructDamagePerKw { get; set; } = 5;
     public double LootRate { get; set; } = 0.3;
     public double CollectRange { get; set; } = 3;
+    public double WallHpPerCell { get; set; } = 400;
+    public double WallCostPerCell { get; set; } = 5;
+    public int WallMaxLevel { get; set; } = 3;
     public double RepairPerPart { get; set; } = 0.25;
     public int RepairPartsPerHour { get; set; } = 1;
     public List<string> RepairItems { get; set; } = new();
@@ -58,6 +61,7 @@ public sealed class CombatData
         c.AmmoCapacity = r.GetProperty("ammoCapacity").GetInt32(); c.ReactorEnergySeconds = r.GetProperty("reactorEnergySeconds").GetInt32(); c.FieldChargeMul = r.GetProperty("fieldChargeMul").GetDouble();
         c.SelfDestructRadiusPerKw = r.GetProperty("selfDestruct").GetProperty("radiusPerKw").GetDouble(); c.SelfDestructDamagePerKw = r.GetProperty("selfDestruct").GetProperty("damagePerKw").GetDouble();
         c.LootRate = r.GetProperty("lootRate").GetDouble(); c.CollectRange = r.GetProperty("collectRange").GetDouble();
+        var wl = r.GetProperty("wall"); c.WallHpPerCell = wl.GetProperty("hpPerCell").GetDouble(); c.WallCostPerCell = wl.GetProperty("costPerCell").GetDouble(); c.WallMaxLevel = wl.GetProperty("maxLevel").GetInt32();
         var rp = r.GetProperty("repair"); c.RepairPerPart = rp.GetProperty("perPart").GetDouble(); c.RepairPartsPerHour = rp.GetProperty("partsPerHour").GetInt32(); c.RepairItems = rp.GetProperty("items").EnumerateArray().Select(e => e.GetString()!).ToList(); c.DefaultRetreatHp = r.GetProperty("defaultRetreatHp").GetDouble(); c.SquadMax = r.GetProperty("squadMax").GetInt32(); c.FormationSpacing = r.GetProperty("formationSpacing").GetDouble();
         return c;
     }
@@ -147,6 +151,7 @@ public static class Combat
     {
         var field = f.Squads.Where(s => s.State == SquadState.Field).ToList();
         if (field.Count == 0) return;
+        StepTurrets(f, data, c, rng, field);
         var mechs = f.Mechs.ToDictionary(m => m.Id);
         // 索敵と制御基板
         foreach (var s in field)
@@ -340,6 +345,40 @@ public static class Combat
         });
     }
 
+    /// <summary>砲塔: 動力のある建物の砲塔が、射程内の最寄りの敵機を撃つ(建物の持ち主: AI 勢力の拠点ならその勢力、それ以外はプレイヤー)。実弾は荷下ろし場の弾薬を 1 発 1 個。</summary>
+    static void StepTurrets(Factory f, GameData data, CombatData c, Rng rng, List<Squad> field)
+    {
+        var mechs = f.Mechs.ToDictionary(m => m.Id);
+        foreach (var b in f.Buildings)
+        {
+            if (b.Destroyed || b.LastSupply <= 0) continue;
+            int owner = f.Diplomacy?.Powers.FirstOrDefault(p => p.HomeBuilding == b.Id)?.Faction ?? 1;
+            foreach (var fl in b.Floors) foreach (var s in fl.Structures)
+            {
+                if (s is not Turret t || !t.Enabled || t.PowerPct <= 0) continue;
+                var def = data.Structures[t.DefId];
+                if (t.Cooldown > 0) { t.Cooldown--; continue; }
+                double tx = b.X + s.X + 0.5, ty = b.Y + s.Y + 0.5;
+                MechUnit? best = null; double bestD = def.Range;
+                foreach (var sq in field) { if (sq.Faction == owner) continue; foreach (var u in sq.Members) { if (!u.Alive) continue; double d = Math.Sqrt((u.X - tx) * (u.X - tx) + (u.Y - ty) * (u.Y - ty)); if (d <= bestD) { bestD = d; best = u; } } }
+                if (best == null) continue;
+                if (def.Ammo != null)
+                {
+                    int idx = b.Cargo.FindIndex(x => x.Item == def.Ammo && x.Count > 0); if (idx < 0) continue;
+                    var st = b.Cargo[idx]; if (st.Count <= 1) b.Cargo.RemoveAt(idx); else b.Cargo[idx] = st with { Count = st.Count - 1 };
+                }
+                t.Cooldown = def.Cooldown; t.Shots++;
+                var tm = mechs[best.MechId];
+                double hit = def.Accuracy / 100.0 * Math.Max(c.MinHit, 1 - MechStats.Speed(tm, c) / c.SpeedRef) * (owner == 1 ? f.HitMulPct / 100.0 : 1);
+                bool landed = rng.Next(10_000) < (int)(hit * 10_000);
+                f.Events.Add(new FactoryEvent { Kind = landed ? "hit" : "miss", Building = -b.Id, Floor = best.MechId, X = (int)tx, Y = (int)ty, Power = def.Damage, Radius = bestD, Destroyed = landed ? 1 : 0 });   // Building が負 = 砲塔
+                if (!landed) continue;
+                best.Hp -= def.Damage;
+                if (best.Hp <= 0) Kill(f, best, tm, c, field);
+            }
+        }
+    }
+
     static Loot? NearestLoot(Factory f, Squad s) { double cx = s.X, cy = s.Y; return f.Loot.OrderBy(l => (l.X - cx) * (l.X - cx) + (l.Y - cy) * (l.Y - cy)).FirstOrDefault(); }
 
     /// <summary>修理(1 時間ごと): 格納庫で待機中の機体は、建物の荷下ろし場の部品(回収した機体の部品か装甲板)を 1 時間に 1 個使って耐久を 25% 戻す(G16 #9)。</summary>
@@ -381,6 +420,22 @@ public static class Combat
             if (Dist(u, t) <= radius) { t.Hp -= dmg; hitCount++; if (t.Hp <= 0) Kill(f, t, mechs[t.MechId], c, field); }
         u.Alive = false; u.Hp = 0; u.SelfDestruct = 0;
         f.Events.Add(new FactoryEvent { Kind = "selfdestruct", Building = s.Id, X = (int)u.X, Y = (int)u.Y, Power = output, Radius = radius, Destroyed = hitCount });
+    }
+}
+
+/// <summary>防御壁を築く(段階 1〜3)。費用 = 外周 × 5 × 上げる段階(国庫、創造モードは無料)。耐久の上限が増え、増えた分はすぐ加わる。</summary>
+public sealed record BuildWall(int Building, int Level) : ICommand
+{
+    public void Apply(Simulation s)
+    {
+        var f = s.Factory; var b = f.Get(Building); if (b == null || b.Floors.Count == 0) return;
+        int level = Math.Clamp(Level, 0, s.Combat.WallMaxLevel); if (level <= b.WallLevel) return;
+        long cost = f.Creative ? 0 : (long)Math.Round(b.Perimeter * s.Combat.WallCostPerCell * (level - b.WallLevel));
+        if (f.Treasury < cost) { f.Events.Add(new FactoryEvent { Kind = "build_failed", Building = Building, Power = (int)cost }); return; }
+        f.Treasury -= cost;
+        double add = b.Perimeter * s.Combat.WallHpPerCell * (level - b.WallLevel);
+        b.WallLevel = level; b.MaxHp += add; b.Hp += add;
+        f.Events.Add(new FactoryEvent { Kind = "wall_built", Building = Building, Power = level, Destroyed = (int)cost });
     }
 }
 

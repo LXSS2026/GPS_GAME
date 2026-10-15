@@ -222,5 +222,13 @@
   "recyclable": true,
   "techLevel": 2,
   "price": 120
+ },
+ {
+  "id": "ammo",
+  "name": "弾薬",
+  "fluid": false,
+  "recyclable": true,
+  "techLevel": 2,
+  "price": 3
  }
 ]

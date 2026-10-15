@@ -74,6 +74,13 @@ public sealed class Equipment
             kb.Strip(root, new Vector3(x + 1f, y + 1.52f, z + 1f), new Vector3(1.4f, 0.04f, 1.0f), kb.GlowCyan);
             kb.Box(root, new Vector3(x + 1.7f, y + 2.3f, z + 0.3f), new Vector3(0.06f, 1.6f, 0.06f), kb.Steel);
         }
+        else if (def.Kind == "turret")
+        {   // 砲塔: 台座の円柱 + 旋回部 + 砲身(向きは Dir)。ビームは水色の発光
+            kb.Cyl(root, new Vector3(x + 0.5f, y + 0.5f, z + 0.5f), 0.42f, 1.0f, kb.Steel);
+            kb.Box(root, new Vector3(x + 0.5f, y + 1.25f, z + 0.5f), new Vector3(0.7f, 0.5f, 0.7f), kb.PaintDark);
+            var (ddx, _, ddz) = rot switch { 1 => (1f, 0f, 0f), 2 => (0f, 0f, 1f), 3 => (-1f, 0f, 0f), _ => (0f, 0f, -1f) };
+            kb.Box(root, new Vector3(x + 0.5f + ddx * 0.6f, y + 1.3f, z + 0.5f + ddz * 0.6f), new Vector3(ddx != 0 ? 1.2f : 0.16f, 0.16f, ddz != 0 ? 1.2f : 0.16f), def.Id.EndsWith("beam") ? kb.GlowCyan : kb.Steel);
+        }
         else if (def.Kind == "trade")
         {   // 交易所: 箱 2x2 の上に屋根と橙の看板(専用部品は未作成)
             kb.Box(root, new Vector3(x + 1f, y + 1.3f, z + 1f), new Vector3(2.2f, 0.1f, 2.2f), kb.PaintDark);

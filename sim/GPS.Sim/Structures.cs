@@ -20,7 +20,8 @@ public static class Directions
 /// <summary>設備の定義(structures.json)。大きさはセル。Power は消費電力(kW)。Workers は必要な要員数。</summary>
 public sealed record StructureDef(string Id, string Name, string Kind, int W, int D, int H, int Power, int Workers, int Priority, int TechLevel,
                                   int TicksPerStep = 10, int Ticks = 30, long Capacity = 100, int PerSecond = 4, int Generation = 0, int Output = 0,
-                                  string? Fluid = null, int Amount = 0, int QualityTopMul = 100, int QualityHighMul = 100, int QualityDefectMul = 100, int ChargeRate = 0, int DischargeRate = 0);
+                                  string? Fluid = null, int Amount = 0, int QualityTopMul = 100, int QualityHighMul = 100, int QualityDefectMul = 100, int ChargeRate = 0, int DischargeRate = 0,
+                                  int Range = 0, int Damage = 0, int Accuracy = 0, int Cooldown = 0, string? Ammo = null);   // 砲塔(G16 次段階)
 
 /// <summary>動力不足時の挙動(2026-10-15 確定: プレイヤーが設定する)。</summary>
 public enum PowerPolicy { Proportional = 0, Priority = 1, Stop = 2 }
@@ -31,6 +32,7 @@ public sealed record Worker(int Id, string Name, int Skill, bool IsRobot = false
 /// <summary>設備の実体。保存のため多相 JSON。</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$t")]
 [JsonDerivedType(typeof(Belt), "belt")]
+[JsonDerivedType(typeof(Turret), "turret")]
 [JsonDerivedType(typeof(Inserter), "inserter")]
 [JsonDerivedType(typeof(Miner), "miner")]
 [JsonDerivedType(typeof(Chest), "chest")]
@@ -61,7 +63,7 @@ public abstract class Structure
     public static Structure Create(StructureDef def) => def.Kind switch
     {
         "belt" => new Belt(), "inserter" => new Inserter(), "miner" => new Miner(), "chest" => new Chest(),
-        "furnace" or "assembler" or "mech_assembler" => new Machine(), "reactor" => new Reactor(), "battery" => new Battery(), "trade" => new Trade(), "mcu" => new Mcu(), "tank" => new Tank(), "pipe" => new Pipe(), "pump" => new Pump(), "port" => new Port(),
+        "furnace" or "assembler" or "mech_assembler" => new Machine(), "turret" => new Turret(), "reactor" => new Reactor(), "battery" => new Battery(), "trade" => new Trade(), "mcu" => new Mcu(), "tank" => new Tank(), "pipe" => new Pipe(), "pump" => new Pump(), "port" => new Port(),
         _ => throw new InvalidDataException($"unknown structure kind {def.Kind}"),
     };
 }
@@ -83,6 +85,13 @@ public sealed class Miner : Structure
 {
     public int Timer { get; set; }
     public ItemStack? Output { get; set; }
+}
+
+/// <summary>砲塔(建物の防御)。建物の動力で動き、実弾は建物の荷下ろし場の弾薬を使う。</summary>
+public sealed class Turret : Structure
+{
+    public int Cooldown { get; set; }
+    public int Shots { get; set; }
 }
 
 public sealed class Chest : Structure

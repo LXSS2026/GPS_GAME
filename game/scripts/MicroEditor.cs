@@ -449,7 +449,7 @@ public partial class MicroEditor : Node3D
         // ----- 左: 設備のパレット(種別ごとの格子) -----
         var pal = new VBoxContainer(); pal.AddThemeConstantOverride("separation", 8);
         pal.AddChild(Lbl("設備", 11, Cyan));
-        var groups = new (string name, string[] kinds)[] { ("生産", new[] { "miner", "furnace", "assembler", "mech_assembler" }), ("物流", new[] { "belt", "inserter", "chest", "port", "trade" }), ("流体", new[] { "pump", "pipe", "tank" }), ("動力", new[] { "reactor", "battery" }), ("制御", new[] { "mcu" }) };
+        var groups = new (string name, string[] kinds)[] { ("生産", new[] { "miner", "furnace", "assembler", "mech_assembler" }), ("物流", new[] { "belt", "inserter", "chest", "port", "trade" }), ("流体", new[] { "pump", "pipe", "tank" }), ("動力", new[] { "reactor", "battery" }), ("制御", new[] { "mcu" }), ("防衛", new[] { "turret" }) };
         foreach (var (gname, kinds) in groups)
         {
             pal.AddChild(Lbl(gname, 11, Line40));

@@ -1188,6 +1188,27 @@
    "outputs": [],
    "ticks": 14400,
    "scrapRate": 7000
+  },
+  {
+   "id": "ammo",
+   "name": "弾薬",
+   "machine": "assembler",
+   "techLevel": 2,
+   "inputs": [
+    {
+     "item": "steel",
+     "count": 1,
+     "minTier": 1
+    }
+   ],
+   "outputs": [
+    {
+     "item": "ammo",
+     "count": 10
+    }
+   ],
+   "ticks": 120,
+   "scrapRate": 7000
   }
  ]
 }

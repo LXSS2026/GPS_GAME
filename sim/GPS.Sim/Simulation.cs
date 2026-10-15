@@ -32,6 +32,7 @@ namespace GPS.Sim;
 [JsonDerivedType(typeof(SetMechProgram), "setMechProgram")]
 [JsonDerivedType(typeof(SetEnabled), "setEnabled")]
 [JsonDerivedType(typeof(SetLabel), "setLabel")]
+[JsonDerivedType(typeof(BuildWall), "buildWall")]
 [JsonDerivedType(typeof(BuildRoad), "buildRoad")]
 [JsonDerivedType(typeof(Demolish), "demolish")]
 [JsonDerivedType(typeof(BuildBuilding), "buildBuilding")]

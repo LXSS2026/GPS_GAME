@@ -9,6 +9,8 @@
     { "id": "assembler", "name": "組立機",       "kind": "assembler", "w": 1, "d": 1, "h": 2, "power": 40,  "workers": 1, "priority": 2, "techLevel": 2, "qualityTopMul": 100, "qualityHighMul": 100, "qualityDefectMul": 100 },
     { "id": "assembler_l3", "name": "組立機(第 3 世代)", "kind": "assembler", "w": 2, "d": 2, "h": 2, "power": 120, "workers": 2, "priority": 2, "techLevel": 3, "qualityTopMul": 200, "qualityHighMul": 150, "qualityDefectMul": 70 },
     { "id": "mech_assembler", "name": "機体組立機", "kind": "mech_assembler", "w": 4, "d": 4, "h": 2, "power": 300, "workers": 4, "priority": 1, "techLevel": 3, "qualityTopMul": 100, "qualityHighMul": 100, "qualityDefectMul": 100 },
+    { "id": "turret_live", "name": "砲塔(実弾)", "kind": "turret", "w": 1, "d": 1, "h": 2, "power": 20, "workers": 0, "priority": 1, "techLevel": 2, "range": 100, "damage": 150, "accuracy": 70, "cooldown": 60, "ammo": "ammo" },
+    { "id": "turret_beam", "name": "砲塔(ビーム)", "kind": "turret", "w": 1, "d": 1, "h": 2, "power": 200, "workers": 0, "priority": 1, "techLevel": 4, "range": 120, "damage": 180, "accuracy": 75, "cooldown": 60 },
     { "id": "control_room", "name": "制御室", "kind": "mcu", "w": 2, "d": 2, "h": 2, "power": 10, "workers": 0, "priority": 0, "techLevel": 2 },
     { "id": "tank",      "name": "タンク",       "kind": "tank",      "w": 1, "d": 1, "h": 2, "power": 0,   "workers": 0, "priority": 9, "techLevel": 1, "capacity": 1000 },
     { "id": "pipe",      "name": "配管",         "kind": "pipe",      "w": 1, "d": 1, "h": 1, "power": 0,   "workers": 0, "priority": 9, "techLevel": 1 },
