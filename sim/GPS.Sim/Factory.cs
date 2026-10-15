@@ -85,6 +85,8 @@ public sealed class Building
     public double Hp { get; set; } = 1;
     public double MaxHp { get; set; } = 1;
     public bool Destroyed { get; set; }
+    /// <summary>荷下ろし場: 回収した部品・鹵獲したスクラップ・略奪の対象。箱へ移して工場で使う。</summary>
+    public List<ItemStack> Cargo { get; set; } = new();
     [JsonIgnore] public Factory? Owner { get; set; }
     public List<Floor> Floors { get; set; } = new();
     /// <summary>設備のストック(撤去したものと支給されたもの)。</summary>

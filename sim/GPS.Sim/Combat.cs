@@ -28,6 +28,10 @@ public sealed class CombatData
     public double SelfDestructRadiusPerKw { get; set; } = 0.02;
     public double SelfDestructDamagePerKw { get; set; } = 5;
     public double LootRate { get; set; } = 0.3;
+    public double CollectRange { get; set; } = 3;
+    public double RepairPerPart { get; set; } = 0.25;
+    public int RepairPartsPerHour { get; set; } = 1;
+    public List<string> RepairItems { get; set; } = new();
     public double DefaultRetreatHp { get; set; } = 0.25;
     public int SquadMax { get; set; } = 12;
     public double FormationSpacing { get; set; } = 6;
@@ -53,12 +57,13 @@ public sealed class CombatData
         }
         c.AmmoCapacity = r.GetProperty("ammoCapacity").GetInt32(); c.ReactorEnergySeconds = r.GetProperty("reactorEnergySeconds").GetInt32(); c.FieldChargeMul = r.GetProperty("fieldChargeMul").GetDouble();
         c.SelfDestructRadiusPerKw = r.GetProperty("selfDestruct").GetProperty("radiusPerKw").GetDouble(); c.SelfDestructDamagePerKw = r.GetProperty("selfDestruct").GetProperty("damagePerKw").GetDouble();
-        c.LootRate = r.GetProperty("lootRate").GetDouble(); c.DefaultRetreatHp = r.GetProperty("defaultRetreatHp").GetDouble(); c.SquadMax = r.GetProperty("squadMax").GetInt32(); c.FormationSpacing = r.GetProperty("formationSpacing").GetDouble();
+        c.LootRate = r.GetProperty("lootRate").GetDouble(); c.CollectRange = r.GetProperty("collectRange").GetDouble();
+        var rp = r.GetProperty("repair"); c.RepairPerPart = rp.GetProperty("perPart").GetDouble(); c.RepairPartsPerHour = rp.GetProperty("partsPerHour").GetInt32(); c.RepairItems = rp.GetProperty("items").EnumerateArray().Select(e => e.GetString()!).ToList(); c.DefaultRetreatHp = r.GetProperty("defaultRetreatHp").GetDouble(); c.SquadMax = r.GetProperty("squadMax").GetInt32(); c.FormationSpacing = r.GetProperty("formationSpacing").GetDouble();
         return c;
     }
 }
 
-public enum SquadOrder { Hold = 0, Move = 1, Attack = 2, Retreat = 3, SelfDestruct = 4 }
+public enum SquadOrder { Hold = 0, Move = 1, Attack = 2, Retreat = 3, SelfDestruct = 4, Collect = 5 }
 public enum Formation { Line = 0, Column = 1, Spread = 2 }
 public enum SquadState { InHangar = 0, Field = 1 }
 
@@ -106,6 +111,8 @@ public sealed class Squad
     public int TargetSquad { get; set; } = -1;
     /// <summary>攻撃する建物(拠点・工場)。機体の目標が無いときに撃つ(G20 #6)。</summary>
     public int TargetBuilding { get; set; } = -1;
+    /// <summary>回収した部品(格納庫に戻ると建物の荷下ろし場へ)。</summary>
+    public List<MechPart> Cargo { get; set; } = new();
     public Formation Formation { get; set; }
     public double X => Members.Where(m => m.Alive).Select(m => m.X).DefaultIfEmpty(OrderX).Average();
     public double Y => Members.Where(m => m.Alive).Select(m => m.Y).DefaultIfEmpty(OrderY).Average();
@@ -162,6 +169,7 @@ public static class Combat
                 (double tx, double ty)? goal = null;
                 if (u.Retreat != 0 || s.Order == SquadOrder.Retreat) { var hb = f.Get(s.HomeBuilding); if (hb != null) goal = (hb.X, hb.Y); }
                 else if (s.Order == SquadOrder.Move) goal = Slot(s, idx, s.OrderX, s.OrderY, c);
+                else if (s.Order == SquadOrder.Collect) { var lt = NearestLoot(f, s); if (lt != null) goal = Slot(s, idx, lt.X, lt.Y, c); }
                 else if (s.Order == SquadOrder.Attack && u.Engage != 0 && u.TargetMech >= 0)
                 {
                     var t = FindUnit(field, u.TargetMech); var w = c.Weapons[WeaponId(u, me, c)];
@@ -172,13 +180,24 @@ public static class Combat
                 if (goal is var (gx, gy)) { double dx = gx - u.X, dy = gy - u.Y, d = Math.Sqrt(dx * dx + dy * dy); if (d > 0.5) { double k = Math.Min(1, spd / d); u.X += dx * k; u.Y += dy * k; } }
                 idx++;
             }
+            // 回収: 部品の落ちている所に着いたら拾う。無くなれば帰還
+            if (s.Order == SquadOrder.Collect)
+            {
+                var lt = NearestLoot(f, s);
+                if (lt == null) s.Order = SquadOrder.Retreat;
+                else if (s.Members.Any(u => u.Alive && Math.Sqrt((u.X - lt.X) * (u.X - lt.X) + (u.Y - lt.Y) * (u.Y - lt.Y)) <= c.CollectRange))
+                { s.Cargo.AddRange(lt.Parts); f.Loot.Remove(lt); f.Events.Add(new FactoryEvent { Kind = "collected", Building = s.Id, X = lt.X, Y = lt.Y, Destroyed = lt.Parts.Count }); }
+            }
             // 弾薬が尽きた隊(実弾の主武器)は帰還して補給する(建物の攻略中)
             if (s.TargetBuilding >= 0 && s.Order == SquadOrder.Attack && s.Alive > 0 && s.Members.Where(u => u.Alive).All(u => { var wd = c.Weapons[WeaponId(u, mechs[u.MechId], c)]; return wd.Kind == "live" && wd.AmmoPerShot > 0 && u.Ammo < wd.AmmoPerShot; }))
             { s.Order = SquadOrder.Retreat; f.Events.Add(new FactoryEvent { Kind = "no_ammo", Building = s.Id }); }
             // 退却して帰還先に着いたら格納庫へ
             var home = f.Get(s.HomeBuilding);
             if (home != null && s.Alive > 0 && (s.Order == SquadOrder.Retreat || s.Members.Where(u => u.Alive).All(u => u.Retreat != 0)) && s.Members.Where(u => u.Alive).All(u => Math.Abs(u.X - home.X) + Math.Abs(u.Y - home.Y) < 3))
-            { s.State = SquadState.InHangar; s.Order = SquadOrder.Hold; foreach (var u in s.Members) { u.Retreat = 0; if (f.AmmoResupply) u.Ammo = c.AmmoCapacity; } }   // 軍事費が低いと補給されない
+            {
+                s.State = SquadState.InHangar; s.Order = SquadOrder.Hold; s.TargetBuilding = -1; foreach (var u in s.Members) { u.Retreat = 0; if (f.AmmoResupply) u.Ammo = c.AmmoCapacity; }   // 軍事費が低いと補給されない
+                foreach (var p in s.Cargo) home.Cargo.Add(new ItemStack(p.Item, p.Quality)); s.Cargo.Clear();   // 回収した部品は建物の荷下ろし場へ
+            }
         }
         // 射撃・近接・自爆
         foreach (var s in field)
@@ -319,6 +338,26 @@ public static class Combat
                 case "out.mech.selfdestruct": u.SelfDestruct = v != 0 ? 1 : 0; break;
             }
         });
+    }
+
+    static Loot? NearestLoot(Factory f, Squad s) { double cx = s.X, cy = s.Y; return f.Loot.OrderBy(l => (l.X - cx) * (l.X - cx) + (l.Y - cy) * (l.Y - cy)).FirstOrDefault(); }
+
+    /// <summary>修理(1 時間ごと): 格納庫で待機中の機体は、建物の荷下ろし場の部品(回収した機体の部品か装甲板)を 1 時間に 1 個使って耐久を 25% 戻す(G16 #9)。</summary>
+    public static void RepairHour(Factory f, CombatData c)
+    {
+        foreach (var s in f.Squads.Where(s => s.State == SquadState.InHangar))
+        {
+            var home = f.Get(s.HomeBuilding); if (home == null) continue;
+            foreach (var u in s.Members.Where(u => u.Alive && u.Hp < u.MaxHp))
+                for (int k = 0; k < c.RepairPartsPerHour && u.Hp < u.MaxHp; k++)
+                {
+                    int idx = -1; foreach (var it in c.RepairItems) { idx = home.Cargo.FindIndex(x => x.Item == it && x.Count > 0); if (idx >= 0) break; }
+                    if (idx < 0) break;
+                    var st = home.Cargo[idx]; if (st.Count <= 1) home.Cargo.RemoveAt(idx); else home.Cargo[idx] = st with { Count = st.Count - 1 };
+                    u.Hp = Math.Min(u.MaxHp, u.Hp + u.MaxHp * c.RepairPerPart);
+                    f.Events.Add(new FactoryEvent { Kind = "repaired", Building = s.Id, Power = u.MechId, Destroyed = (int)Math.Round(u.Hp * 100 / u.MaxHp) });
+                }
+        }
     }
 
     static (double, double) Center(Building b) => b.Floors.Count == 0 ? (b.X, b.Y) : (b.X + b.Floors[0].W / 2.0, b.Y + b.Floors[0].D / 2.0);

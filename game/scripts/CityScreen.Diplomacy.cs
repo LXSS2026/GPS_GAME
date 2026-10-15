@@ -11,6 +11,7 @@ public partial class CityScreen
     readonly Dictionary<int, Node3D> _fieldMechs = new();
     readonly Dictionary<int, Label3D> _fieldTags = new();
     readonly List<(Node3D n, int life)> _fieldFx = new();
+    readonly Dictionary<Loot, Node3D> _lootMarks = new();
     int _fxCursor;
 
     static string RelationName(string st) => st switch { "vassal" => "属国", "hostile" => "敵対", "wary" => "警戒", "friendly" => "友好", _ => "中立" };
@@ -94,6 +95,13 @@ public partial class CityScreen
     void RefreshField()
     {
         var f = _sim.Factory;
+        foreach (var l in f.Loot) if (!_lootMarks.ContainsKey(l))
+        {
+            var n = new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(2.4f, 0.8f, 2.4f) }, Position = new Vector3(l.X, Y + 0.4f, l.Y), MaterialOverride = new StandardMaterial3D { AlbedoColor = Warm, EmissionEnabled = true, Emission = Warm, EmissionEnergyMultiplier = 1.5f } };
+            var tag = new Label3D { Text = $"部品 {l.Parts.Count}", FontSize = 32, PixelSize = 0.03f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, NoDepthTest = true, OutlineSize = 8, Modulate = Warm, Position = new Vector3(0, 3f, 0) };
+            n.AddChild(tag); _cityRoot.AddChild(n); _lootMarks[l] = n;
+        }
+        foreach (var (l, n) in _lootMarks.ToList()) if (!f.Loot.Contains(l)) { n.QueueFree(); _lootMarks.Remove(l); }
         foreach (var sq in f.Squads)
         {
             foreach (var u in sq.Members)

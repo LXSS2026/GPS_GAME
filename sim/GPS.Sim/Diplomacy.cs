@@ -276,7 +276,7 @@ public static class DiplomacySim
             if (home != null)
             {   // スクラップ(技術レベルに応じた品)を帰還先の建物の在庫へ(G20 #1・#6)
                 var items = d.ScrapItems.GetValueOrDefault(Math.Clamp(owner.Tech, 1, 4)) ?? d.ScrapItems[1];
-                int n = (int)Math.Round(owner.Scrap); foreach (var it in items) home.Inventory[it] = home.Inventory.GetValueOrDefault(it) + Math.Max(1, n / items.Length);
+                int n = (int)Math.Round(owner.Scrap); foreach (var it in items) home.Cargo.Add(new ItemStack(it, 60, Math.Max(1, n / items.Length)));   // 荷下ろし場へ(品質は通常)
             }
             foreach (var s in f.Squads.Where(s => s.Faction == 1 && s.TargetBuilding == b.Id)) { s.TargetBuilding = -1; s.Order = SquadOrder.Retreat; }
             f.Events.Add(new FactoryEvent { Kind = "vassal", Building = owner.Id, Power = (int)owner.Scrap });
@@ -294,7 +294,7 @@ public static class DiplomacySim
         var raider = by != null ? dip.Powers.FirstOrDefault(p => p.Faction == by.Faction) : null;
         if (raider != null)
         {
-            long loot = b.Inventory.Values.Sum(); b.Inventory.Clear(); raider.Scrap += loot; raider.AtWar = false;
+            long loot = b.Cargo.Sum(x => x.Count); b.Cargo.Clear(); raider.Scrap += loot; raider.AtWar = false;   // 荷下ろし場の品を奪う
             foreach (var s in f.Squads.Where(s => s.Faction == raider.Faction)) { s.Order = SquadOrder.Retreat; s.TargetBuilding = -1; }
             f.Events.Add(new FactoryEvent { Kind = "raided", Building = b.Id, Power = raider.Id, Destroyed = (int)loot });
         }
@@ -396,6 +396,20 @@ public sealed record BreakTreaty(int PowerId, string Kind) : ICommand
         var f = s.Factory; var d = s.DiplomacyData; var p = DiplomacySim.Of(f).Powers.FirstOrDefault(x => x.Id == PowerId); if (p == null || !p.Treaties.Remove(Kind)) return;
         if (Kind == "nonaggression") { DiplomacySim.Relate(s, p, (int)d.Relation["breakNonAggression"]); foreach (var o in DiplomacySim.Of(f).Powers.Where(x => x != p)) DiplomacySim.Relate(s, o, (int)d.Relation["breakNonAggressionOthers"]); }
         else DiplomacySim.Relate(s, p, (int)d.Relation["proposalFail"] * 2);
+    }
+}
+
+/// <summary>荷下ろし場の品を箱へ移す(箱の上限 100 個まで)。</summary>
+public sealed record UnloadCargo(int Building, int Floor, int ChestId) : ICommand
+{
+    public void Apply(Simulation s)
+    {
+        var b = s.Factory.Get(Building); if (b == null || b.Find(Floor, ChestId) is not Chest ch) return;
+        while (b.Cargo.Count > 0 && ch.Items.Count < 100)
+        {
+            var st = b.Cargo[0]; ch.Items.Add(st with { Count = 1 });
+            if (st.Count <= 1) b.Cargo.RemoveAt(0); else b.Cargo[0] = st with { Count = st.Count - 1 };
+        }
     }
 }
 

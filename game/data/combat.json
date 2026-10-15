@@ -31,6 +31,8 @@
   "fieldChargeMul": 1.0,
   "selfDestruct": { "radiusPerKw": 0.02, "damagePerKw": 5 },
   "lootRate": 0.3,
+  "collectRange": 3.0,
+  "repair": { "perPart": 0.25, "partsPerHour": 1, "items": [ "mech_head", "mech_torso", "mech_arm", "mech_leg", "mech_back", "mech_weapon", "armor_plate" ] },
   "defaultRetreatHp": 0.25,
   "squadMax": 12,
   "formationSpacing": 6

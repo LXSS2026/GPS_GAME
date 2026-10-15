@@ -113,8 +113,8 @@ public class DiplomacyTests
         Assert.Equal(SquadState.Field, f.Squads[0].State);
         for (int i = 0; i < 80 && !m.Vassal; i++) s.Run(60 * 30);   // 汎用機のビームは電力で撃ち続けられる
         Assert.True(m.Vassal, $"hp {f.Get(40)!.Hp}"); Assert.Equal(50, m.Relation); Assert.False(m.AtWar); Assert.Empty(f.Squads.Where(x => x.Faction == m.Faction));
-        var home = f.Get(10)!; Assert.True(home.Inventory.GetValueOrDefault("iron_plate") > 0 && home.Inventory.GetValueOrDefault("gear") > 0, "スクラップが帰還先の在庫に入る");
-        Assert.Equal((int)Math.Round(scrap), home.Inventory["iron_plate"] + home.Inventory["gear"]);
+        var home = f.Get(10)!; Assert.True(home.Cargo.Any(x => x.Item == "iron_plate") && home.Cargo.Any(x => x.Item == "gear"), "スクラップが帰還先の荷下ろし場に入る");
+        Assert.Equal((int)Math.Round(scrap), home.Cargo.Sum(x => x.Count));
         Days(s, 1); Assert.Equal("conquest", f.Diplomacy.Outcome); Assert.Contains(f.Events, e => e.Kind == "victory" && e.Power == 1);
         Assert.Equal(0, DiplomacySim.PowerStrength(f, m));
     }

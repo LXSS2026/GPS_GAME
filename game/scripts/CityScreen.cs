@@ -135,7 +135,7 @@ public partial class CityScreen : Node3D
         {
             var e = ev[_seenEvents];
             var pw = _sim.Factory.Diplomacy?.Powers.FirstOrDefault(p => p.Id == e.Building);
-            string? s = e.Kind switch { "war_declared" => $"{pw?.Name} に宣戦した", "war_received" => $"{pw?.Name} が宣戦してきた", "raid" => $"{pw?.Name} の襲撃隊が来た", "offer" => $"{pw?.Name} から申し出(政治画面で回答)", "warning" => $"{pw?.Name} の兵力が増えている(侵攻の恐れ)", "treaty" => $"{pw?.Name} と条約を結んだ", "proposal_failed" => $"{pw?.Name} は提案を断った", "threat_ok" => $"{pw?.Name} が貢納を飲んだ(月 {e.Power})", "threat_failed" => $"{pw?.Name} は威圧に応じない", "peace" => $"{pw?.Name} と和平した", "peace_failed" => $"{pw?.Name} は和平を断った", "vassal" => $"{pw?.Name} の拠点が落ち属国になった(スクラップ {e.Power})", "raided" => $"建物 #{e.Building} が略奪された", "conquered" => "拠点が落ちた(征服)", "building_destroyed" => $"建物 #{e.Building} が落ちた", "victory" => e.Power == 1 ? "勝利: 大陸の制覇" : "勝利: 同盟網による支配", "faction" => $"派閥ができた(首領 #{e.Power})", "faction_end" => $"派閥が解消した(首領 #{e.Power})", "defect" => $"派閥が離反した(首領 #{e.Power}、{e.Destroyed} 人が去った)", "rebellion" => "反乱が起きた", "rebellion_end" => "反乱が鎮圧された", "robot_cap" => "製造ロボットの導入率の上限を超えるため配置できない", "stage" => $"段階が {StageName(e.Power)} に進んだ", "defeat" => "支持率の低下により失脚(敗北)", "no_crew" => $"隊 #{e.Building} は要員不足で出撃できない", "mech" => $"機体が完成(第 {e.Power} 世代)", _ => null };
+            string? s = e.Kind switch { "war_declared" => $"{pw?.Name} に宣戦した", "war_received" => $"{pw?.Name} が宣戦してきた", "raid" => $"{pw?.Name} の襲撃隊が来た", "offer" => $"{pw?.Name} から申し出(政治画面で回答)", "warning" => $"{pw?.Name} の兵力が増えている(侵攻の恐れ)", "treaty" => $"{pw?.Name} と条約を結んだ", "proposal_failed" => $"{pw?.Name} は提案を断った", "threat_ok" => $"{pw?.Name} が貢納を飲んだ(月 {e.Power})", "threat_failed" => $"{pw?.Name} は威圧に応じない", "peace" => $"{pw?.Name} と和平した", "peace_failed" => $"{pw?.Name} は和平を断った", "vassal" => $"{pw?.Name} の拠点が落ち属国になった(スクラップ {e.Power})", "raided" => $"建物 #{e.Building} が略奪された", "conquered" => "拠点が落ちた(征服)", "building_destroyed" => $"建物 #{e.Building} が落ちた", "victory" => e.Power == 1 ? "勝利: 大陸の制覇" : "勝利: 同盟網による支配", "faction" => $"派閥ができた(首領 #{e.Power})", "faction_end" => $"派閥が解消した(首領 #{e.Power})", "defect" => $"派閥が離反した(首領 #{e.Power}、{e.Destroyed} 人が去った)", "rebellion" => "反乱が起きた", "rebellion_end" => "反乱が鎮圧された", "collected" => $"隊 #{e.Building} が部品 {e.Destroyed} 個を回収した", "repaired" => $"機体 #{e.Power} を修理(耐久 {e.Destroyed}%)", "no_ammo" => $"隊 #{e.Building} は弾薬が尽きて補給に戻る", "robot_cap" => "製造ロボットの導入率の上限を超えるため配置できない", "stage" => $"段階が {StageName(e.Power)} に進んだ", "defeat" => "支持率の低下により失脚(敗北)", "no_crew" => $"隊 #{e.Building} は要員不足で出撃できない", "mech" => $"機体が完成(第 {e.Power} 世代)", _ => null };
             if (s != null) Notice(s);
         }
         var path = Arg("--screenshot"); if (path == null || _micro != null) return;
@@ -217,7 +217,23 @@ public partial class CityScreen : Node3D
                 _side.AddChild(row);
             }
             var sq = _sim.Factory.Squads.Where(s => s.HomeBuilding == bid).ToList();
-            foreach (var s in sq) _side.AddChild(Lbl($"隊 {s.Name}  {s.Alive}/{s.Members.Count} 機  {(s.State == SquadState.InHangar ? "格納庫で待機(建物へ給電)" : "出撃中")}  要員 {(CitySim.CanDeploy(_sim.Factory, s, cd) ? "充足" : "不足")}", 13, Green));
+            foreach (var s in sq)
+            {
+                double hp = s.Members.Where(u => u.Alive).Sum(u => u.Hp), max = s.Members.Where(u => u.Alive).Sum(u => u.MaxHp);
+                _side.AddChild(Lbl($"隊 {s.Name}  {s.Alive}/{s.Members.Count} 機  耐久 {(max > 0 ? hp / max * 100 : 0):0}%  {(s.State == SquadState.InHangar ? "格納庫で待機(建物へ給電・修理)" : s.Order == SquadOrder.Collect ? "部品を回収中" : "出撃中")}  要員 {(CitySim.CanDeploy(_sim.Factory, s, cd) ? "充足" : "不足")}", 13, Green));
+                var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 8); int sid = s.Id;
+                if (s.State == SquadState.InHangar && _sim.Factory.Loot.Count > 0) { var cb = Btn($"部品を回収に出す(戦場に {_sim.Factory.Loot.Count} か所)", () => { _sim.Enqueue(new Deploy(sid, b.X + 14, b.Y + 6)); _sim.Enqueue(new OrderSquad(sid, SquadOrder.Collect)); _sim.Step(); _sideTick = -1; }); cb.CustomMinimumSize = new Vector2(0, 26); cb.Disabled = !CitySim.CanDeploy(_sim.Factory, s, cd); row.AddChild(cb); }
+                if (s.State == SquadState.Field) { var rb = Btn("帰還", () => { _sim.Enqueue(new OrderSquad(sid, SquadOrder.Retreat)); _sim.Step(); _sideTick = -1; }); rb.CustomMinimumSize = new Vector2(0, 26); row.AddChild(rb); }
+                if (row.GetChildCount() > 0) _side.AddChild(row);
+            }
+        }
+        if (b.Cargo.Count > 0)
+        {
+            var groups = b.Cargo.GroupBy(x => x.Item).Select(g => $"{(_data.Items.TryGetValue(g.Key, out var idf) ? idf.Name : g.Key)} {g.Sum(x => x.Count)}");
+            _side.AddChild(Lbl($"荷下ろし場: {string.Join("・", groups)}", 13, Warm));
+            var chest = b.Floors.Select((f, i) => (f, i)).SelectMany(x => x.f.Structures.OfType<Chest>().Select(ch => (x.i, ch))).FirstOrDefault();
+            if (chest.ch != null) { var ub = Btn($"{chest.i + 1} 階の箱へ移す", () => { _sim.Enqueue(new UnloadCargo(bid, chest.i, chest.ch.Id)); _sim.Step(); _sideTick = -1; }); ub.CustomMinimumSize = new Vector2(0, 26); _side.AddChild(ub); }
+            else _side.AddChild(Lbl("箱が無いので工場で使えない(ミクロで箱を置く)", 11, Line40));
         }
         else _side.AddChild(Btn("編集(1 階を開く)", () => OpenMicro(bid, 0), true));
     }
