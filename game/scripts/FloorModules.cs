@@ -106,7 +106,8 @@ public sealed class FloorModules
     public readonly List<BuildingInfo> Buildings = new();
 
     // ---------- 積み上げ ----------
-    public Node3D Build(Node3D parent, float x, float y, float z, IList<string> stack, float rotDeg = 0, int cutawayBelow = -1)
+    /// <summary>cutawayFrom〜cutawayBelow-1 の階を切り取り表示(外装を隠す)。interior = false なら切り取った階に設備を置かない(呼び出し側が置く)。</summary>
+    public Node3D Build(Node3D parent, float x, float y, float z, IList<string> stack, float rotDeg = 0, int cutawayBelow = -1, int cutawayFrom = 0, bool interior = true)
     {
         var root = new Node3D { Position = new Vector3(x, y, z), RotationDegrees = new Vector3(0, rotDeg, 0) };
         parent.AddChild(root);
@@ -125,10 +126,10 @@ public sealed class FloorModules
             var n = Instantiate(def.Id);
             n.Position = new Vector3(0, cy, 0);
             root.AddChild(n);
-            if (f < cutawayBelow && def.Kind != "roof")
+            if (f >= cutawayFrom && f < cutawayBelow && def.Kind != "roof")
             {
                 SetExteriorVisible(n, false);
-                if (def.Kind != "hangar") Interior(root, cy + 0.12f, def.W, def.D, f);   // 格納庫は設備を置かず(機体が入る)
+                if (interior && def.Kind != "hangar") Interior(root, cy + 0.12f, def.W, def.D, f);   // 格納庫は設備を置かず(機体が入る)
             }
             float h = FloorHeight * def.Floors;
             if (def.Kind != "roof")

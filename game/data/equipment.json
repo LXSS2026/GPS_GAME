@@ -1,0 +1,43 @@
+{
+ "cell": 1.0,
+ "equipment": [
+  {
+   "id": "furnace",
+   "h": 2
+  },
+  {
+   "id": "assembler",
+   "h": 2
+  },
+  {
+   "id": "miner",
+   "h": 2
+  },
+  {
+   "id": "belt",
+   "h": 1,
+   "flat": true
+  },
+  {
+   "id": "belt_turn",
+   "h": 1,
+   "flat": true
+  },
+  {
+   "id": "inserter",
+   "h": 1
+  },
+  {
+   "id": "chest",
+   "h": 1
+  },
+  {
+   "id": "tank",
+   "h": 2
+  },
+  {
+   "id": "pole",
+   "h": 2
+  }
+ ]
+}

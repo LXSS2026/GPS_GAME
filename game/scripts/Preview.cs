@@ -14,6 +14,7 @@ public partial class Preview : Node3D
     KitBash _kb = null!;
     FloorModules _fm = null!;
     MechBuilder _mb = null!;
+    Equipment _eq = null!;
     Random _rnd = new(7);
     Camera3D _cam = null!;
     int _frame;
@@ -26,12 +27,14 @@ public partial class Preview : Node3D
         _kb = new KitBash(11);
         _fm = new FloorModules(_kb, 9);
         _mb = new MechBuilder(_fm);
+        _eq = new Equipment(_fm);
         var args = OS.GetCmdlineUserArgs();
         string scene = Arg(args, "--scene") ?? "village";
         Vector3 pivot; float dist;
         if (scene == "city") { BuildCity(); pivot = new Vector3(30, 18, 30); dist = 122; }
         else if (scene == "buildings") { BuildShowcase(); pivot = new Vector3(60, 17, 12); dist = 112; }
         else if (scene == "modules") { BuildModules(); pivot = new Vector3(48, 14, 16); dist = 100; }
+        else if (scene == "micro") { BuildMicro(); pivot = new Vector3(12f, 4f, 6f); dist = 30f; }
         else if (scene == "ship") { BuildShip(); pivot = new Vector3(0f, 22f, 10f); dist = 230f; }
         else if (scene == "robots") { BuildRobots(); pivot = new Vector3(48f, 9f, 34f); dist = 80f; }
         else { BuildVillage(); pivot = new Vector3(22, 6, 27); dist = 40; }
@@ -48,7 +51,7 @@ public partial class Preview : Node3D
 
         _cam = new Camera3D { Fov = 38, Far = 800 };
         AddChild(_cam);
-        float yaw = scene == "buildings" ? 0.35f : scene == "modules" ? 0.6f : scene == "robots" ? 0.2f : scene == "ship" ? 2.3f : 0.78f, elev = scene == "buildings" ? 0.30f : scene == "modules" ? 0.38f : scene == "robots" ? 0.16f : scene == "ship" ? 0.3f : 0.52f;
+        float yaw = scene == "buildings" ? 0.35f : scene == "modules" ? 0.6f : scene == "robots" ? 0.2f : scene == "ship" ? 2.3f : scene == "micro" ? 0.5f : 0.78f, elev = scene == "buildings" ? 0.30f : scene == "modules" ? 0.38f : scene == "robots" ? 0.16f : scene == "ship" ? 0.3f : scene == "micro" ? 0.75f : 0.52f;
         if (Arg(args, "--yaw") is string ys) yaw = float.Parse(ys);     // 視点の向き(ラジアン)を明示する
         if (Arg(args, "--elev") is string es) elev = float.Parse(es);
         _cam.Position = pivot + new Vector3(Mathf.Cos(elev) * Mathf.Sin(yaw), Mathf.Sin(elev), Mathf.Cos(elev) * Mathf.Cos(yaw)) * dist;
@@ -184,6 +187,36 @@ public partial class Preview : Node3D
     static readonly List<string> MechHangar = new() { "base_12x12_office", "hangar_mech_12x12", "roof_12x12_heli_office" };
     static readonly List<string> BigShip = new() { "ship_stern_30x16", "ship_turret_30x16", "ship_lift_30x16", "ship_mid_30x16", "ship_hangar_30x24", "ship_hangar_30x24", "ship_mid_30x16", "ship_bridge_30x16", "ship_lift_30x16", "ship_turret_30x16", "ship_bow_30x28" };   // 全長 204 m
     static readonly List<string> SmallShip = new() { "ship_stern_18x12", "ship_lift_18x12", "ship_mid_18x12", "ship_hangar_18x18", "ship_bridge_18x12", "ship_turret_18x12", "ship_bow_18x24" };   // 全長 102 m
+
+    // ---------- ミクロの地図(平地 1 ブロックと建物の 1 階。設備は 1 セル角) ----------
+    void BuildMicro()
+    {
+        byte stone = B("Stone"), plaza = B("Plaza"), conc = B("Concrete"), road = B("RoadX");
+        for (int x = -10; x < 40; x++) for (int z = -10; z < 30; z++)
+        {
+            _world.Set(x, 0, z, stone); _world.Set(x, 1, z, stone);
+            bool block = x >= 0 && x < 5 && z >= 0 && z < 5;
+            _world.Set(x, 2, z, block ? conc : (z == -2 || z == 6 || x == -2 || x == 6) ? road : plaza);
+        }
+        _world.Dirty.Clear();
+        string? only = Arg(OS.GetCmdlineUserArgs(), "--only");
+        // 左: 平地 1 ブロック(5x5)。周囲は薄い柱で区画の枠だけ示す
+        if (only != "floor")
+        {
+            _eq.SampleGround(this, 0, 3f, 0);
+            for (int i = 0; i <= 5; i++) { _kb.Strip(this, new Vector3(i, 3.02f, 2.5f), new Vector3(0.02f, 0.02f, 5f), _kb.GlowCyan); _kb.Strip(this, new Vector3(2.5f, 3.02f, i), new Vector3(5f, 0.02f, 0.02f), _kb.GlowCyan); }
+            _fm.Character(this, "citizen", 1.5f, 3f, 2.5f, 120);
+        }
+        // 右: 建物(5x5 事務所・4 階)の 2 階だけを切り取り表示し、設備を置く。上の階は残す
+        if (only != "ground")
+        {
+            var stack = _fm.Plan("office", 5, 5, 4, false, "heli").GetRange(0, 3);   // 選んだ階(2 階)より上は描かない(実装では薄く残す)
+            _fm.Build(this, 16.5f, 3f, 2.5f, stack, 0, cutawayBelow: 3, cutawayFrom: 2, interior: false);
+            _eq.SampleFloor(this, 14, 3f + _fm.FloorHeight * 2 + 0.12f, 0, 5, 5);
+            _fm.Character(this, "citizen", 16.2f, 3f + _fm.FloorHeight * 2 + 0.12f, 1.5f, 200);
+        }
+        _kb.Light(this, new Vector3(8f, 12f, 10f), new Color(0.9f, 0.92f, 1.0f), 30f, 1.6f);
+    }
 
     // ---------- 航空戦艦と機体格納庫(機体 15〜20 m に合わせた寸法の確認) ----------
     void BuildShip()
