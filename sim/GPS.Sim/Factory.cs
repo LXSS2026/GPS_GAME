@@ -81,6 +81,10 @@ public sealed class Building
     /// <summary>用途(G17 #13): factory / residence / farm / well / market / school / clinic / police / park / sewage / waste。</summary>
     public string Use { get; set; } = "factory";
     public bool RoadConnected { get; set; } = true;
+    /// <summary>建物の耐久(G20 #6)。0 で陥落。</summary>
+    public double Hp { get; set; } = 1;
+    public double MaxHp { get; set; } = 1;
+    public bool Destroyed { get; set; }
     [JsonIgnore] public Factory? Owner { get; set; }
     public List<Floor> Floors { get; set; } = new();
     /// <summary>設備のストック(撤去したものと支給されたもの)。</summary>
@@ -206,6 +210,9 @@ public sealed class Factory
     public List<Loot> Loot { get; set; } = new();
     public City? City { get; set; }
     public Politics? Politics { get; set; }
+    public Diplomacy? Diplomacy { get; set; }
+    /// <summary>通商条約の価格補正(%)。売値 +、買値 −。</summary>
+    public int TradeBonusPct { get; set; }
     /// <summary>役職の効果(G19 #2)。失敗率の倍率(%)・加工速度(%)・命中率(%)・既定の退却閾値・売値(%)・機体の高品質率(%)・弾薬補給の可否。</summary>
     public int FailureMulPct { get; set; } = 100;
     public int SpeedMulPct { get; set; } = 100;
@@ -224,6 +231,7 @@ public sealed class Factory
         foreach (var b in Buildings)
         {
             b.Owner = this;
+            if (b.Destroyed) { b.SetPowerSummary(0, 0); continue; }   // 陥落した建物は動かない
             if (b.Aggregate != null && !Aggregation.BeforeTick(b, this, data, rng)) continue;   // 集計近似で済ませた
             StepOverload(b, data);
             b.AssignPower(data);
@@ -252,7 +260,7 @@ public sealed class Factory
             case Chest c: if (c.Items.Count >= def.Capacity) return false; c.Items.Add(it); return true;
             case Port p: if (p.Buffer.Count >= 8) return false; p.Buffer.Add(it); return true;
             case Trade td:   // 輸出: 入った瞬間に売る
-                Treasury += Price(it, data) * PriceMulPct / 100; td.Sold += it.Count; return true;   // 交渉役の効果
+                Treasury += Price(it, data) * PriceMulPct / 100 * (100 + TradeBonusPct) / 100; td.Sold += it.Count; return true;   // 交渉役と通商条約の効果   // 交渉役の効果
             case Machine m:
             {
                 if (m.Recipe == null) return false;
@@ -328,7 +336,7 @@ public sealed class Factory
         if (td.Timer < def.Ticks * 100) return;
         td.Timer = 0;
         var it = new ItemStack(td.Import, data.ImportQuality);
-        long cost = Price(it, data) * data.ImportMul / 100;
+        long cost = Price(it, data) * data.ImportMul / 100 * (100 - TradeBonusPct) / 100;
         if (Treasury < cost) return;   // 国庫が足りなければ買わない
         Treasury -= cost; td.Bought++; td.Outbox.Add(it);
     }

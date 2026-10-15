@@ -32,6 +32,15 @@ namespace GPS.Sim;
 [JsonDerivedType(typeof(SetMechProgram), "setMechProgram")]
 [JsonDerivedType(typeof(SetEnabled), "setEnabled")]
 [JsonDerivedType(typeof(SetLabel), "setLabel")]
+[JsonDerivedType(typeof(AddPower), "addPower")]
+[JsonDerivedType(typeof(SetCapital), "setCapital")]
+[JsonDerivedType(typeof(BreakTreaty), "breakTreaty")]
+[JsonDerivedType(typeof(AnswerOffer), "answerOffer")]
+[JsonDerivedType(typeof(ProposePeace), "proposePeace")]
+[JsonDerivedType(typeof(DeclareWar), "declareWar")]
+[JsonDerivedType(typeof(Threaten), "threaten")]
+[JsonDerivedType(typeof(Gift), "gift")]
+[JsonDerivedType(typeof(Propose), "propose")]
 [JsonDerivedType(typeof(Decree), "decree")]
 [JsonDerivedType(typeof(SetRobotCap), "setRobotCap")]
 [JsonDerivedType(typeof(SetBudget), "setBudget")]
@@ -70,6 +79,7 @@ public sealed class Simulation
     public readonly CombatData Combat;
     public readonly CityData CityData;
     public readonly PoliticsData PoliticsData;
+    public readonly DiplomacyData DiplomacyData;
     public Factory Factory { get; private set; } = new();
     public Rng Rng { get; private set; }
     public ulong Seed { get; }
@@ -80,7 +90,7 @@ public sealed class Simulation
 
     public Simulation(BlockRegistry blocks, GameData data, ulong seed = 1, CombatData? combat = null)
     {
-        Blocks = blocks; Data = data; Seed = seed; Rng = new Rng(seed); Combat = combat ?? CombatData.Load(GameData.FindDataDir()); CityData = CityData.Load(GameData.FindDataDir()); PoliticsData = PoliticsData.Load(GameData.FindDataDir());
+        Blocks = blocks; Data = data; Seed = seed; Rng = new Rng(seed); Combat = combat ?? CombatData.Load(GameData.FindDataDir()); CityData = CityData.Load(GameData.FindDataDir()); PoliticsData = PoliticsData.Load(GameData.FindDataDir()); DiplomacyData = DiplomacyData.Load(GameData.FindDataDir());
     }
 
     public void Enqueue(ICommand c) => _pending.Add(c);
@@ -90,7 +100,7 @@ public sealed class Simulation
         foreach (var c in _pending) { c.Apply(this); Log.Add(new CommandEntry(Tick, c)); }
         _pending.Clear();
         Factory.Tick(Data, Rng);
-        GPS.Sim.Combat.Tick(Factory, Data, Combat, Rng);
+        GPS.Sim.Combat.Tick(Factory, Data, Combat, Rng, this);
         if (Tick % Clock.TicksPerHour == 0) CitySim.RefreshRoads(this);
         CitySim.Tick(this);
         Tick++;

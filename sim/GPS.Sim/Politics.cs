@@ -225,7 +225,9 @@ public static class PoliticsSim
                 var leader = city.Persons.FirstOrDefault(p => p.Id == x.LeaderId);
                 double leaving = x.Supporters * fc["defectShare"];
                 city.Population = Math.Max(0, city.Population - leaving);
-                pol.Exiles.Add(new Exile { Name = leader?.Name ?? $"#{x.LeaderId}", Count = leaving, Day = city.Days, Demand = x.Demand });   // 外交の種(手順 5)
+                pol.Exiles.Add(new Exile { Name = leader?.Name ?? $"#{x.LeaderId}", Count = leaving, Day = city.Days, Demand = x.Demand });
+                var dest = f.Diplomacy?.Powers.Where(pw => !pw.Vassal).OrderBy(pw => pw.Relation).FirstOrDefault();   // 最も敵対的な勢力へ亡命(G20 #5)
+                if (dest != null) { DiplomacySim.Relate(sim, dest, (int)sim.DiplomacyData.Relation["exile"]); dest.Strength += leaving * 0.01; dest.Population += leaving; }
                 if (leader != null) city.Persons.Remove(leader);
                 pol.Factions.Remove(x); f.Events.Add(new FactoryEvent { Kind = "defect", Power = x.LeaderId, Destroyed = (int)leaving });
             }

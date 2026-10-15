@@ -104,6 +104,8 @@ public sealed class Squad
     public double OrderX { get; set; }
     public double OrderY { get; set; }
     public int TargetSquad { get; set; } = -1;
+    /// <summary>攻撃する建物(拠点・工場)。機体の目標が無いときに撃つ(G20 #6)。</summary>
+    public int TargetBuilding { get; set; } = -1;
     public Formation Formation { get; set; }
     public double X => Members.Where(m => m.Alive).Select(m => m.X).DefaultIfEmpty(OrderX).Average();
     public double Y => Members.Where(m => m.Alive).Select(m => m.Y).DefaultIfEmpty(OrderY).Average();
@@ -134,7 +136,7 @@ public static class MechStats
 /// <summary>戦闘の計算(手順 4 第 1 段階)。毎ティック、屋外の隊について 索敵 → 制御基板 → 移動 → 射撃と近接 → 給電 の順。</summary>
 public static class Combat
 {
-    public static void Tick(Factory f, GameData data, CombatData c, Rng rng)
+    public static void Tick(Factory f, GameData data, CombatData c, Rng rng, Simulation? sim = null)
     {
         var field = f.Squads.Where(s => s.State == SquadState.Field).ToList();
         if (field.Count == 0) return;
@@ -166,9 +168,13 @@ public static class Combat
                     if (t != null && Dist(u, t) > w.Range * 0.8) goal = (t.X, t.Y);
                 }
                 else if (s.Order == SquadOrder.Attack && s.TargetSquad >= 0) { var ts = f.Squads.FirstOrDefault(x => x.Id == s.TargetSquad); if (ts != null && ts.Alive > 0) goal = Slot(s, idx, ts.X, ts.Y, c); }
+                else if (s.Order == SquadOrder.Attack && s.TargetBuilding >= 0) { var tb = f.Get(s.TargetBuilding); if (tb != null && !tb.Destroyed) { var (bx, by) = Center(tb); var w = c.Weapons[WeaponId(u, me, c)]; double dd = Math.Sqrt((bx - u.X) * (bx - u.X) + (by - u.Y) * (by - u.Y)); if (dd > w.Range * 0.7) goal = Slot(s, idx, bx, by - w.Range * 0.6, c); } }
                 if (goal is var (gx, gy)) { double dx = gx - u.X, dy = gy - u.Y, d = Math.Sqrt(dx * dx + dy * dy); if (d > 0.5) { double k = Math.Min(1, spd / d); u.X += dx * k; u.Y += dy * k; } }
                 idx++;
             }
+            // 弾薬が尽きた隊(実弾の主武器)は帰還して補給する(建物の攻略中)
+            if (s.TargetBuilding >= 0 && s.Order == SquadOrder.Attack && s.Alive > 0 && s.Members.Where(u => u.Alive).All(u => { var wd = c.Weapons[WeaponId(u, mechs[u.MechId], c)]; return wd.Kind == "live" && wd.AmmoPerShot > 0 && u.Ammo < wd.AmmoPerShot; }))
+            { s.Order = SquadOrder.Retreat; f.Events.Add(new FactoryEvent { Kind = "no_ammo", Building = s.Id }); }
             // 退却して帰還先に着いたら格納庫へ
             var home = f.Get(s.HomeBuilding);
             if (home != null && s.Alive > 0 && (s.Order == SquadOrder.Retreat || s.Members.Where(u => u.Alive).All(u => u.Retreat != 0)) && s.Members.Where(u => u.Alive).All(u => Math.Abs(u.X - home.X) + Math.Abs(u.Y - home.Y) < 3))
@@ -181,7 +187,21 @@ public static class Combat
                 var me = mechs[u.MechId];
                 if (u.SelfDestruct != 0) { Explode(f, s, u, me, field, mechs, data, c); continue; }
                 if (u.Cooldown > 0) { u.Cooldown--; continue; }
-                if (u.Engage == 0 || u.Retreat != 0 || u.TargetMech < 0) continue;
+                if (u.Engage == 0 || u.Retreat != 0) continue;
+                if (u.TargetMech < 0)
+                {   // 機体の目標が無ければ建物を撃つ(建物は避けないので精度どおり当たる)
+                    if (s.TargetBuilding < 0) continue;
+                    var tb = f.Get(s.TargetBuilding); if (tb == null || tb.Destroyed) { s.TargetBuilding = -1; continue; }
+                    string bw = WeaponId(u, me, c); var bwd = c.Weapons[bw]; var (bx, by) = Center(tb);
+                    double bd = Math.Sqrt((bx - u.X) * (bx - u.X) + (by - u.Y) * (by - u.Y)); if (bd > bwd.Range) continue;
+                    if (bwd.Kind == "beam") { if (u.Energy < bwd.EnergyPerShot) continue; } else if (bwd.AmmoPerShot > 0) { if (u.Ammo < bwd.AmmoPerShot) continue; }
+                    u.Cooldown = bwd.Cooldown; if (bwd.Kind == "beam") u.Energy -= bwd.EnergyPerShot; else u.Ammo -= bwd.AmmoPerShot;
+                    double bdmg = (bwd.Melee != null ? (bwd.Melee == "sword" ? MechStats.Speed(me, c) * MechStats.Weight(me, c) : MechStats.Speed(me, c)) * bwd.Mul : bwd.Damage * MechStats.WeaponQuality(me) / 70) * MechStats.GenMul(me, c) * bwd.Accuracy;
+                    tb.Hp = Math.Max(0, tb.Hp - bdmg);
+                    f.Events.Add(new FactoryEvent { Kind = "hit_building", Building = s.Id, Floor = tb.Id, X = (int)u.X, Y = (int)u.Y, Power = (int)bdmg, Radius = bd, Destroyed = 1 });
+                    if (tb.Hp <= 0) { tb.Destroyed = true; f.Events.Add(new FactoryEvent { Kind = "building_destroyed", Building = tb.Id, Power = s.Id }); if (sim != null) DiplomacySim.BuildingFell(sim, tb, s); }
+                    continue;
+                }
                 var t = FindUnit(field, u.TargetMech); if (t == null || !t.Alive) { u.TargetMech = -1; continue; }
                 string wid = WeaponId(u, me, c); var w = c.Weapons[wid];
                 double dist = Dist(u, t);
@@ -202,7 +222,7 @@ public static class Combat
                 f.Events.Add(new FactoryEvent { Kind = landed ? "hit" : "miss", Building = s.Id, Floor = t.MechId, X = (int)u.X, Y = (int)u.Y, Power = (int)dmg, Radius = dist, Destroyed = landed ? 1 : 0 });
                 if (!landed) continue;
                 t.Hp -= dmg;
-                if (t.Hp <= 0) Kill(f, t, tm, c);
+                if (t.Hp <= 0) Kill(f, t, tm, c, field);
             }
         // 給電: 屋外では、撃っていないリアクター機がバッテリー機に給電。リアクター機は毎ティック回復
         foreach (var s in field)
@@ -301,9 +321,12 @@ public static class Combat
         });
     }
 
-    static void Kill(Factory f, MechUnit t, Mech tm, CombatData c)
+    static (double, double) Center(Building b) => b.Floors.Count == 0 ? (b.X, b.Y) : (b.X + b.Floors[0].W / 2.0, b.Y + b.Floors[0].D / 2.0);
+
+    static void Kill(Factory f, MechUnit t, Mech tm, CombatData c, List<Squad> field)
     {
         t.Alive = false; t.Hp = 0;
+        var sq = field.FirstOrDefault(s => s.Members.Contains(t)); if (sq != null) DiplomacySim.MechLost(f, sq.Faction);
         int parts = (int)Math.Round(tm.Parts.Count * c.LootRate);
         f.Events.Add(new FactoryEvent { Kind = "destroyed", X = (int)t.X, Y = (int)t.Y, Power = tm.Id, Destroyed = parts });
         f.Loot.Add(new Loot { X = (int)t.X, Y = (int)t.Y, Parts = tm.Parts.OrderByDescending(p => p.Quality).Take(parts).Select(p => new MechPart { Item = p.Item, Quality = p.Quality }).ToList() });
@@ -316,7 +339,7 @@ public static class Combat
         double radius = output * c.SelfDestructRadiusPerKw, dmg = output * c.SelfDestructDamagePerKw;
         int hitCount = 0;
         foreach (var t in field.SelectMany(x => x.Members).Where(t => t.Alive && t != u).ToList())
-            if (Dist(u, t) <= radius) { t.Hp -= dmg; hitCount++; if (t.Hp <= 0) Kill(f, t, mechs[t.MechId], c); }
+            if (Dist(u, t) <= radius) { t.Hp -= dmg; hitCount++; if (t.Hp <= 0) Kill(f, t, mechs[t.MechId], c, field); }
         u.Alive = false; u.Hp = 0; u.SelfDestruct = 0;
         f.Events.Add(new FactoryEvent { Kind = "selfdestruct", Building = s.Id, X = (int)u.X, Y = (int)u.Y, Power = output, Radius = radius, Destroyed = hitCount });
     }
@@ -372,7 +395,7 @@ public sealed record Deploy(int SquadId, double X, double Y) : ICommand
     public void Apply(Simulation s)
     {
         var sq = s.Factory.Squads.FirstOrDefault(x => x.Id == SquadId); if (sq == null) return;
-        if (!CitySim.CanDeploy(s.Factory, sq, s.CityData)) { s.Factory.Events.Add(new FactoryEvent { Kind = "no_crew", Building = SquadId }); return; }   // G17 #8・#18
+        if (sq.Faction == 1 && !CitySim.CanDeploy(s.Factory, sq, s.CityData)) { s.Factory.Events.Add(new FactoryEvent { Kind = "no_crew", Building = SquadId }); return; }   // G17 #8・#18
         sq.State = SquadState.Field; int i = 0;
         foreach (var u in sq.Members.Where(u => u.Alive)) { u.X = X + (i % 4) * 3; u.Y = Y + (i / 4) * 3; i++; }
         sq.Order = SquadOrder.Hold; sq.OrderX = X; sq.OrderY = Y;
@@ -380,12 +403,12 @@ public sealed record Deploy(int SquadId, double X, double Y) : ICommand
 }
 
 /// <summary>隊への命令: 待機 / 移動(x, y) / 攻撃(隊) / 退却 / 自爆。陣形も指定できる。</summary>
-public sealed record OrderSquad(int SquadId, SquadOrder Order, double X = 0, double Y = 0, int TargetSquad = -1, Formation? Formation = null) : ICommand
+public sealed record OrderSquad(int SquadId, SquadOrder Order, double X = 0, double Y = 0, int TargetSquad = -1, Formation? Formation = null, int TargetBuilding = -1) : ICommand
 {
     public void Apply(Simulation s)
     {
         var sq = s.Factory.Squads.FirstOrDefault(x => x.Id == SquadId); if (sq == null) return;
-        sq.Order = Order; sq.OrderX = X; sq.OrderY = Y; sq.TargetSquad = TargetSquad;
+        sq.Order = Order; sq.OrderX = X; sq.OrderY = Y; sq.TargetSquad = TargetSquad; sq.TargetBuilding = TargetBuilding;
         if (Formation != null) sq.Formation = Formation.Value;
     }
 }

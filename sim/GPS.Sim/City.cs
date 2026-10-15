@@ -93,6 +93,8 @@ public sealed class City
     public int NextPersonId { get; set; } = 1;
     public List<Person> Persons { get; set; } = new();
     public int Days { get; set; }
+    /// <summary>拠点の建物(落ちると征服。G20 #6)。</summary>
+    public int Capital { get; set; } = -1;
     // 1 時間ごとの集計(保存するが、読み込み後に再計算される)
     public double Labor { get; set; }
     public double Jobs { get; set; }
@@ -137,11 +139,11 @@ public static class CitySim
     {
         var f = sim.Factory; var cd = sim.CityData; var data = sim.Data;
         var band = cd.BandOf(city.Support); city.Band = band.Id;
-        PoliticsSim.Hour(sim); var pol = PoliticsSim.Of(f); var pd = sim.PoliticsData;
+        PoliticsSim.Hour(sim); DiplomacySim.Hour(sim); var pol = PoliticsSim.Of(f); var pd = sim.PoliticsData;
         // 雇用: 設備の要員 → 軍の要員(徴兵) → 都市の供給設備の要員 の順に労働人口を使う
         city.Labor = city.Population * cd.LaborRate;
         city.MachineStaff = HumanStaff(f);
-        city.CrewNeed = f.Squads.Sum(s => s.Alive) * cd.CrewPerMech;
+        city.CrewNeed = f.Squads.Where(s => s.Faction == 1).Sum(s => s.Alive) * cd.CrewPerMech;   // 自軍の隊だけ(AI 勢力の隊は数えない)
         city.Conscripts = Math.Min(city.CrewNeed, Math.Max(0, city.Labor - city.MachineStaff) * city.ConscriptionRate * band.ConscriptionMul * pol.ConscriptionMul);   // 軍の長と軍事費の係数(G19)
         // 都市の供給設備の要員は用途の優先順(井戸 → 畑 → 警察 …)に埋める。余った人が失業
         double left = Math.Max(0, city.Labor - city.MachineStaff - city.Conscripts), useJobs = 0, useFilled = 0;
@@ -203,7 +205,7 @@ public static class CitySim
 
     static double Cells(Building b, CityData.Use u)
     {
-        if (b.Floors.Count == 0) return 0;
+        if (b.Floors.Count == 0 || b.Destroyed) return 0;
         int floors = u.MaxFloors > 0 ? Math.Min(u.MaxFloors, b.Floors.Count) : b.Floors.Count;
         return (double)b.Floors[0].W * b.Floors[0].D * floors;
     }
@@ -256,6 +258,7 @@ public static class CitySim
             }
         }
         PoliticsSim.Day(sim, city, band);
+        DiplomacySim.Day(sim);
     }
 
     /// <summary>隊の要員が徴兵で埋まっているか(Id の順に充てる)。都市が無ければ常に可。</summary>

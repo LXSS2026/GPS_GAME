@@ -1,0 +1,23 @@
+{
+  "_comment": "外交(G20 確定 2026-10-15)。関係値 −100〜+100。AI 勢力は台帳で成長し、隊だけ実物(G16)。数値はここで調整する。",
+  "powers": [
+    { "id": 1, "name": "村 ミナト",   "personality": "trade",   "population": 60, "support": 60, "tech": 1, "treasury": 500, "relation": 20 },
+    { "id": 2, "name": "村 クロガネ", "personality": "warlike", "population": 80, "support": 55, "tech": 1, "treasury": 300, "relation": -20 },
+    { "id": 3, "name": "山賊団",     "personality": "raider",  "population": 30, "support": 50, "tech": 1, "treasury": 100, "relation": -60 }
+  ],
+  "personalities": {
+    "trade":    { "growth": 0.03, "armyRatio": 0.5, "invadeRatio": 99,  "raidRatio": 99,  "demandRatio": 2.0, "invadePerDay": 0,     "demandPerDay": 0.01, "proposePerMonth": { "trade": 0.5, "nonaggression": 0.3, "alliance": 0.1 } },
+    "warlike":  { "growth": 0.02, "armyRatio": 1.0, "invadeRatio": 1.3, "raidRatio": 99,  "demandRatio": 1.2, "invadePerDay": 0.02,  "demandPerDay": 0.02, "proposePerMonth": { "trade": 0.1, "nonaggression": 0.1, "alliance": 0.2 } },
+    "raider":   { "growth": 0.01, "armyRatio": 1.2, "invadeRatio": 99,  "raidRatio": 1.0, "demandRatio": 1.0, "invadePerDay": 0,     "demandPerDay": 0.03, "proposePerMonth": { "trade": 0, "nonaggression": 0.05, "alliance": 0 }, "raidPerDay": 0.03 },
+    "isolated": { "growth": 0.02, "armyRatio": 0.7, "invadeRatio": 99,  "raidRatio": 99,  "demandRatio": 3.0, "invadePerDay": 0,     "demandPerDay": 0,    "proposePerMonth": { "trade": 0.05, "nonaggression": 0.3, "alliance": 0 } }
+  },
+  "relation": { "decayPerMonth": 2, "hostileBelow": -40, "waryBelow": -10, "friendlyFrom": 30, "warDeclared": -60, "gift": 10, "treatySigned": 10, "breakNonAggression": -50, "breakNonAggressionOthers": -20, "threatFail": -20, "proposalFail": -5, "demandRefused": -30, "vassal": 50, "exile": -10, "tributePaidPerMonth": 2 },
+  "treaty": { "tradePriceBonusPct": 10, "tradeRelationPerMonth": 1, "allianceSquadMechs": 3 },
+  "proposal": { "baseByState": { "hostile": 5, "wary": 15, "neutral": 30, "friendly": 60 }, "negotiatorPerPoint": 3, "strengthBonus": 10, "difficulty": { "trade": 20, "nonaggression": 0, "alliance": -20 }, "cooldownDays": 30 },
+  "gift": { "costPerPopulation": 2, "cooldownDays": 30 },
+  "threat": { "ratioNeeded": 1.5, "tributePerMonthPerPopulation": 1, "tributeMonths": 12 },
+  "demand": { "answerDays": 7, "tributePerMonthPerPopulation": 1, "tributeMonths": 12, "warOnRefusePct": 50 },
+  "war": { "buildingHpPerCell": 400, "squadMechsMax": 6, "strengthPerMech": 1.0, "mechsPerPopulation": 0.05, "peaceBaseLossRatio": 1.5, "peaceWinPct": 80, "peaceEvenPct": 40, "peaceLosePct": 15, "aiPeaceAfterDays": 90, "aiPeaceLossShare": 0.7, "supportWaveBelow": 50, "spawnEveryDays": 10, "scrapPerPopulationTech": 2 },
+  "scrapItems": { "1": [ "iron_plate", "gear" ], "2": [ "steel", "circuit" ], "3": [ "motor", "armor_plate" ], "4": [ "sensor", "alloy" ] },
+  "victory": { "conquestAllVassal": true, "allianceNetAllAllied": true }
+}

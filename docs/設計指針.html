@@ -135,7 +135,7 @@
   <tr><td>3</td><td>工場の産出物からロボットを世代別に製造する</td><td>第 1 段階 完了 2026-10-15(G14)。機体の性能値(装甲・速度・火力)と軍の Unit への受け渡しは手順 4</td></tr>
   <tr><td>4</td><td>都市(人口・雇用・税)。労働力と徴兵を工場・軍に供給する</td><td>第 1 段階 完了 2026-10-15(決定事項と実装記録は G17)。残りは登用と政治(手順 4.5)・建物の新設と道路の敷設</td></tr>
   <tr><td>4.5</td><td>登用と政治(G3 第 3 節で追加)</td><td>第 1 段階 完了 2026-10-15(決定事項と実装記録は G19)。残りは外交との接続・人物の死亡と選挙</td></tr>
-  <tr><td>5</td><td>戦争(同じボクセル地図上の RTS)、その後に外交</td><td>軍と戦闘の第 1 段階 完了 2026-10-15(決定事項と実装記録は G16)。残りは戦艦・航空戦・遮蔽・修理と回収の工場連携・外交</td></tr>
+  <tr><td>5</td><td>戦争(同じボクセル地図上の RTS)、その後に外交</td><td>軍と戦闘の第 1 段階 完了 2026-10-15(G16)、外交の第 1 段階 完了 2026-10-15(G20)。残りは戦艦・航空戦・遮蔽・防御壁と砲塔・修理と回収の工場連携・陥落した建物の修復</td></tr>
 </table>
 
 <h3>6. 操作(現状)</h3>
@@ -1431,7 +1431,7 @@ dotnet build game\GPS.csproj
 
 <section class="page" id="G18">
 <h2>G18 マクロのゲーム進行(図解)</h2>
-<p class="muted">2026-10-15 作成。現在の理解と決定範囲を 1 枚にまとめた図。A は段階の進行(G4)、B は各段階で回る一つの経済(G3 の構想図を実装の状態で塗り分け)、C は時間の刻み(G12 #16)。緑 = 実装済み、橙 = 設計案(G17、承認待ち)、灰 = 未着手。</p>
+<p class="muted">2026-10-15 作成、同日の手順 4・4.5・5 の実装後に更新。現在の理解と決定範囲を 1 枚にまとめた図。A は段階の進行(G4)、B は各段階で回る一つの経済(G3 の構想図を実装の状態で塗り分け)、C は時間の刻み(G12 #16)。緑 = 実装済み、橙 = 設計案(G17、承認待ち)、灰 = 未着手。</p>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -8 1400 784" width="100%" style="max-width: 1400px; font-family: 'Yu Gothic UI', Meiryo, sans-serif; display: block"><defs><marker id="ah-done" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#2e8b57"/></marker><marker id="ah-plan" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#d2691e"/></marker><marker id="ah-todo" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#8a8a8a"/></marker></defs><text x="0" y="20" font-size="15" font-weight="bold" fill="currentColor">A. 段階の進行(G4 確定。昇格条件は G17 #11 の案)</text>
 <rect x="0" y="40" width="250" height="150" rx="6" fill="#fff" stroke="#2e8b57" stroke-width="2.5" stroke-dasharray="none"/>
 <text x="125.0" y="64" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">1. 村と自警団</text>
@@ -1474,7 +1474,7 @@ dotnet build game\GPS.csproj
 <text x="970" y="136" font-size="12.5" fill="#333">機体: 第 4〜6 世代が主力</text>
 <text x="970" y="154" font-size="12.5" fill="#333">建物: 100 m 角</text>
 <text x="970" y="172" font-size="12.5" fill="#333">政治: 閣僚・元帥</text>
-<rect x="1240" y="40" width="160" height="150" rx="6" fill="#fff" stroke="#8a8a8a" stroke-width="2.5" stroke-dasharray="3,4"/>
+<rect x="1240" y="40" width="160" height="150" rx="6" fill="#fff" stroke="#2e8b57" stroke-width="2.5" stroke-dasharray="none"/>
 <text x="1320.0" y="64" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">決着(G3)</text>
 <text x="1250" y="86" font-size="12.5" fill="#333">勝ち: 大陸の制覇</text>
 <text x="1250" y="104" font-size="12.5" fill="#333">      または同盟網による支配</text>
@@ -1506,26 +1506,26 @@ dotnet build game\GPS.csproj
 <text x="1300.0" y="292" text-anchor="middle" font-size="12" fill="#2e8b57">第 1 段階</text>
 <text x="1210" y="310" font-size="12.5" fill="#333">隊の命令・索敵・射撃・自爆</text>
 <text x="1210" y="328" font-size="12.5" fill="#333">戦艦 / 防御壁・砲塔は次段階</text>
-<rect x="0" y="460" width="200" height="96" rx="6" fill="#fff" stroke="#d2691e" stroke-width="2.5" stroke-dasharray="7,4"/>
+<rect x="0" y="460" width="200" height="96" rx="6" fill="#fff" stroke="#2e8b57" stroke-width="2.5" stroke-dasharray="none"/>
 <text x="100.0" y="484" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">農地・水源</text>
-<text x="100.0" y="502" text-anchor="middle" font-size="12" fill="#d2691e">設計案(G17)</text>
+<text x="100.0" y="502" text-anchor="middle" font-size="12" fill="#2e8b57">実装済み(手順 4)</text>
 <text x="10" y="520" font-size="12.5" fill="#333">畑と井戸の供給能力</text>
 <text x="10" y="538" font-size="12.5" fill="#333">SimCity 型インフラ 9 種</text>
-<rect x="300" y="460" width="200" height="96" rx="6" fill="#fff" stroke="#d2691e" stroke-width="2.5" stroke-dasharray="7,4"/>
+<rect x="300" y="460" width="200" height="96" rx="6" fill="#fff" stroke="#2e8b57" stroke-width="2.5" stroke-dasharray="none"/>
 <text x="400.0" y="484" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">都市</text>
-<text x="400.0" y="502" text-anchor="middle" font-size="12" fill="#d2691e">設計案(G17)</text>
+<text x="400.0" y="502" text-anchor="middle" font-size="12" fill="#2e8b57">実装済み(手順 4)</text>
 <text x="310" y="520" font-size="12.5" fill="#333">人口・住居・雇用・失業</text>
 <text x="310" y="538" font-size="12.5" fill="#333">税・支持率・段階の昇格</text>
-<rect x="900" y="460" width="200" height="96" rx="6" fill="#fff" stroke="#8a8a8a" stroke-width="2.5" stroke-dasharray="3,4"/>
+<rect x="900" y="460" width="200" height="96" rx="6" fill="#fff" stroke="#2e8b57" stroke-width="2.5" stroke-dasharray="none"/>
 <text x="1000.0" y="484" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">政治(プレイヤー)</text>
-<text x="1000.0" y="502" text-anchor="middle" font-size="12" fill="#8a8a8a">未着手(手順 4.5)</text>
+<text x="1000.0" y="502" text-anchor="middle" font-size="12" fill="#2e8b57">実装済み(手順 4.5)</text>
 <text x="910" y="520" font-size="12.5" fill="#333">登用と役職・政策(税率・徴兵率)</text>
-<text x="910" y="538" font-size="12.5" fill="#333">予算(国庫)・派閥</text>
-<rect x="1200" y="460" width="200" height="96" rx="6" fill="#fff" stroke="#8a8a8a" stroke-width="2.5" stroke-dasharray="3,4"/>
-<text x="1300.0" y="484" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">外交(AI 国家)</text>
-<text x="1300.0" y="502" text-anchor="middle" font-size="12" fill="#8a8a8a">未着手(手順 5 後半)</text>
-<text x="1210" y="520" font-size="12.5" fill="#333">同盟・通商・不可侵・戦争</text>
-<text x="1210" y="538" font-size="12.5" fill="#333">AI 国家の軍も同じ仕組み</text>
+<text x="910" y="538" font-size="12.5" fill="#333">予算・派閥・反乱・布告</text>
+<rect x="1200" y="460" width="200" height="96" rx="6" fill="#fff" stroke="#2e8b57" stroke-width="2.5" stroke-dasharray="none"/>
+<text x="1300.0" y="484" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">外交(AI 勢力)</text>
+<text x="1300.0" y="502" text-anchor="middle" font-size="12" fill="#2e8b57">第 1 段階(手順 5)</text>
+<text x="1210" y="520" font-size="12.5" fill="#333">関係値・条約 3 種・要求・和平</text>
+<text x="1210" y="538" font-size="12.5" fill="#333">AI の隊は G16 と同じ仕組み</text>
 <path d="M 200,298.0 L 300,298.0" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
 <rect x="232.5" y="288.0" width="35.0" height="20" fill="#fff" opacity="0.92"/>
 <text x="250.0" y="303.0" text-anchor="middle" font-size="12.5" fill="#2e8b57">鉱石</text>
@@ -1538,36 +1538,36 @@ dotnet build game\GPS.csproj
 <path d="M 1100,298.0 L 1200,298.0" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
 <rect x="1113.75" y="288.0" width="72.5" height="20" fill="#fff" opacity="0.92"/>
 <text x="1150.0" y="303.0" text-anchor="middle" font-size="12.5" fill="#2e8b57">出撃・命令</text>
-<path d="M 200,508.0 L 300,508.0" fill="none" stroke="#d2691e" stroke-width="2" stroke-dasharray="7,4" marker-end="url(#ah-plan)"/>
+<path d="M 200,508.0 L 300,508.0" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
 <rect x="220.0" y="498.0" width="60.0" height="20" fill="#fff" opacity="0.92"/>
-<text x="250.0" y="513.0" text-anchor="middle" font-size="12.5" fill="#d2691e">食料・水</text>
-<path d="M 370.0,460 L 370.0,346" fill="none" stroke="#d2691e" stroke-width="2" stroke-dasharray="7,4" marker-end="url(#ah-plan)"/>
+<text x="250.0" y="513.0" text-anchor="middle" font-size="12.5" fill="#2e8b57">食料・水</text>
+<path d="M 370.0,460 L 370.0,346" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
 <rect x="256.25" y="393.0" width="97.5" height="20" fill="#fff" opacity="0.92"/>
-<text x="305.0" y="408.0" text-anchor="middle" font-size="12.5" fill="#d2691e">労働者(要員)</text>
-<path d="M 460.0,460 L 960.0,346" fill="none" stroke="#d2691e" stroke-width="2" stroke-dasharray="7,4" marker-end="url(#ah-plan)"/>
+<text x="305.0" y="408.0" text-anchor="middle" font-size="12.5" fill="#2e8b57">労働者(要員)</text>
+<path d="M 460.0,460 L 960.0,346" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
 <rect x="625.0" y="429.0" width="110.0" height="20" fill="#fff" opacity="0.92"/>
-<text x="680.0" y="444.0" text-anchor="middle" font-size="12.5" fill="#d2691e">徴兵(隊の要員)</text>
-<path d="M 680.0,346 L 495.0,460" fill="none" stroke="#d2691e" stroke-width="2" stroke-dasharray="7,4" marker-end="url(#ah-plan)"/>
+<text x="680.0" y="444.0" text-anchor="middle" font-size="12.5" fill="#2e8b57">徴兵(隊の要員)</text>
+<path d="M 680.0,346 L 495.0,460" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
 <rect x="523.75" y="363.0" width="172.5" height="20" fill="#fff" opacity="0.92"/>
-<text x="610.0" y="378.0" text-anchor="middle" font-size="12.5" fill="#d2691e">労働の代替(製造ロボット)</text>
-<path d="M 440.0,346 L 420.0,460" fill="none" stroke="#d2691e" stroke-width="2" stroke-dasharray="7,4" marker-end="url(#ah-plan)"/>
+<text x="610.0" y="378.0" text-anchor="middle" font-size="12.5" fill="#2e8b57">労働の代替(製造ロボット)</text>
+<path d="M 440.0,346 L 420.0,460" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
 <rect x="437.5" y="393.0" width="35.0" height="20" fill="#fff" opacity="0.92"/>
-<text x="455.0" y="408.0" text-anchor="middle" font-size="12.5" fill="#d2691e">公害</text>
-<path d="M 500,508.0 L 900,490" fill="none" stroke="#8a8a8a" stroke-width="2" stroke-dasharray="3,4" marker-end="url(#ah-todo)"/>
+<text x="455.0" y="408.0" text-anchor="middle" font-size="12.5" fill="#2e8b57">公害</text>
+<path d="M 500,508.0 L 900,490" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
 <rect x="663.75" y="476" width="72.5" height="20" fill="#fff" opacity="0.92"/>
-<text x="700" y="491" text-anchor="middle" font-size="12.5" fill="#8a8a8a">税・支持率</text>
-<path d="M 900,530 L 500,530" fill="none" stroke="#8a8a8a" stroke-width="2" stroke-dasharray="3,4" marker-end="url(#ah-todo)"/>
+<text x="700" y="491" text-anchor="middle" font-size="12.5" fill="#2e8b57">税・支持率</text>
+<path d="M 900,530 L 500,530" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
 <rect x="638.75" y="526" width="122.5" height="20" fill="#fff" opacity="0.92"/>
-<text x="700" y="541" text-anchor="middle" font-size="12.5" fill="#8a8a8a">税率・徴兵率・登用</text>
-<path d="M 1000.0,460 L 1000.0,346" fill="none" stroke="#8a8a8a" stroke-width="2" stroke-dasharray="3,4" marker-end="url(#ah-todo)"/>
+<text x="700" y="541" text-anchor="middle" font-size="12.5" fill="#2e8b57">税率・徴兵率・登用</text>
+<path d="M 1000.0,460 L 1000.0,346" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
 <rect x="1048.75" y="393.0" width="122.5" height="20" fill="#fff" opacity="0.92"/>
-<text x="1110.0" y="408.0" text-anchor="middle" font-size="12.5" fill="#8a8a8a">指揮官・出撃の判断</text>
-<path d="M 1100,508.0 L 1200,508.0" fill="none" stroke="#8a8a8a" stroke-width="2" stroke-dasharray="3,4" marker-end="url(#ah-todo)"/>
+<text x="1110.0" y="408.0" text-anchor="middle" font-size="12.5" fill="#2e8b57">指揮官・出撃の判断</text>
+<path d="M 1100,508.0 L 1200,508.0" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
 <rect x="1113.75" y="498.0" width="72.5" height="20" fill="#fff" opacity="0.92"/>
-<text x="1150.0" y="513.0" text-anchor="middle" font-size="12.5" fill="#8a8a8a">条約・方針</text>
-<path d="M 1300.0,346 L 1300.0,460" fill="none" stroke="#8a8a8a" stroke-width="2" stroke-dasharray="3,4" marker-end="url(#ah-todo)"/>
+<text x="1150.0" y="513.0" text-anchor="middle" font-size="12.5" fill="#2e8b57">条約・方針</text>
+<path d="M 1300.0,346 L 1300.0,460" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
 <rect x="1191.25" y="393.0" width="97.5" height="20" fill="#fff" opacity="0.92"/>
-<text x="1240.0" y="408.0" text-anchor="middle" font-size="12.5" fill="#8a8a8a">威圧 / 和平</text>
+<text x="1240.0" y="408.0" text-anchor="middle" font-size="12.5" fill="#2e8b57">威圧 / 和平</text>
 <path d="M 1240,556 L 1240,596 L 360,596 L 360,350" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
 <rect x="420" y="586" width="170" height="20" fill="#fff" opacity="0.92"/>
 <text x="505" y="601" text-anchor="middle" font-size="12.5" fill="#2e8b57">輸出入(交易所・国庫)</text>
@@ -1577,17 +1577,17 @@ dotnet build game\GPS.csproj
 <text x="133.6" y="684" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">毎ティック(60/秒)</text>
 <text x="133.6" y="706" text-anchor="middle" font-size="12" fill="#333">工場・ベルト・戦闘・給電</text>
 <path d="M 267.2,692 L 283.2,692" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
-<rect x="283.2" y="660" width="267.2" height="64" rx="6" fill="#fff" stroke="#d2691e" stroke-width="2" stroke-dasharray="7,4"/>
+<rect x="283.2" y="660" width="267.2" height="64" rx="6" fill="#fff" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none"/>
 <text x="416.79999999999995" y="684" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">1 時間 = 18,000 ティック = 現実 5 分</text>
 <text x="416.79999999999995" y="706" text-anchor="middle" font-size="12" fill="#333">都市の計算(人口・食料・水・雇用・税・支持率)</text>
 <path d="M 550.4,692 L 566.4,692" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
-<rect x="566.4" y="660" width="267.2" height="64" rx="6" fill="#fff" stroke="#d2691e" stroke-width="2" stroke-dasharray="7,4"/>
+<rect x="566.4" y="660" width="267.2" height="64" rx="6" fill="#fff" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none"/>
 <text x="700.0" y="684" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">1 日 = 現実 2 時間</text>
 <text x="700.0" y="706" text-anchor="middle" font-size="12" fill="#333">人口の増減・段階の判定・外交</text>
 <path d="M 833.5999999999999,692 L 849.5999999999999,692" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
-<rect x="849.5999999999999" y="660" width="267.2" height="64" rx="6" fill="#fff" stroke="#d2691e" stroke-width="2" stroke-dasharray="7,4"/>
+<rect x="849.5999999999999" y="660" width="267.2" height="64" rx="6" fill="#fff" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none"/>
 <text x="983.1999999999999" y="684" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">1 か月(30 日)</text>
-<text x="983.1999999999999" y="706" text-anchor="middle" font-size="12" fill="#333">人物の発生</text>
+<text x="983.1999999999999" y="706" text-anchor="middle" font-size="12" fill="#333">人物の発生・勢力の成長</text>
 <path d="M 1116.8,692 L 1132.8,692" fill="none" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none" marker-end="url(#ah-done)"/>
 <rect x="1132.8" y="660" width="267.2" height="64" rx="6" fill="#fff" stroke="#2e8b57" stroke-width="2" stroke-dasharray="none"/>
 <text x="1266.3999999999999" y="684" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">1 年 = 360 日 = 現実 30 日</text>
@@ -1602,9 +1602,9 @@ dotnet build game\GPS.csproj
 <table>
   <tr><th>流れ</th><th>現状</th></tr>
   <tr><td>物の流れ(上段): 鉱脈 → 工場 → 機体 → 隊 → 戦場</td><td>実装済み。鉱石の品質・レシピの品質下限・部品の品質 → 機体の性能値 → 戦闘の命中と耐久まで一本につながっている(G13・G14・G16)</td></tr>
-  <tr><td>人と支持の流れ(下段): 農地・水源 → 都市 → 労働者・徴兵、税・支持率 → 政治 → 政策</td><td>都市は設計案(G17)。工場の要員(Worker)と隊の要員は今は命令で直接与えており、都市の人口から引く形に変える</td></tr>
-  <tr><td>段階の昇格: 人口 + 支持率</td><td>G4 の 4 段階は確定。条件の数値(人口の下限・支持率 60% が 30 日)は G17 #11 の案</td></tr>
-  <tr><td>政治と外交</td><td>未着手。登用と役職は手順 4.5、外交(AI 国家との同盟・通商・不可侵・戦争)は手順 5 の後半。決着(制覇か同盟網、敗北は征服か失脚)は G3</td></tr>
+  <tr><td>人と支持の流れ(下段): 農地・水源 → 都市 → 労働者・徴兵、税・支持率 → 政治 → 政策</td><td>実装済み(G17・G19)。設備の要員と隊の要員は都市の労働人口から引く</td></tr>
+  <tr><td>段階の昇格: 人口 + 支持率</td><td>G4 の 4 段階。人口の下限(100 / 1,000 / 10,000)と支持率 60% が 30 日(G17 #11 確定)</td></tr>
+  <tr><td>政治と外交</td><td>第 1 段階まで実装済み(G19・G20)。決着(制覇か同盟網、敗北は征服か失脚)は計算で判定し、通知を出して計算は止めない</td></tr>
   <tr><td>時間</td><td>一つのティックループ(60/秒)。都市は 1 時間ごと、人口の増減と外交は 1 日ごと、人物は 1 か月ごとに同じループの中で更新する</td></tr>
 </table>
 </section>
@@ -1667,24 +1667,54 @@ dotnet build game\GPS.csproj
 
 <section class="page" id="G20">
 <h2>G20 手順5 外交: 設計案と決定事項</h2>
-<p class="muted">2026-10-15 作成。作る順番の 5 の後半。正典(G1「同じ地図上の AI 国家(勢力)が複数」「戦争か外交かはプレイヤーが選ぶ」、G2 第 5 節、G3「同盟・通商・不可侵・戦争」「終わり方: 大陸の制覇か同盟網による支配」、G4 政治・外交の列、G7 の右半分、G12 #14 輸出入無制限、G16「AI 国家も同じ仕組み」、G17 #19 の外交への波及、G19 の亡命者)に沿う設計案。番号付きの項目は着手前の決定事項で、回答で確定してから実装する。</p>
+<p class="muted">2026-10-15 作成。作る順番の 5 の後半。正典(G1「同じ地図上の AI 国家(勢力)が複数」「戦争か外交かはプレイヤーが選ぶ」、G2 第 5 節、G3「同盟・通商・不可侵・戦争」「終わり方: 大陸の制覇か同盟網による支配」、G4 政治・外交の列、G7 の右半分、G12 #14 輸出入無制限、G16「AI 国家も同じ仕組み」、G17 #19 の外交への波及、G19 の亡命者)に沿う。2026-10-15 の回答で #1〜#12 を確定(#1: AI 勢力の工場は概算でよく、プレイヤーが侵攻して拠点を落としたときに相応のスクラップが得られること。#3: 数値は適宜調整)。</p>
 <h3>1. 位置づけ</h3>
 <p>工場・機体・軍・都市・政治がつながった今、残る矢印は 政治 ↔ 外交 と 軍 ↔ 外交(威圧・防衛 / 和平)の 2 本(G18)。外交は AI 勢力との関係値と条約を持ち、プレイヤーの行動と AI の意思決定で動く。戦争になると G16 の隊がそのまま戦い、拠点の陥落で征服と制覇が決まる。これでゲームの終わり方(制覇か同盟網、敗北は征服か失脚)が全て計算の上に乗る。</p>
-<h3>2. 着手前の決定事項(案)</h3>
+<h3>2. 着手前の決定事項(2026-10-15 確定)</h3>
 <table>
-  <tr><th>#</th><th>項目</th><th>案</th><th>根拠・備考</th></tr>
-  <tr><td>1</td><td>AI 勢力の表現</td><td>同じ地図上に拠点(格納庫の建物)を持つ勢力。第 1 段階では工場を実際には回さず、台帳(人口・支持率・兵力・国庫・技術レベル・性格)を月ごとに集計で成長させる(性格と段階で率が決まる)。隊は G16 の隊そのもの(系統・世代・品質)で、戦場では同じ式で戦う。勢力は 2〜3(村 ミナト = 通商型、村 クロガネ = 好戦型、山賊団 = 略奪型。G7 のモック)</td><td>G1「同じ地図上の AI 国家」、G16「AI 国家も同じ仕組み」、G12 #17 と同じ集計近似の考え方</td></tr>
+  <tr><th>#</th><th>項目</th><th>決定</th><th>根拠・備考</th></tr>
+  <tr><td>1</td><td>AI 勢力の表現</td><td>同じ地図上に拠点(格納庫の建物)を持つ勢力。第 1 段階では工場を実際には回さず、台帳(人口・支持率・兵力・国庫・技術レベル・性格)を月ごとに集計で成長させる(性格と段階で率が決まる)。隊は G16 の隊そのもの(系統・世代・品質)で、戦場では同じ式で戦う。勢力は 2〜3(村 ミナト = 通商型、村 クロガネ = 好戦型、山賊団 = 略奪型。G7 のモック)。工場の概算として勢力は「蓄えたスクラップ」(人口 × 技術レベル × 係数で月ごとに増える)を持ち、拠点を落とした側がそれを得る(2026-10-15 回答)</td><td>G1「同じ地図上の AI 国家」、G16「AI 国家も同じ仕組み」、G12 #17 と同じ集計近似の考え方</td></tr>
   <tr><td>2</td><td>関係値と状態</td><td>勢力ごとに関係値 −100〜+100。行動と出来事で増減し、毎月 0 へ 2 ずつ戻る。状態は関係値から: 敵対(−40 未満)/ 警戒(−40〜−10)/ 中立 / 友好(+30 以上)。条約(通商・不可侵・同盟)と戦争は状態とは別のフラグ</td><td>G7「関係 +35 友好 通商」「−60 敵対 交戦中」</td></tr>
   <tr><td>3</td><td>条約の効果</td><td>通商: 交易所の輸出入の価格 +10%(売値 ↑・買値 ↓)、関係 +1 / 月、勢力の国庫も増える。不可侵: 互いに宣戦できない(破棄は関係 −50、他の全勢力の関係 −20)。同盟: 戦争時に同盟国が隊を 1 つ派遣(拠点の前に現れ、攻撃命令に従う)、相手から宣戦されると同盟国も参戦、同盟網による勝利の対象</td><td>G3 の 4 種</td></tr>
   <tr><td>4</td><td>プレイヤーの行動</td><td>通商を提案 / 不可侵を提案 / 同盟を提案 / 贈り物(国庫から、関係 +10 ずつ、月 1 回)/ 威圧(兵力比 ≥ 1.5 なら相手が要求を飲む(貢納か通商)、未満なら関係 −20)/ 宣戦(不可侵中は不可)/ 和平の提案(戦争中、戦況で成功率)。提案の成功率 = 関係値から(中立 30%、友好 60%)+ 交渉役の能力 × 3% + 兵力比の補正 ± 10% + 条約ごとの難度(通商 +20%、不可侵 0、同盟 −20%)。失敗すると関係 −5、同じ提案は 30 日できない</td><td>G7 のボタン、G19 #2 交渉役の効果(外交の成功率)</td></tr>
   <tr><td>5</td><td>AI の意思決定</td><td>1 日ごとに判定、月ごとに大きな決定。性格(通商型 / 好戦型 / 略奪型 / 孤立型)で基礎の確率を持つ。侵攻: 好戦型は兵力比(自 / 相手)が 1.3 以上で宣戦、略奪型は 1.0 以上で拠点を狙わず隊を送って工場の建物を襲う(撃破すると戦利品)。要求(不利な条件の提示): 兵力比が有利なとき 貢納(月額)か 通商の打ち切り を突きつけ、拒むと関係 −30。提案: 通商型は通商と不可侵を、好戦型は同盟を(共通の敵がいるとき)。支持率の波及(G17 #19): プレイヤーの支持率が 50 未満だと侵攻と要求の確率が (50 − 支持率) / 50 倍だけ増える。亡命者(G19): 離反先の勢力の関係 −10、その勢力の兵力 +亡命者数の 1%</td><td>G17 #19、G19 #6 の亡命者</td></tr>
-  <tr><td>6</td><td>戦争の進み方</td><td>宣戦で戦争状態。AI は拠点から隊を出撃させ、相手の拠点(格納庫)へ攻撃命令を出す(G16 の計算そのまま)。建物は耐久を持ち(床面積 × 階数 × 係数)、隊の射撃を受けると減る。拠点の耐久 0 で陥落: プレイヤーの拠点が落ちると征服(敗北)、AI の拠点が落ちると属国(その勢力は制覇に数える。隊は消え、関係は +50 固定)。和平は戦争中の損耗(撃破した機体数の比)で成功率が決まり、優勢な側が要求(貢納)を付けられる。防御壁と砲塔(G16 次段階)は建物の耐久に直接つながる</td><td>G16 の隊・命中・撃破、G1 確定「建物の防御」</td></tr>
+  <tr><td>6</td><td>戦争の進み方</td><td>宣戦で戦争状態。AI は拠点から隊を出撃させ、相手の拠点(格納庫)へ攻撃命令を出す(G16 の計算そのまま)。建物は耐久を持ち(床面積 × 階数 × 係数)、隊の射撃を受けると減る。拠点の耐久 0 で陥落: プレイヤーの拠点が落ちると征服(敗北)、AI の拠点が落ちると属国(その勢力は制覇に数える。隊は消え、関係は +50 固定)。落とした側の隊の帰還先の建物に、その勢力の蓄えたスクラップ(鉄板・歯車・鋼・回路など技術レベルに応じた品)が入る。和平は戦争中の損耗(撃破した機体数の比)で成功率が決まり、優勢な側が要求(貢納)を付けられる。防御壁と砲塔(G16 次段階)は建物の耐久に直接つながる</td><td>G16 の隊・命中・撃破、G1 確定「建物の防御」</td></tr>
   <tr><td>7</td><td>兵力比</td><td>戦力 = Σ(隊の生存機 × (1 + 0.1 × 世代) × 品質 / 70)。兵力比 = 相手の戦力 / 自分の戦力(G7 の表示)。AI 勢力の戦力は台帳の隊から同じ式で</td><td>G7「兵力比 0.8 / 1.4 / 0.6」</td></tr>
   <tr><td>8</td><td>勝利と敗北</td><td>制覇: 全ての AI 勢力が属国になったとき。同盟網: 生存する全ての勢力と同盟を結んだとき(属国は数に入れない)。敗北: 拠点の陥落(征服)か失脚(G17 #19)。どれかに達したら通知を出し、計算は止めない(続けて遊べる)</td><td>G3「終わり方」</td></tr>
   <tr><td>9</td><td>時間の刻み</td><td>外交は 1 日ごと(関係の変化・AI の判定・要求の期限)、勢力の成長と関係の自然回復は 1 か月ごと。戦争中の隊の動きは毎ティック(G16)</td><td>G3「外交は 1 日ごと」</td></tr>
   <tr><td>10</td><td>AI 勢力の成長</td><td>月ごとに 人口 × (1 + 成長率)、兵力は人口と技術レベルから(隊の数 = 人口 / 100 を上限に、世代 = 技術レベル)。技術レベルは年ごとに 1 上がる(国家まで)。性格ごとに成長率と軍の比率が違う(通商型は国庫、好戦型は兵力)。数値は json</td><td>G4 の段階を AI にも当てはめる</td></tr>
   <tr><td>11</td><td>見える情報</td><td>G7 の表: 勢力・関係・状態・兵力比。詳細(人口・技術・性格の推定)は交渉役の能力 5 以上で見える。AI の意図(侵攻の準備)は兵力比が 1.3 を超えたとき「警告」として通知</td><td>交渉役が空席だと補正なし(G7 のモックの注記)</td></tr>
   <tr><td>12</td><td>第 1 段階の範囲</td><td>計算(GPS.Sim): 勢力の台帳と成長、関係値と状態、条約 3 種、行動 7 種、AI の意思決定(侵攻・要求・提案・和平)、戦争(AI の隊の出撃と攻撃、建物の耐久と拠点の陥落、属国)、兵力比、勝利と敗北の判定、通商の価格補正。命令: Propose / Gift / Threaten / DeclareWar / ProposePeace / AnswerDemand / BreakTreaty。検証は xunit と、政治画面の右半分(G7。勢力の表・行動のボタン・要求への回答・通知)、都市の画面で AI 勢力の拠点と侵攻してきた隊を描く。含めない: 戦艦、複数都市と割譲、AI 国家の工場の実計算、スパイと諜報、同盟国への隊の派遣の操作(自動のみ)</td><td></td></tr>
+</table>
+
+<h3>3. 第 1 段階の実装記録(2026-10-15 完了)</h3>
+<p>#1〜#12 を <code>sim/GPS.Sim/Diplomacy.cs</code> に実装し、xunit 66 件(既存 58 + 外交 8)が全て通る。数値は <code>game/data/diplomacy.json</code> で調整する。</p>
+<table>
+  <tr><th>区分</th><th>内容</th><th>ファイル</th></tr>
+  <tr><td>勢力の台帳</td><td>Power: 人口・支持率・技術・国庫・蓄えたスクラップ・関係値・戦争・条約・属国・拠点の建物・残りの戦力・冷却・申し出・貢納。月ごとに性格の成長率で人口が増え、戦力は人口 × 0.05 × 軍の比率まで回復、スクラップは人口 × 技術 × 0.2 ずつ増える。年ごとに技術 +1(L4 まで)。勢力の隊の陣営 = 100 + Id</td><td>Diplomacy.cs(Power、Month)、diplomacy.json(powers、personalities)</td></tr>
+  <tr><td>関係と状態</td><td>−100〜+100。宣戦 −60、贈り物 +10、条約 +10、不可侵の破棄 −50(他の勢力 −20)、威圧の失敗 −20、提案の失敗 −5、要求の拒否 −30、属国 +50 固定、亡命 −10、貢納 +2 / 月。毎月 0 へ 2 ずつ戻る。状態は 敵対(−40 未満)/ 警戒(−10 未満)/ 中立 / 友好(+30 以上)/ 属国</td><td>Power.State、Relate</td></tr>
+  <tr><td>条約</td><td>通商: 売値 +10%・買値 −10%(Factory.TradeBonusPct)、関係 +1 / 月。不可侵: 互いに宣戦不可(破棄で関係 −50)。同盟: 相手から宣戦されると同盟国が援軍 1 隊(3 機、陣営 = プレイヤー)を拠点の前に出し、同盟網の勝利に数える</td><td>Propose、BreakTreaty、DeclareWar</td></tr>
+  <tr><td>行動</td><td>提案(成功率 = 状態 5 / 15 / 30 / 60% + 交渉役 × 3% ± 兵力比 10% + 難度 通商 +20 / 不可侵 0 / 同盟 −20、失敗で −5、30 日の冷却)、贈り物(人口 × 2、+10、月 1 回)、威圧(兵力比 ≤ 0.67 で相手が 12 か月の貢納、失敗で −20)、宣戦、和平(損耗比で 80 / 40 / 15%、優勢なら相手から貢納)、申し出への回答(受ける / 断る)、条約の破棄</td><td>Propose、Gift、Threaten、DeclareWar、ProposePeace、AnswerOffer、BreakTreaty</td></tr>
+  <tr><td>AI の意思決定(1 日ごと)</td><td>性格ごとの確率で 侵攻(好戦型: 兵力比 ≥ 1.3)、襲撃(略奪型: 最寄りの工場の建物を狙い、落とすと在庫を略奪して帰る)、要求(貢納 / 通商の打ち切り。7 日で回答、期限切れは拒否扱い、好戦型は拒否で 50% 宣戦)、提案(月ごと、通商型は通商と不可侵)。支持率 50 未満だと侵攻・襲撃・要求の確率が (50 − 支持率) / 50 倍だけ増える(G17 #19)。戦争が 90 日続くか損耗 7 割で和平を申し出る。兵力比 1.3 超の好戦型は月ごとに「警告」</td><td>DiplomacySim.Day</td></tr>
+  <tr><td>戦争</td><td>AI は拠点から隊を出し(台帳の戦力を消費、最大 6 機、系統は性格で)、プレイヤーの拠点(City.Capital)を攻撃する。建物は耐久(床面積 × 階数 × 400)を持ち、機体の目標が無い隊は建物を撃つ(建物は避けないので精度どおり)。実弾の弾薬が尽きた隊は帰還して補給し、1 時間ごとに再出撃する。拠点の耐久 0 で陥落: プレイヤーなら征服(Outcome = conquered、計算は続く)、AI なら属国(隊は消え、関係 +50、落とした隊の帰還先の建物にスクラップ(技術レベルに応じた品)が入る)。撃破数は損耗比として記録</td><td>Combat.cs(TargetBuilding、hit_building、no_ammo)、BuildingFell、SpawnSquad</td></tr>
+  <tr><td>兵力比</td><td>戦力 = Σ 生存機 × (1 + 0.1 × 世代) × 品質 / 70。AI は台帳の残りの戦力 × (1 + 0.1 × 技術) も足す。兵力比 = 相手 / 自分</td><td>PlayerStrength、PowerStrength、Ratio</td></tr>
+  <tr><td>勝利と敗北</td><td>制覇 = 全勢力が属国、同盟網 = 生存する全勢力と同盟、征服 = 拠点の陥落、失脚 = G17 #19。通知(victory / conquered / defeat)を出し、計算は止めない</td><td>Victory</td></tr>
+  <tr><td>命令</td><td>Propose / Gift / Threaten / DeclareWar / ProposePeace / AnswerOffer / BreakTreaty / SetCapital / AddPower。OrderSquad に TargetBuilding を追加(建物の攻略)。全て保存と再生の対象</td><td>Diplomacy.cs、Combat.cs、Simulation.cs</td></tr>
+</table>
+<h3>4. 画面(Godot)</h3>
+<p>政治画面(G19)の右の列の下に外交を置いた: 勢力の表(関係・状態・条約・兵力比・申し出の数)、選んだ勢力の詳細(性格・人口・技術・戦力・蓄え。交渉役の能力 5 以上で)、申し出への回答、行動のボタン(提案 3 種は成功率付き、贈り物、威圧、宣戦。戦争中は和平の成功率と、待機中の隊の出撃 → 相手の拠点)、交渉役の補正、決着。都市の画面では AI 勢力の拠点に名札、出撃中の隊(自軍は水色・敵は赤の名札と耐久)と射線・閃光を描く。建物の板に耐久と陥落を表示。起動の引数 <code>--war powerId --defend</code> で撮影できる。</p>
+<img src="img/preview_politics.png" alt="政治画面: 右下に外交の表(村 ミナト 中立 +20 兵力比 0.7、村 クロガネ 警戒 −20 兵力比 1.8、山賊団 敵対 −60)と行動のボタン" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
+<p class="muted">政治画面の外交: 村 ミナト(通商型、中立)に通商 60% / 不可侵 40% / 同盟 20% の提案、贈り物 120、威圧、宣戦。交渉役が空席なので補正なし。</p>
+<img src="img/preview_war.png" alt="都市の画面: 村 クロガネ に宣戦した翌日、クロガネの重装隊 4 機が街区に侵攻し、自警団の隊が迎え撃っている" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
+<p class="muted">村 クロガネ に宣戦した翌日。クロガネの重装隊(赤の名札、耐久 72% / 35%)が拠点の格納庫へ向かって街区に入り、自警団の第 1 隊(左奥)が迎え撃っている。</p>
+<h3>5. 残る粗(第 1 段階の外)</h3>
+<table>
+  <tr><th>項目</th><th>状態</th></tr>
+  <tr><td>戦艦・複数都市と割譲・AI の工場の実計算・諜報</td><td>入れていない(#12)。AI の工場は蓄えたスクラップで概算</td></tr>
+  <tr><td>防御壁と砲塔(G16 次段階)</td><td>建物の耐久はあるが、砲塔(設備)と防御壁(外周の部品)は未実装。耐久に直接つなげる</td></tr>
+  <tr><td>陥落した建物の修復</td><td>陥落した建物は動かないまま。修復の命令と費用は修理の工場連携と合わせて</td></tr>
+  <tr><td>同盟国への援軍の操作</td><td>自動のみ(陣営はプレイヤーなので命令はできる)</td></tr>
+  <tr><td>AI 勢力どうしの外交</td><td>勢力どうしの関係は持たない(プレイヤーとの関係だけ)</td></tr>
 </table>
 </section>
 </main>

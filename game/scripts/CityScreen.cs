@@ -29,6 +29,7 @@ public partial class CityScreen : Node3D
     int _speed = 1, _frame, _selected = -1, _seenEvents;
     readonly List<(Aabb box, int id)> _hit = new();
     readonly Dictionary<int, Node3D> _marks = new();
+    readonly Dictionary<int, Node3D> _idleMechs = new();
     Label _top = null!, _city = null!, _notice = null!;
     VBoxContainer _side = null!;
     PanelContainer _sidePanel = null!;
@@ -45,7 +46,19 @@ public partial class CityScreen : Node3D
         _data = GameData.Load(ProjectSettings.GlobalizePath("res://data"));
         _sim = new Simulation(BlockRegistry.FromJson(FileAccess.GetFileAsString("res://data/blocks.json")), _data, 1);
         SampleCity.Build(_sim);
+        if (Arg("--war") is string wr) { _sim.Enqueue(new DeclareWar(int.Parse(wr))); _sim.Step(); }
         if (Arg("--hours") is string hs) _sim.Run(Clock.TicksPerHour * int.Parse(hs));
+        if (Arg("--defend") != null)
+        {   // 撮影用: 自軍の隊を出撃させ、最寄りの敵の隊を攻撃
+            foreach (var sq in _sim.Factory.Squads.Where(q => q.Faction == 1 && q.State == SquadState.InHangar).ToList())
+            {
+                var hb = _sim.Factory.Get(sq.HomeBuilding); var enemy = _sim.Factory.Squads.Where(q => q.Faction != 1 && q.State == SquadState.Field).OrderBy(q => Math.Abs(q.X - (hb?.X ?? 0)) + Math.Abs(q.Y - (hb?.Y ?? 0))).FirstOrDefault();
+                _sim.Factory.City!.ConscriptionRate = 0.5; CitySim.Hour(_sim, _sim.Factory.City);
+                _sim.Enqueue(new Deploy(sq.Id, (hb?.X ?? 0) + 14, (hb?.Y ?? 0) + 6)); if (enemy != null) _sim.Enqueue(new OrderSquad(sq.Id, SquadOrder.Attack, TargetSquad: enemy.Id));
+            }
+            _sim.Step();
+        }
+        if (Arg("--ticks") is string tk) _sim.Run(long.Parse(tk));
         _kb = new KitBash(11); _fm = new FloorModules(_kb, 9); _mb = new MechBuilder(_fm);
         _cityRoot = new Node3D { Name = "city" }; AddChild(_cityRoot);
         var tr = new TerrainRenderer(); _cityRoot.AddChild(tr); tr.Init(_sim.World, _sim.Blocks); tr.BuildAll();
@@ -95,9 +108,16 @@ public partial class CityScreen : Node3D
             }
             _hit.Add((new Aabb(new Vector3(x, Y, z), new Vector3(w, h, d)), b.Id));
         }
-        // 見本の隊の機体を格納庫の前に
+        // 見本の隊の機体を格納庫の前に(待機中の表示。出撃中は RefreshField が描く)
         var hangar = _sim.Factory.Get(22);
-        if (hangar != null) foreach (var (m, i) in _sim.Factory.Mechs.Select((m, i) => (m, i))) _mb.Build(_cityRoot, m.Archetype, $"g{m.Generation}", (float)hangar.X + 3 + i * 6, Y, (float)hangar.Y - 8, 180);
+        if (hangar != null) foreach (var (m, i) in _sim.Factory.Mechs.Where(m => _sim.Factory.Squads.Any(s => s.Faction == 1 && s.Members.Any(u => u.MechId == m.Id))).Select((m, i) => (m, i))) { var n = _mb.Build(_cityRoot, m.Archetype, $"g{m.Generation}", (float)hangar.X + 3 + i * 6, Y, (float)hangar.Y - 8, 180); _idleMechs[m.Id] = n; }
+        // AI 勢力の拠点の名札
+        foreach (var p in _sim.Factory.Diplomacy?.Powers ?? new())
+        {
+            var hb = _sim.Factory.Get(p.HomeBuilding); if (hb == null) continue;
+            var tag = new Label3D { Text = p.Name, FontSize = 48, PixelSize = 0.05f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, NoDepthTest = true, OutlineSize = 12, Modulate = Red, Position = new Vector3((float)hb.X + 6, Y + 14, (float)hb.Y + 6) };
+            _cityRoot.AddChild(tag);
+        }
     }
 
     // ---------- 計算と描画 ----------
@@ -109,12 +129,13 @@ public partial class CityScreen : Node3D
 
     public override void _Process(double delta)
     {
-        if (_micro == null) { RefreshTop(); RefreshCity(); RefreshSide(); RefreshMarks(); RefreshOverlay(); }
+        if (_micro == null) { RefreshTop(); RefreshCity(); RefreshSide(); RefreshMarks(); RefreshField(); RefreshOverlay(); }
         var ev = _sim.Factory.Events;
         for (; _seenEvents < ev.Count; _seenEvents++)
         {
             var e = ev[_seenEvents];
-            string? s = e.Kind switch { "faction" => $"派閥ができた(首領 #{e.Power})", "faction_end" => $"派閥が解消した(首領 #{e.Power})", "defect" => $"派閥が離反した(首領 #{e.Power}、{e.Destroyed} 人が去った)", "rebellion" => "反乱が起きた", "rebellion_end" => "反乱が鎮圧された", "robot_cap" => "製造ロボットの導入率の上限を超えるため配置できない", "stage" => $"段階が {StageName(e.Power)} に進んだ", "defeat" => "支持率の低下により失脚(敗北)", "no_crew" => $"隊 #{e.Building} は要員不足で出撃できない", "mech" => $"機体が完成(第 {e.Power} 世代)", _ => null };
+            var pw = _sim.Factory.Diplomacy?.Powers.FirstOrDefault(p => p.Id == e.Building);
+            string? s = e.Kind switch { "war_declared" => $"{pw?.Name} に宣戦した", "war_received" => $"{pw?.Name} が宣戦してきた", "raid" => $"{pw?.Name} の襲撃隊が来た", "offer" => $"{pw?.Name} から申し出(政治画面で回答)", "warning" => $"{pw?.Name} の兵力が増えている(侵攻の恐れ)", "treaty" => $"{pw?.Name} と条約を結んだ", "proposal_failed" => $"{pw?.Name} は提案を断った", "threat_ok" => $"{pw?.Name} が貢納を飲んだ(月 {e.Power})", "threat_failed" => $"{pw?.Name} は威圧に応じない", "peace" => $"{pw?.Name} と和平した", "peace_failed" => $"{pw?.Name} は和平を断った", "vassal" => $"{pw?.Name} の拠点が落ち属国になった(スクラップ {e.Power})", "raided" => $"建物 #{e.Building} が略奪された", "conquered" => "拠点が落ちた(征服)", "building_destroyed" => $"建物 #{e.Building} が落ちた", "victory" => e.Power == 1 ? "勝利: 大陸の制覇" : "勝利: 同盟網による支配", "faction" => $"派閥ができた(首領 #{e.Power})", "faction_end" => $"派閥が解消した(首領 #{e.Power})", "defect" => $"派閥が離反した(首領 #{e.Power}、{e.Destroyed} 人が去った)", "rebellion" => "反乱が起きた", "rebellion_end" => "反乱が鎮圧された", "robot_cap" => "製造ロボットの導入率の上限を超えるため配置できない", "stage" => $"段階が {StageName(e.Power)} に進んだ", "defeat" => "支持率の低下により失脚(敗北)", "no_crew" => $"隊 #{e.Building} は要員不足で出撃できない", "mech" => $"機体が完成(第 {e.Power} 世代)", _ => null };
             if (s != null) Notice(s);
         }
         var path = Arg("--screenshot"); if (path == null || _micro != null) return;
@@ -172,6 +193,7 @@ public partial class CityScreen : Node3D
         var ur = new HBoxContainer(); ur.AddThemeConstantOverride("separation", 8); ur.AddChild(Lbl("用途")); ur.AddChild(use); _side.AddChild(ur);
         int w = b.Floors[0].W, d = b.Floors[0].D;
         _side.AddChild(Lbl($"床面積 {w}x{d} m  {b.Floors.Count} 階  {(b.RoadConnected ? "街路に接続" : "街路に接していない")}", 13, b.RoadConnected ? Text : Warm));
+        _side.AddChild(Lbl(b.Destroyed ? "陥落(動かない)" : $"耐久 {b.Hp:0} / {b.MaxHp:0}", 13, b.Destroyed ? Red : b.Hp < b.MaxHp ? Warm : Text));
         if (cd.Uses.TryGetValue(b.Use, out var ud) && ud.Supplies.Count > 0)
         {
             int fl = ud.MaxFloors > 0 ? Math.Min(ud.MaxFloors, b.Floors.Count) : b.Floors.Count;
@@ -202,6 +224,7 @@ public partial class CityScreen : Node3D
 
     void RefreshMarks()
     {
+        foreach (var (mid, n) in _idleMechs) { var sq = _sim.Factory.Squads.FirstOrDefault(s => s.Members.Any(u => u.MechId == mid)); n.Visible = sq == null || sq.State == SquadState.InHangar; }
         foreach (var (box, id) in _hit)
         {
             bool sel = id == _selected;

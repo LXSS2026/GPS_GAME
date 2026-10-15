@@ -182,6 +182,6 @@ public partial class CityScreen
         var (t1, m1, c1, _) = PoliticsSim.Forecast(_sim, Math.Max(0, c.TaxRate - 0.05), c.ConscriptionRate, pol.InfraInvest, pol.Military);
         var (t2, m2, c2, _) = PoliticsSim.Forecast(_sim, c.TaxRate, Math.Min(cd.MaxConscriptionRate, c.ConscriptionRate + 0.1), pol.InfraInvest, pol.Military);
         right.AddChild(Lbl($"税率 −5% なら: 支持 {t1:0}%  国庫 {m1:+#,0;-#,0}      徴兵率 +10% なら: 支持 {t2:0}%  要員 {c2:0} / {need:0}", 12, Line40));
-        right.AddChild(Lbl("外交(同じ地図上の AI 勢力)は手順 5 後半。終わり方: 大陸の制覇、または同盟網による支配。敗北は征服か、支持率の低下による失脚", 11, Line40));
+        BuildDiplomacy(right);
     }
 }

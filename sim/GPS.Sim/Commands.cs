@@ -8,6 +8,7 @@ public sealed record CreateBuilding(int Id, string Name, int W, int D, int Floor
         if (s.Factory.Get(Id) != null) return;
         var b = new Building { Id = Id, Name = Name };
         for (int i = 0; i < Floors; i++) b.Floors.Add(new Floor { W = W, D = D, Ore = Ground && i == 0 ? new OreCell?[W * D] : null });
+        b.MaxHp = b.Hp = W * D * Floors * s.DiplomacyData.War["buildingHpPerCell"];
         s.Factory.Buildings.Add(b);
         s.Factory.Buildings.Sort((a, c) => a.Id.CompareTo(c.Id));
         s.Factory.NextBuildingId = Math.Max(s.Factory.NextBuildingId, Id + 1);

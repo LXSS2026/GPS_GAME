@@ -3,7 +3,7 @@ namespace GPS.Sim;
 /// <summary>村の見本(G17 の都市画面用)。街区 100 m × 2 × 2、街路 16 m。地面のブロック(石・広場・街路)は sim.World に置き、Godot はそれをそのまま描く。</summary>
 public static class SampleCity
 {
-    public const int Block = 100, Gap = 16, NB = 2, N = NB * Block + (NB + 1) * Gap;   // 248 m 四方
+    public const int Block = 100, Gap = 16, NB = 3, N = NB * Block + (NB + 1) * Gap;   // 364 m 四方(3 列目は AI 勢力の拠点)
     public const int GroundTop = 2;   // 地面の最上段(y)
 
     public sealed record Lot(int Id, string Name, string Use, int X, int Z, int W, int Floors);
@@ -14,6 +14,7 @@ public static class SampleCity
         new(10, "畑", "farm", 136, 20, 40, 1), new(11, "井戸", "well", 180, 20, 10, 1), new(12, "畑 東", "farm", 136, 70, 30, 1),
         new(20, "工場棟 B-3", "factory", 20, 136, 30, 3), new(21, "工房", "factory", 60, 136, 20, 1), new(22, "格納庫", "factory", 90, 136, 12, 3),
         new(30, "警察", "police", 136, 136, 10, 2), new(31, "下水処理", "sewage", 160, 136, 20, 1), new(32, "住居 E", "residence", 190, 136, 20, 3),
+        new(40, "村 ミナト の格納庫", "factory", 256, 24, 12, 3), new(41, "村 クロガネ の格納庫", "factory", 256, 140, 12, 3), new(42, "山賊団 の格納庫", "factory", 320, 80, 12, 3),
     };
 
     static int Lane(int v) { int p = v % (Block + Gap); return p < Gap ? -1 : v / (Block + Gap); }
@@ -59,6 +60,7 @@ public static class SampleCity
         cmds.Add(new PlaceStructure(21, 0, "furnace", 4, 4, 0, Direction.South)); cmds.Add(new PlaceStructure(21, 0, "reactor_g0", 8, 8, 0, Direction.East));
         // 格納庫: 第 2 世代の汎用機 2 機の隊
         cmds.Add(new CreateMech(1, 2, "general", 72)); cmds.Add(new CreateMech(2, 2, "general", 68)); cmds.Add(new FormSquad(1, 1, "自警団 第 1 隊", new[] { 1, 2 }, 22));
+        cmds.Add(new SetCapital(22)); cmds.Add(new AddPower(1, 40)); cmds.Add(new AddPower(2, 41)); cmds.Add(new AddPower(3, 42));
         foreach (var c in cmds) s.Enqueue(c);
         s.Step();
         // レシピと要員(要員は都市の労働人口から)
