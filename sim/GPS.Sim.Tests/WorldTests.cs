@@ -4,7 +4,8 @@ using Xunit;
 
 public class WorldTests
 {
-    static BlockRegistry Blocks() => BlockRegistry.FromJson(File.ReadAllText("blocks.json"));
+    static BlockRegistry Blocks() => BlockRegistry.FromJson(File.ReadAllText(Path.Combine(GameData.FindDataDir(), "blocks.json")));
+    static readonly GameData Data = GameData.Load(GameData.FindDataDir());
 
     [Fact]
     public void SetGet_AcrossChunkBordersAndNegatives()
@@ -55,7 +56,7 @@ public class WorldTests
     [Fact]
     public void Simulation_AppliesCommandsInOrder_PlaceDoesNotOverwrite()
     {
-        var sim = new Simulation(Blocks());
+        var sim = new Simulation(Blocks(), Data);
         var p = new BlockPos(1, 2, 3);
         sim.Enqueue(new PlaceBlock(p, 1));
         sim.Enqueue(new PlaceBlock(p, 2));

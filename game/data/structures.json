@@ -1,0 +1,26 @@
+{
+  "_comment": "設備の定義。大きさはセル(w × d × h)。power は消費電力(kW)。workers は必要な要員数。priority は動力の優先順位(小さいほど先)。品質の倍率はパーセント(100 = 変化なし)。ティックは 60/秒、1 ゲーム時間 = 18,000 ティック。",
+  "structures": [
+    { "id": "belt",      "name": "ベルト",       "kind": "belt",      "w": 1, "d": 1, "h": 1, "power": 0,   "workers": 0, "priority": 9, "techLevel": 2, "ticksPerStep": 10 },
+    { "id": "inserter",  "name": "インサータ",   "kind": "inserter",  "w": 1, "d": 1, "h": 1, "power": 2,   "workers": 0, "priority": 5, "techLevel": 2, "ticks": 30 },
+    { "id": "miner",     "name": "採掘機",       "kind": "miner",     "w": 1, "d": 1, "h": 2, "power": 30,  "workers": 1, "priority": 3, "techLevel": 1, "ticks": 300 },
+    { "id": "chest",     "name": "箱",           "kind": "chest",     "w": 1, "d": 1, "h": 1, "power": 0,   "workers": 0, "priority": 9, "techLevel": 1, "capacity": 100 },
+    { "id": "furnace",   "name": "炉",           "kind": "furnace",   "w": 1, "d": 1, "h": 2, "power": 50,  "workers": 1, "priority": 2, "techLevel": 1, "qualityTopMul": 100, "qualityHighMul": 100, "qualityDefectMul": 100 },
+    { "id": "assembler", "name": "組立機",       "kind": "assembler", "w": 1, "d": 1, "h": 2, "power": 40,  "workers": 1, "priority": 2, "techLevel": 2, "qualityTopMul": 100, "qualityHighMul": 100, "qualityDefectMul": 100 },
+    { "id": "assembler_l3", "name": "組立機(第 3 世代)", "kind": "assembler", "w": 2, "d": 2, "h": 2, "power": 120, "workers": 2, "priority": 2, "techLevel": 3, "qualityTopMul": 200, "qualityHighMul": 150, "qualityDefectMul": 70 },
+    { "id": "tank",      "name": "タンク",       "kind": "tank",      "w": 1, "d": 1, "h": 2, "power": 0,   "workers": 0, "priority": 9, "techLevel": 1, "capacity": 1000 },
+    { "id": "pipe",      "name": "配管",         "kind": "pipe",      "w": 1, "d": 1, "h": 1, "power": 0,   "workers": 0, "priority": 9, "techLevel": 1 },
+    { "id": "pump",      "name": "揚水機",       "kind": "pump",      "w": 1, "d": 1, "h": 1, "power": 10,  "workers": 0, "priority": 1, "techLevel": 1, "ticks": 60, "fluid": "water", "amount": 10 },
+    { "id": "port_lift", "name": "昇降機の口",   "kind": "port",      "w": 1, "d": 1, "h": 1, "power": 5,   "workers": 0, "priority": 4, "techLevel": 3, "perSecond": 4 },
+    { "id": "port_bridge", "name": "渡り廊下の口", "kind": "port",    "w": 1, "d": 1, "h": 1, "power": 5,   "workers": 0, "priority": 4, "techLevel": 3, "perSecond": 4 },
+    { "id": "reactor_g0", "name": "リアクター(工作機)", "kind": "reactor", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 1, "generation": 0, "output": 100 },
+    { "id": "reactor_g1", "name": "リアクター(第 1 世代)", "kind": "reactor", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 2, "generation": 1, "output": 200 },
+    { "id": "reactor_g2", "name": "リアクター(第 2 世代)", "kind": "reactor", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 3, "generation": 2, "output": 400 },
+    { "id": "reactor_g3", "name": "リアクター(第 3 世代)", "kind": "reactor", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 3, "generation": 3, "output": 800 },
+    { "id": "reactor_g4", "name": "リアクター(第 4 世代)", "kind": "reactor", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 3, "generation": 4, "output": 1600 },
+    { "id": "reactor_g5", "name": "リアクター(第 5 世代)", "kind": "reactor", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 4, "generation": 5, "output": 3200 },
+    { "id": "reactor_g6", "name": "リアクター(第 6 世代)", "kind": "reactor", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 4, "generation": 6, "output": 6400 }
+  ],
+  "reactorPrecision": { "_comment": "出力 = output × (precisionMin + 品質値 × (100 - precisionMin) / 100) / 100。品質 0 で precisionMin%、品質 100 で 100%", "precisionMin": 50 },
+  "staff": { "_comment": "担当者は失敗率だけに効く。失敗率の倍率 = 100 - 技能 × defectReductionPerSkill(%)。技能 0〜10", "defectReductionPerSkill": 5 }
+}

@@ -1,0 +1,14 @@
+{
+  "_comment": "インフラ(2026-10-15 確定・9 種)。第 1 段階では定義のみで、住居への効果は第 2 段階以降。",
+  "infrastructure": [
+    { "id": "water",    "name": "水(上水)",   "requiredForHousing": true,  "techLevel": 2 },
+    { "id": "power",    "name": "電力",       "requiredForHousing": true,  "techLevel": 1 },
+    { "id": "sewage",   "name": "下水処理",   "requiredForHousing": true,  "techLevel": 2 },
+    { "id": "waste",    "name": "廃棄物処理", "requiredForHousing": false, "techLevel": 3 },
+    { "id": "road",     "name": "道路の接続", "requiredForHousing": true,  "techLevel": 1 },
+    { "id": "security", "name": "治安",       "requiredForHousing": false, "techLevel": 1 },
+    { "id": "medical",  "name": "医療",       "requiredForHousing": false, "techLevel": 2 },
+    { "id": "education","name": "教育",       "requiredForHousing": false, "techLevel": 2 },
+    { "id": "park",     "name": "公園・環境", "requiredForHousing": false, "techLevel": 1 }
+  ]
+}

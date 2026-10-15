@@ -18,7 +18,7 @@ public partial class Main : Node3D
     public override void _Ready()
     {
         Engine.PhysicsTicksPerSecond = Simulation.TicksPerSecond;
-        _sim = new Simulation(BlockRegistry.FromJson(FileAccess.GetFileAsString("res://data/blocks.json")));
+        _sim = new Simulation(BlockRegistry.FromJson(FileAccess.GetFileAsString("res://data/blocks.json")), GameData.Load(ProjectSettings.GlobalizePath("res://data")));
         WorldGen.Terrain(_sim.World, _sim.Blocks, 64, 64, 1);
 
         _terrain = new TerrainRenderer();
