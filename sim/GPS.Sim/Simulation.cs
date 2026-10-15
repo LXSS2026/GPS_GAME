@@ -31,6 +31,7 @@ namespace GPS.Sim;
 [JsonDerivedType(typeof(SetProgram), "setProgram")]
 [JsonDerivedType(typeof(SetMechProgram), "setMechProgram")]
 [JsonDerivedType(typeof(SetEnabled), "setEnabled")]
+[JsonDerivedType(typeof(SetLabel), "setLabel")]
 public interface ICommand { void Apply(Simulation sim); }
 
 public sealed record PlaceBlock(BlockPos Pos, byte Id) : ICommand

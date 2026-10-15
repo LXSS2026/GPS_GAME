@@ -55,6 +55,8 @@ public abstract class Structure
     [JsonIgnore] public int PowerPct { get; set; } = 100;
     /// <summary>稼働の有効/無効(マイコンの出力や手動で止める)。false の設備は動かず電力も使わない。</summary>
     public bool Enabled { get; set; } = true;
+    /// <summary>名札(任意)。同種の設備を区別するために画面・板・マイコンの参照先に表示する。</summary>
+    public string Label { get; set; } = "";
 
     public static Structure Create(StructureDef def) => def.Kind switch
     {

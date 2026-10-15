@@ -170,7 +170,7 @@ public sealed record CopyRegion(int Building, int Floor, int X0, int Y0, int X1,
         foreach (var st in b.Floors[Floor].Structures.OrderBy(x => x.Id))
         {
             if (st.X < X0 || st.X > X1 || st.Y < Y0 || st.Y > Y1) continue;
-            bp.Entries.Add(new BlueprintEntry { Def = st.DefId, X = st.X - X0, Y = st.Y - Y0, Z = st.Z, Dir = st.Dir, Recipe = (st as Machine)?.Recipe, BatteryMode = (st as Battery)?.Mode, Import = (st as Trade)?.Import, Program = (st as Mcu)?.Program });
+            bp.Entries.Add(new BlueprintEntry { Def = st.DefId, X = st.X - X0, Y = st.Y - Y0, Z = st.Z, Dir = st.Dir, Recipe = (st as Machine)?.Recipe, BatteryMode = (st as Battery)?.Mode, Import = (st as Trade)?.Import, Program = (st as Mcu)?.Program, Label = st.Label });
         }
         s.Factory.Blueprints[BlueprintId] = bp;
         s.Factory.NextBlueprintId = Math.Max(s.Factory.NextBlueprintId, BlueprintId + 1);
@@ -194,6 +194,7 @@ public sealed record PasteBlueprint(int Building, int Floor, int X, int Y, int B
             if (st is Battery bt && e.BatteryMode != null) bt.Mode = e.BatteryMode.Value;
             if (st is Trade td) td.Import = e.Import;
             if (st is Mcu mc && e.Program != null) mc.Program = e.Program;
+            st.Label = e.Label;
         }
     }
 }
@@ -215,6 +216,7 @@ public sealed record MoveRegion(int Building, int Floor, int X0, int Y0, int X1,
             new PlaceStructure(ToBuilding, ToFloor, st.DefId, ToX + st.X - X0, ToY + st.Y - Y0, st.Z, st.Dir).Apply(s);
             if (tb.NextStructureId == before) continue;   // 置けなかった分は在庫に残る
             var ns = tb.Find(ToFloor, before)!;
+            ns.Label = st.Label; ns.Enabled = st.Enabled;
             switch (st)
             {
                 case Machine m when ns is Machine nm: nm.Recipe = m.Recipe; nm.Staff.AddRange(m.Staff); break;
@@ -243,4 +245,10 @@ public sealed record SetArchetype(int Building, int Floor, int Id, string Archet
 public sealed record SetEnabled(int Building, int Floor, int Id, bool Enabled) : ICommand
 {
     public void Apply(Simulation s) { var st = s.Factory.Get(Building)?.Find(Floor, Id); if (st != null) st.Enabled = Enabled; }
+}
+
+/// <summary>設備の名札を付ける(空で外す)。</summary>
+public sealed record SetLabel(int Building, int Floor, int Id, string Label) : ICommand
+{
+    public void Apply(Simulation s) { var st = s.Factory.Get(Building)?.Find(Floor, Id); if (st != null) st.Label = Label.Trim(); }
 }

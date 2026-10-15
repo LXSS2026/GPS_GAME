@@ -517,7 +517,7 @@ public sealed class Blueprint
     public int D { get; set; }
     public List<BlueprintEntry> Entries { get; set; } = new();
 }
-public sealed class BlueprintEntry { public string Def { get; set; } = ""; public int X { get; set; } public int Y { get; set; } public int Z { get; set; } public Direction Dir { get; set; } public string? Recipe { get; set; } public BatteryMode? BatteryMode { get; set; } public string? Import { get; set; } public Program? Program { get; set; } }
+public sealed class BlueprintEntry { public string Def { get; set; } = ""; public int X { get; set; } public int Y { get; set; } public int Z { get; set; } public Direction Dir { get; set; } public string? Recipe { get; set; } public BatteryMode? BatteryMode { get; set; } public string? Import { get; set; } public Program? Program { get; set; } public string Label { get; set; } = ""; }
 
 public sealed class FactoryEvent { public string Kind { get; set; } = ""; public int Building { get; set; } public int Floor { get; set; } public int X { get; set; } public int Y { get; set; } public int Power { get; set; } public double Radius { get; set; } public int Destroyed { get; set; } }
 

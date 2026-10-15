@@ -20,10 +20,14 @@ public partial class McuGraphEditor : Control
     int _nextId = 1;
     double _acc;
 
-    public static McuGraphEditor Open(Node parent, Simulation sim, GameData data, int building, int floor, int mcuId, Func<string, Texture2D> icon, Theme theme, Action onClose)
+    Action _onChanged = null!;
+    public bool Picking => _pickFor != null;
+    McuNode? _pickFor;
+
+    public static McuGraphEditor Open(Node parent, Simulation sim, GameData data, int building, int floor, int mcuId, Func<string, Texture2D> icon, Theme theme, Action onClose, Action onChanged)
     {
-        var ed = new McuGraphEditor { _sim = sim, _data = data, _building = building, _floor = floor, _mcuId = mcuId, _icon = icon, _onClose = onClose, Theme = theme };
-        ed.SetAnchorsPreset(LayoutPreset.FullRect); ed.OffsetLeft = 16; ed.OffsetTop = 16; ed.OffsetRight = -16; ed.OffsetBottom = -16;
+        var ed = new McuGraphEditor { _sim = sim, _data = data, _building = building, _floor = floor, _mcuId = mcuId, _icon = icon, _onClose = onClose, _onChanged = onChanged, Theme = theme };
+        ed.SetAnchorsPreset(LayoutPreset.FullRect); ed.OffsetLeft = 16; ed.OffsetTop = 16; ed.AnchorRight = 0.7f; ed.OffsetRight = -8; ed.OffsetBottom = -16;   // 左 7 割。右に 3D 画面を残し、参照先の印と「画面で選ぶ」に使う
         parent.AddChild(ed);
         ed.Build();
         return ed;
@@ -71,7 +75,7 @@ public partial class McuGraphEditor : Control
             foreach (var n in prog.Nodes) { AddNode(Clone(n)); _nextId = Math.Max(_nextId, n.Id + 1); }
             foreach (var l in prog.Links) _graph.ConnectNode($"n{l.FromNode}", l.FromPort, $"n{l.ToNode}", l.ToPort);
         }
-        root.AddChild(Lbl("ノードは一覧から追加、右の口から左の口へ線を引く。Delete で消す。入力・出力の設備は各ノードで選ぶ。保存で制御室に適用(命令として記録)。", 11, Cyan));
+        _status = Lbl("ノードは一覧から追加、右の口から左の口へ線を引く。Delete で消す。入力・出力の設備は各ノードで選ぶか「画面で選ぶ」で右の 3D 画面をクリック。参照先には 3D 画面にノード番号の印が出る。保存で制御室に適用。", 11, Cyan); _status.AutowrapMode = TextServer.AutowrapMode.Word; root.AddChild(_status);
     }
 
     IEnumerable<Godot.Collections.Dictionary> Incoming(StringName to, int port) => _graph.GetConnectionList().Where(c => (string)c["to_node"] == to.ToString() && (int)c["to_port"] == port).ToList();
@@ -102,9 +106,11 @@ public partial class McuGraphEditor : Control
             var opt = new OptionButton { CustomMinimumSize = new Vector2(220, 30) }; opt.AddThemeConstantOverride("icon_max_width", 20);   // 設備のアイコンは原寸 256px なので絞る
             var cands = Candidates(t.TargetKind).ToList();
             opt.AddItem("(設備を選ぶ)");
-            for (int i = 0; i < cands.Count; i++) { var (fl, s) = cands[i]; opt.AddIconItem(_icon(s.DefId), $"{fl + 1} 階 ({s.X},{s.Y}) {_data.Structures[s.DefId].Name}"); if (n.TargetId == s.Id && (n.TargetFloor < 0 ? 0 : n.TargetFloor) == fl) opt.Selected = i + 1; }
-            opt.ItemSelected += i => { if (i == 0) { n.TargetId = -1; } else { var (fl, s) = cands[(int)i - 1]; n.TargetBuilding = _building; n.TargetFloor = fl; n.TargetId = s.Id; } };
-            gn.AddChild(opt);
+            for (int i = 0; i < cands.Count; i++) { var (fl, s) = cands[i]; opt.AddIconItem(_icon(s.DefId), Describe(fl, s)); if (n.TargetId == s.Id && (n.TargetFloor < 0 ? 0 : n.TargetFloor) == fl) opt.Selected = i + 1; }
+            opt.ItemSelected += i => { if (i == 0) { n.TargetId = -1; } else { var (fl, s) = cands[(int)i - 1]; n.TargetBuilding = _building; n.TargetFloor = fl; n.TargetId = s.Id; } _onChanged(); };
+            var pr = new HBoxContainer(); pr.AddChild(opt);
+            var pick = Btn("画面で選ぶ", () => { _pickFor = n; _pickOpt = opt; _pickCands = cands; _status.Text = "右の 3D 画面で設備をクリック"; }); pick.CustomMinimumSize = new Vector2(0, 30); pr.AddChild(pick);
+            gn.AddChild(pr);
         }
         if (t.ParamNames != null)
             foreach (var pn in t.ParamNames)
@@ -118,6 +124,22 @@ public partial class McuGraphEditor : Control
         _graph.AddChild(gn);
         _nodes[n.Id] = (n, val);
     }
+
+    OptionButton? _pickOpt; List<(int floor, Structure s)>? _pickCands; Label _status = null!;
+    string Describe(int fl, Structure s) => (s.Label != "" ? s.Label + "  " : "") + $"#{s.Id}  {fl + 1} 階 ({s.X},{s.Y}) {_data.Structures[s.DefId].Name}";
+
+    /// <summary>3D 画面でクリックされた設備を、選択中のノードの参照先にする。種類が合わなければ無視。</summary>
+    public void Picked(int floor, Structure s)
+    {
+        if (_pickFor == null || _pickCands == null || _pickOpt == null) return;
+        int idx = _pickCands.FindIndex(c => c.floor == floor && c.s.Id == s.Id);
+        if (idx < 0) { _status.Text = "その設備はこのノードの種類に合いません"; return; }
+        _pickOpt.Selected = idx + 1; _pickFor.TargetBuilding = _building; _pickFor.TargetFloor = floor; _pickFor.TargetId = s.Id;
+        _status.Text = $"ノード {_pickFor.Id} の参照先: {Describe(floor, s)}"; _pickFor = null; _onChanged();
+    }
+
+    /// <summary>この設備を参照しているノードの番号(3D 画面の印に使う)。</summary>
+    public List<int> NodesReferencing(int floor, int id) => _nodes.Values.Where(v => v.node.TargetId == id && (v.node.TargetFloor < 0 ? 0 : v.node.TargetFloor) == floor && (v.node.TargetBuilding < 0 || v.node.TargetBuilding == _building)).Select(v => v.node.Id).OrderBy(x => x).ToList();
 
     IEnumerable<(int floor, Structure s)> Candidates(string kind)
     {

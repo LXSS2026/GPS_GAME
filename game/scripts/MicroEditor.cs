@@ -114,7 +114,7 @@ public partial class MicroEditor : Node3D
     // ---------- 入力 ----------
     public override void _UnhandledInput(InputEvent e)
     {
-        if (_mcuEditor != null) return;
+        if (_mcuEditor != null && e is InputEventKey) return;   // 図式エディタが開いている間、キーは図式へ
         switch (e)
         {
             case InputEventMouseButton { Pressed: true } mb:
@@ -156,6 +156,7 @@ public partial class MicroEditor : Node3D
     {
         var (x, z, ok) = Cell(screen); if (!ok) return;
         var hit = Floor.At(x, z, 0);
+        if (place && _mcuEditor != null && _mcuEditor.Picking) { if (hit != null) _mcuEditor.Picked(_floor, hit); return; }
         if (!place && _mode != Mode.Normal) { SetMode(Mode.Normal); return; }   // 右クリックでモードを抜ける
         if (place && _mode == Mode.Region)
         {
@@ -198,11 +199,13 @@ public partial class MicroEditor : Node3D
         _selected = hit?.Id ?? -1;
     }
 
-    McuGraphEditor? _mcuEditor; CanvasLayer? _uiLayer;
+    McuGraphEditor? _mcuEditor; CanvasLayer? _uiLayer; PanelContainer? _sidePanel;
     void OpenMcu(int mcuId)
     {
         if (_mcuEditor != null) return;
-        _mcuEditor = McuGraphEditor.Open(_uiLayer!, _sim, _data, 1, _floor, mcuId, Icon, _uiLayer!.GetChild<Control>(0).Theme!, () => { _mcuEditor = null; _sideTick = -1; });
+        _mcuEditor = McuGraphEditor.Open(_uiLayer!, _sim, _data, 1, _floor, mcuId, Icon, _uiLayer!.GetChild<Control>(0).Theme!, () => { _mcuEditor = null; _sideTick = -1; _structureVersion++; if (_sidePanel != null) _sidePanel.Visible = true; }, () => _structureVersion++);
+        if (_sidePanel != null) _sidePanel.Visible = false;   // 右の板を隠して 3D の帯を広げる
+        _structureVersion++;
     }
     int _moveFromFloor;
     void SetMode(Mode mode)
@@ -268,6 +271,14 @@ public partial class MicroEditor : Node3D
     {
         foreach (var c in _eqRoot.GetChildren()) c.QueueFree();
         foreach (var s in Floor.Structures) Equipment.PlaceVisual(_eq, _kb, _eqRoot, _data.Structures[s.DefId], s.X, FloorY, s.Y, Rot(s.Dir), s is Port p && p.LinkBuilding >= 0 ? Math.Sign(p.LinkFloor - 0) : 0);
+        foreach (var s in Floor.Structures)
+        {
+            var def = _data.Structures[s.DefId];
+            string text = s.Label;
+            if (_mcuEditor != null) { var refs = _mcuEditor.NodesReferencing(_floor, s.Id); if (refs.Count > 0) text = (text == "" ? "" : text + "  ") + "ノード " + string.Join(",", refs); }
+            if (text == "") continue;
+            _eqRoot.AddChild(new Label3D { Text = text, FontSize = 48, PixelSize = 0.01f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, Modulate = s.Label != "" && !text.StartsWith("ノード") ? Cyan : Accent, OutlineSize = 12, OutlineModulate = new Color(0, 0, 0, 0.8f), NoDepthTest = true, Position = new Vector3(s.X + def.W / 2f, FloorY + def.H + 0.8f, s.Y + def.D / 2f) });
+        }
         _kb.Flush(_eqRoot);
         _eq.Flush(_eqRoot);
         // 鉱脈: 残量のある床を暗い茶で示す
@@ -459,6 +470,7 @@ public partial class MicroEditor : Node3D
         // ----- 右: 選択した設備 -----
         _side = new VBoxContainer { CustomMinimumSize = new Vector2(340, 0) }; _side.AddThemeConstantOverride("separation", 8);
         var sidePanel = Panel(_side); sidePanel.AnchorLeft = 1; sidePanel.AnchorRight = 1; sidePanel.OffsetLeft = -392; sidePanel.OffsetRight = -16; sidePanel.OffsetTop = 92; root.AddChild(sidePanel);
+        _sidePanel = sidePanel;
 
         // ----- 範囲の操作(左の板の下) -----
         var ops = new HBoxContainer(); ops.AddThemeConstantOverride("separation", 6);
@@ -538,8 +550,13 @@ public partial class MicroEditor : Node3D
         var def = _data.Structures[s.DefId];
         var head = new HBoxContainer(); head.AddThemeConstantOverride("separation", 10);
         head.AddChild(new TextureRect { Texture = Icon(def.Id), CustomMinimumSize = new Vector2(48, 48), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered });
-        var hv = new VBoxContainer(); hv.AddThemeConstantOverride("separation", 0); hv.AddChild(Lbl(def.Name, 17)); hv.AddChild(Lbl($"({s.X}, {s.Y})  {DirName(s.Dir)}  {def.W}x{def.D}", 11, Cyan)); head.AddChild(hv);
-        _side.AddChild(head); _side.AddChild(Sep());
+        var hv = new VBoxContainer(); hv.AddThemeConstantOverride("separation", 0); hv.AddChild(Lbl(s.Label == "" ? def.Name : $"{s.Label}  ({def.Name})", 17)); hv.AddChild(Lbl($"#{s.Id}  ({s.X}, {s.Y})  {DirName(s.Dir)}  {def.W}x{def.D}", 11, Cyan)); head.AddChild(hv);
+        _side.AddChild(head);
+        var lr = new HBoxContainer(); lr.AddThemeConstantOverride("separation", 8); lr.AddChild(Lbl("名札", 11, Cyan));
+        var le = new LineEdit { Text = s.Label, PlaceholderText = "例: 炉心 A", CustomMinimumSize = new Vector2(160, 30), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        int lid = s.Id; le.TextSubmitted += t => { _sim.Enqueue(new SetLabel(1, _floor, lid, t)); _sim.Step(); _structureVersion++; _sideTick = -1; };
+        lr.AddChild(le); lr.AddChild(Btn("付ける", () => { _sim.Enqueue(new SetLabel(1, _floor, lid, le.Text)); _sim.Step(); _structureVersion++; _sideTick = -1; })); _side.AddChild(lr);
+        _side.AddChild(Sep());
         var g = new GridContainer { Columns = 3 }; g.AddThemeConstantOverride("h_separation", 14);
         void Stat(string k, string v, Color? c = null) { var vb = new VBoxContainer(); vb.AddThemeConstantOverride("separation", 0); vb.AddChild(Lbl(k, 10, Cyan)); vb.AddChild(Lbl(v, 15, c)); g.AddChild(vb); }
         Stat("消費", $"{def.Power} kW"); Stat("動力", $"{s.PowerPct}%", s.PowerPct >= 100 ? Green : Warm); Stat("要員", def.Workers.ToString());
@@ -756,14 +773,15 @@ public partial class MicroEditor : Node3D
         _sim.Enqueue(new PlaceStructure(1, 0, "control_room", 28, y0 - 8, 0, Direction.South)); _sim.Step();
         var mcu = Floor.Structures.OfType<Mcu>().First(); var react = Floor.Structures.OfType<Reactor>().First();
         _sim.Enqueue(new SetReactorOutput(1, 0, react.Id, 150));
+        _sim.Enqueue(new SetLabel(1, 0, react.Id, "炉心 A")); _sim.Enqueue(new SetLabel(1, 0, Floor.Structures.OfType<Reactor>().Skip(1).First().Id, "炉心 B")); _sim.Enqueue(new SetLabel(1, 0, mcu.Id, "中央制御室"));
         _sim.Enqueue(new SetProgram(1, 0, mcu.Id, new Program { Name = "過負荷の見張り", Interval = 6, Nodes = {
             new McuNode { Id = 1, Type = "in.reactor.load", TargetBuilding = 1, TargetFloor = 0, TargetId = react.Id, X = 40, Y = 60 },
             new McuNode { Id = 2, Type = "in.const", Params = { ["value"] = 50 }, X = 40, Y = 240 },
-            new McuNode { Id = 3, Type = "op.gt", X = 620, Y = 120 },
-            new McuNode { Id = 4, Type = "in.const", Params = { ["value"] = 80 }, X = 620, Y = 320 },
-            new McuNode { Id = 5, Type = "in.const", Params = { ["value"] = 150 }, X = 620, Y = 470 },
-            new McuNode { Id = 6, Type = "op.select", X = 900, Y = 220 },
-            new McuNode { Id = 7, Type = "out.reactor.setting", TargetBuilding = 1, TargetFloor = 0, TargetId = react.Id, X = 1180, Y = 220 } },
+            new McuNode { Id = 3, Type = "op.gt", X = 800, Y = 120 },
+            new McuNode { Id = 4, Type = "in.const", Params = { ["value"] = 80 }, X = 800, Y = 320 },
+            new McuNode { Id = 5, Type = "in.const", Params = { ["value"] = 150 }, X = 800, Y = 470 },
+            new McuNode { Id = 6, Type = "op.select", X = 1080, Y = 220 },
+            new McuNode { Id = 7, Type = "out.reactor.setting", TargetBuilding = 1, TargetFloor = 0, TargetId = react.Id, X = 1360, Y = 220 } },
             Links = { new(1, 0, 3, 0), new(2, 0, 3, 1), new(3, 0, 6, 0), new(4, 0, 6, 1), new(5, 0, 6, 2), new(6, 0, 7, 0) } }));
         _sim.Enqueue(new CopyRegion(1, 0, 2, y0 - 5, 8, y0 - 2, 99, "見本"));
         _sim.Enqueue(new PasteBlueprint(1, 1, 10, 10, 99)); _sim.Enqueue(new PasteBlueprint(1, 1, 20, 10, 99));   // 2 階に生産線の一部を貼り付け
