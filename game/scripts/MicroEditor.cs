@@ -192,28 +192,10 @@ public partial class MicroEditor : Node3D
 
     // ---------- 描画 ----------
     static int Rot(Direction d) => d switch { Direction.East => 90, Direction.North => 180, Direction.West => 270, _ => 0 };
-    static string Model(StructureDef def) => def.Kind switch
-    {
-        "furnace" => "furnace", "assembler" => "assembler", "miner" => "miner", "belt" => "belt", "inserter" => "inserter", "chest" => "chest",
-        "tank" => "tank", "reactor" => "tank", "port" => "chest", "pump" => "miner", _ => "pole",
-    };
-
     void RebuildEquipment()
     {
         foreach (var c in _eqRoot.GetChildren()) c.QueueFree();
-        foreach (var s in Floor.Structures)
-        {
-            var def = _data.Structures[s.DefId];
-            string model = Model(def);
-            if (def.Kind == "pipe") { _kb.Pipe(_eqRoot, new Vector3(s.X + 0.5f, FloorY + 0.3f, s.Y + 0.5f) - new Vector3(0.5f, 0, 0), new Vector3(s.X + 0.5f, FloorY + 0.3f, s.Y + 0.5f) + new Vector3(0.5f, 0, 0), 0.12f, _kb.Rust); continue; }
-            if (def.W == 1 && def.D == 1) _eq.Place(model, s.X, FloorY, s.Y, Rot(s.Dir));
-            else for (int i = 0; i < def.W; i++) for (int j = 0; j < def.D; j++) _eq.Place(model, s.X + i, FloorY, s.Y + j, Rot(s.Dir));
-            if (s is Reactor r)
-            {
-                var col = ReactorColor(def.Generation);
-                _eqRoot.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.35f, Height = 0.7f }, MaterialOverride = new StandardMaterial3D { AlbedoColor = col, EmissionEnabled = true, Emission = col, EmissionEnergyMultiplier = 2.5f }, Position = new Vector3(s.X + 0.5f, FloorY + 2.3f, s.Y + 0.5f) });
-            }
-        }
+        foreach (var s in Floor.Structures) Equipment.PlaceVisual(_eq, _kb, _eqRoot, _data.Structures[s.DefId], s.X, FloorY, s.Y, Rot(s.Dir));
         _kb.Flush(_eqRoot);
         _eq.Flush(_eqRoot);
         // 鉱脈: 残量のある床を暗い茶で示す
@@ -227,7 +209,7 @@ public partial class MicroEditor : Node3D
         }
     }
 
-    static Color ReactorColor(int gen) => gen switch { 0 => new Color(1f, 0.2f, 0.15f), 1 => new Color(1f, 0.5f, 0.1f), 2 => new Color(1f, 0.9f, 0.2f), 3 => new Color(0.6f, 1f, 0.2f), 4 => new Color(0.2f, 1f, 0.4f), 5 => new Color(0.25f, 0.5f, 1f), _ => new Color(0.75f, 0.35f, 1f) };
+    static Color ReactorColor(int gen) => Equipment.ReactorColor(gen);
     static Color TierColor(QualityTier t) => t switch { QualityTier.Defect => new Color(0.5f, 0.5f, 0.5f), QualityTier.Normal => new Color(0.95f, 0.95f, 0.95f), QualityTier.High => new Color(0.35f, 0.95f, 0.45f), _ => new Color(1f, 0.85f, 0.25f) };
 
     /// <summary>ベルトの上・インサータの手・機械の出口のアイテムを小さな箱で描く(品質の階級の色)。毎フレーム作り直す。</summary>
@@ -268,7 +250,12 @@ public partial class MicroEditor : Node3D
     readonly Dictionary<string, Texture2D> _icons = new();
     Texture2D Icon(string id)
     {
-        if (!_icons.TryGetValue(id, out var t)) { string p = $"res://assets/icons/{id}.svg"; t = ResourceLoader.Exists(p) ? GD.Load<Texture2D>(p) : GD.Load<Texture2D>("res://assets/icons/chest.svg"); _icons[id] = t; }
+        if (!_icons.TryGetValue(id, out var t))
+        {   // 設備は実物の部品を描いた png(IconRenderer)、部品の無いアイテムは線画 svg
+            string png = $"res://assets/icons/{id}.png", svg = $"res://assets/icons/{id}.svg";
+            t = ResourceLoader.Exists(png) ? GD.Load<Texture2D>(png) : ResourceLoader.Exists(svg) ? GD.Load<Texture2D>(svg) : GD.Load<Texture2D>("res://assets/icons/chest.svg");
+            _icons[id] = t;
+        }
         return t;
     }
 
