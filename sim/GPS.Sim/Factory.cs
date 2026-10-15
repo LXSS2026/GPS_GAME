@@ -75,6 +75,10 @@ public sealed class Building
     public int Id { get; set; }
     public string Name { get; set; } = "";
     public PowerPolicy Policy { get; set; } = PowerPolicy.Proportional;
+    /// <summary>地図上の位置(戦場の座標。機体の帰還先)。</summary>
+    public double X { get; set; }
+    public double Y { get; set; }
+    [JsonIgnore] public Factory? Owner { get; set; }
     public List<Floor> Floors { get; set; } = new();
     /// <summary>設備のストック(撤去したものと支給されたもの)。</summary>
     public SortedDictionary<string, int> Inventory { get; set; } = new(StringComparer.Ordinal);
@@ -102,6 +106,7 @@ public sealed class Building
                 else if (def.Power > 0 && s.Enabled && Wants(s, def, fl, data)) consumers.Add((s, def));
                 else s.PowerPct = 100;
             }
+        if (Owner != null) supply += GPS.Sim.Combat.HangarSupply(Owner, this, data);   // 格納庫で待機中の機体のリアクターが建物に給電(2026-10-15 確定)
         int demand = consumers.Sum(c => c.def.Power);
         int reactorSupply = supply;
         // バッテリー: 余剰で充電、不足で方式に応じて放電(1 ティック分)
@@ -193,6 +198,9 @@ public sealed class Factory
     /// <summary>製造した機体(手順 3)。軍の Unit へ渡すのは手順 4。</summary>
     public List<Mech> Mechs { get; set; } = new();
     public int NextMechId { get; set; } = 1;
+    public List<Squad> Squads { get; set; } = new();
+    public int NextSquadId { get; set; } = 1;
+    public List<Loot> Loot { get; set; } = new();
     public long TickCount { get; set; }
 
     public void Tick(GameData data, Rng rng)
@@ -200,6 +208,7 @@ public sealed class Factory
         TickCount++;
         foreach (var b in Buildings)
         {
+            b.Owner = this;
             if (b.Aggregate != null && !Aggregation.BeforeTick(b, this, data, rng)) continue;   // 集計近似で済ませた
             StepOverload(b, data);
             b.AssignPower(data);

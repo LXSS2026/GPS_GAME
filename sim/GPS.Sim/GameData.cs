@@ -18,6 +18,7 @@ public sealed class GameData
     public int RobotNormalBias = 70;        // 製造ロボットの通常品質への偏り(%)
     public int OverloadMax = 150, OverloadLimit = 900_000, OverloadRecoveryMul = 1;   // 過負荷の上限(%)、爆発する負荷(%·ティック)、回復の倍率
     public double BlastRadiusPerKw = 0.02;   // 爆発の半径(セル / kW)
+    public long MechBatteryCapacity = 1_800_000;   // 機体のバッテリー容量(kW·ティック。mech_parts.json の powerSources.battery)
 
     static readonly JsonSerializerOptions Opt = new() { PropertyNameCaseInsensitive = true };
 
@@ -60,6 +61,8 @@ public sealed class GameData
             gd.OverloadMax = ov.GetProperty("max").GetInt32(); gd.OverloadLimit = ov.GetProperty("limit").GetInt32();
             gd.OverloadRecoveryMul = ov.GetProperty("recoveryMul").GetInt32(); gd.BlastRadiusPerKw = ov.GetProperty("radiusPerKw").GetDouble();
         }
+        var mp = Path.Combine(dir, "mech_parts.json");
+        if (File.Exists(mp)) { using var md = JsonDocument.Parse(File.ReadAllText(mp)); if (md.RootElement.TryGetProperty("powerSources", out var psrc)) gd.MechBatteryCapacity = psrc.GetProperty("battery").GetProperty("capacity").GetInt64(); }
         return gd;
     }
 

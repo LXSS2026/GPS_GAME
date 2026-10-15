@@ -74,6 +74,7 @@ public static class McuCatalog
         new NodeType("out.mech.engage", "交戦する(1/0)", "機体", 1, 0), new NodeType("out.mech.retreat", "退却する(1/0)", "機体", 1, 0),
         new NodeType("out.mech.target", "優先目標(0 最寄り/1 最弱/2 最強/3 砲撃手)", "機体", 1, 0), new NodeType("out.mech.weapon", "使う武器(0 主/1 副/2 近接)", "機体", 1, 0),
         new NodeType("out.mech.search", "索敵範囲 m", "機体", 1, 0),
+        new NodeType("out.mech.selfdestruct", "自爆する(1/0)", "機体", 1, 0),
     };
     public static NodeType Of(string type) => Types.First(t => t.Type == type);
 }

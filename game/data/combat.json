@@ -1,0 +1,37 @@
+{
+  "_comment": "戦闘(2026-10-15 確定・G16)。単純な耐久制(装甲なし)。1 セル = 1 m、60 ティック/秒。射程は有効射程(命中率そのまま)で、その 2 倍(farMul)まで減衰して届く。数値はここで調整する。",
+  "archetype": {
+    "heavy":   { "hp": 1.8, "speed": 0.6, "weight": 1.6, "primary": "bazooka_live", "melee": "sword_live" },
+    "general": { "hp": 1.0, "speed": 1.0, "weight": 1.0, "primary": "rifle_beam",   "melee": "sword_beam" },
+    "fast":    { "hp": 0.6, "speed": 1.6, "weight": 0.6, "primary": "smg_beam",     "melee": "whip_beam" }
+  },
+  "generationMul": 0.1,
+  "hpPerQuality": 10,
+  "speedAtQ70": 8.0,
+  "searchPerQuality": 2.0,
+  "visualRange": 50,
+  "stealth": { "5": { "searchMul": 0.5 }, "6": { "searchMul": 0.0 } },
+  "missileVsStealth": { "barrage": 3, "luck": 0.05 },
+  "rangeDecay": { "farMul": 2.0, "farHit": 0.2 },
+  "evasion": { "speedRef": 24.0, "minHit": 0.3 },
+  "weapons": {
+    "bazooka_live": { "kind": "live", "damage": 600, "range": 90, "accuracy": 0.6,  "cooldown": 180, "ammoPerShot": 1, "missile": true },
+    "bazooka_beam": { "kind": "beam", "damage": 700, "range": 90, "accuracy": 0.6,  "cooldown": 180, "energyPerShot": 30000, "missile": true },
+    "rifle_live":   { "kind": "live", "damage": 150, "range": 100, "accuracy": 0.7,  "cooldown": 60,  "ammoPerShot": 1 },
+    "rifle_beam":   { "kind": "beam", "damage": 180, "range": 110, "accuracy": 0.75, "cooldown": 60,  "energyPerShot": 6000 },
+    "smg_live":     { "kind": "live", "damage": 50,  "range": 55,  "accuracy": 0.6,  "cooldown": 15,  "ammoPerShot": 1 },
+    "smg_beam":     { "kind": "beam", "damage": 60,  "range": 60,  "accuracy": 0.65, "cooldown": 15,  "energyPerShot": 1500 },
+    "sword_live":   { "kind": "live", "melee": "sword", "range": 1.5, "accuracy": 0.9, "cooldown": 45, "mul": 40 },
+    "sword_beam":   { "kind": "beam", "melee": "sword", "range": 1.5, "accuracy": 0.9, "cooldown": 45, "mul": 48, "energyPerShot": 2000 },
+    "whip_live":    { "kind": "live", "melee": "whip",  "range": 3.0, "accuracy": 0.8, "cooldown": 30, "mul": 25 },
+    "whip_beam":    { "kind": "beam", "melee": "whip",  "range": 3.0, "accuracy": 0.8, "cooldown": 30, "mul": 30, "energyPerShot": 1200 }
+  },
+  "ammoCapacity": 60,
+  "reactorEnergySeconds": 10,
+  "fieldChargeMul": 1.0,
+  "selfDestruct": { "radiusPerKw": 0.02, "damagePerKw": 5 },
+  "lootRate": 0.3,
+  "defaultRetreatHp": 0.25,
+  "squadMax": 12,
+  "formationSpacing": 6
+}

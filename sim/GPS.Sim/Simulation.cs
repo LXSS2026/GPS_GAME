@@ -32,6 +32,11 @@ namespace GPS.Sim;
 [JsonDerivedType(typeof(SetMechProgram), "setMechProgram")]
 [JsonDerivedType(typeof(SetEnabled), "setEnabled")]
 [JsonDerivedType(typeof(SetLabel), "setLabel")]
+[JsonDerivedType(typeof(OrderSquad), "orderSquad")]
+[JsonDerivedType(typeof(Deploy), "deploy")]
+[JsonDerivedType(typeof(FormSquad), "formSquad")]
+[JsonDerivedType(typeof(CreateMech), "createMech")]
+[JsonDerivedType(typeof(SetBuildingPosition), "setBuildingPosition")]
 public interface ICommand { void Apply(Simulation sim); }
 
 public sealed record PlaceBlock(BlockPos Pos, byte Id) : ICommand
@@ -52,6 +57,7 @@ public sealed class Simulation
     public readonly VoxelWorld World = new();
     public readonly BlockRegistry Blocks;
     public readonly GameData Data;
+    public readonly CombatData Combat;
     public Factory Factory { get; private set; } = new();
     public Rng Rng { get; private set; }
     public ulong Seed { get; }
@@ -60,9 +66,9 @@ public sealed class Simulation
     public readonly List<CommandEntry> Log = new();
     readonly List<ICommand> _pending = new();
 
-    public Simulation(BlockRegistry blocks, GameData data, ulong seed = 1)
+    public Simulation(BlockRegistry blocks, GameData data, ulong seed = 1, CombatData? combat = null)
     {
-        Blocks = blocks; Data = data; Seed = seed; Rng = new Rng(seed);
+        Blocks = blocks; Data = data; Seed = seed; Rng = new Rng(seed); Combat = combat ?? CombatData.Load(GameData.FindDataDir());
     }
 
     public void Enqueue(ICommand c) => _pending.Add(c);
@@ -72,6 +78,7 @@ public sealed class Simulation
         foreach (var c in _pending) { c.Apply(this); Log.Add(new CommandEntry(Tick, c)); }
         _pending.Clear();
         Factory.Tick(Data, Rng);
+        GPS.Sim.Combat.Tick(Factory, Data, Combat, Rng);
         Tick++;
     }
 
