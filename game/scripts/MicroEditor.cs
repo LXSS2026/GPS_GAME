@@ -9,7 +9,10 @@ using GPS.Sim;
 public partial class MicroEditor : Node3D
 {
     const int W = 100, D = 100;
-    const float FloorY = 3f;
+    const float GroundY = 3f;
+    int _floor;                       // 編集中の階(0 始まり)
+    float FloorY => GroundY + _floor * 3f;   // 編集中の階の床の高さ(階高 3 m)
+    MeshInstance3D? _slab;
     static readonly Color Navy = new(8 / 255f, 20 / 255f, 48 / 255f, 0.86f), Cyan = new(159 / 255f, 216 / 255f, 1f), Accent = new(56 / 255f, 198 / 255f, 1f), Text = new(244 / 255f, 248 / 255f, 1f);
 
     Simulation _sim = null!;
@@ -22,12 +25,18 @@ public partial class MicroEditor : Node3D
     Node3D _eqRoot = null!, _itemsRoot = null!;
     MultiMeshInstance3D? _items;
     Node3D _cursor = null!;
-    Vector3 _pivot = new(50, FloorY, 50);
+    Vector3 _pivot = new(50, GroundY, 50);
     float _yaw = 0.6f, _elev = 0.9f, _dist = 60;
     int _speed = 1;
     string? _palette;
     Direction _dir = Direction.East;
     int _selected = -1;
+    enum Mode { Normal, Region, Paste, Move, Link }
+    Mode _mode = Mode.Normal;
+    (int x, int z)? _regionA; (int x0, int z0, int x1, int z1)? _region;
+    int _blueprint = -1;
+    (int floor, int id)? _linkFrom;
+    MeshInstance3D? _regionBox;
     readonly Stack<(ICommand undo, ICommand redo)> _undo = new(), _redo = new();
     int _structureVersion = -1, _renderedVersion = -2;
     int _frame;
@@ -58,7 +67,7 @@ public partial class MicroEditor : Node3D
         var tr = new TerrainRenderer(); AddChild(tr); tr.Init(_world, _sim.Blocks); tr.BuildAll();
         AddChild(SceneSetup.Lighting());
         _kb.Light(this, new Vector3(50, 40, 50), new Color(0.9f, 0.92f, 1f), 160f, 1.2f);
-        for (int i = 0; i <= W; i += 10) { _kb.Strip(this, new Vector3(i, FloorY + 0.02f, D / 2f), new Vector3(0.04f, 0.02f, D), _kb.GlowCyan); _kb.Strip(this, new Vector3(W / 2f, FloorY + 0.02f, i), new Vector3(W, 0.02f, 0.04f), _kb.GlowCyan); }
+        for (int i = 0; i <= W; i += 10) { _kb.Strip(this, new Vector3(i, GroundY + 0.02f, D / 2f), new Vector3(0.04f, 0.02f, D), _kb.GlowCyan); _kb.Strip(this, new Vector3(W / 2f, GroundY + 0.02f, i), new Vector3(W, 0.02f, 0.04f), _kb.GlowCyan); }
         _kb.Flush(this);
         _eqRoot = new Node3D { Name = "equipment" }; AddChild(_eqRoot);
         _itemsRoot = new Node3D { Name = "items" }; AddChild(_itemsRoot);
@@ -71,6 +80,7 @@ public partial class MicroEditor : Node3D
         foreach (var def in _data.Structures.Values) _sim.Enqueue(new AddInventory(1, def.Id, 500));
         _sim.Step();
         BuildUi();
+        SetFloor(0);
         if (Arg("--demo") != null) Demo();
     }
 
@@ -92,7 +102,7 @@ public partial class MicroEditor : Node3D
     }
 
     Building Building => _sim.Factory.Get(1)!;
-    Floor Floor => Building.Floors[0];
+    Floor Floor => Building.Floors[_floor];
 
     void Apply(ICommand cmd, ICommand? undo)
     {
@@ -145,9 +155,33 @@ public partial class MicroEditor : Node3D
     {
         var (x, z, ok) = Cell(screen); if (!ok) return;
         var hit = Floor.At(x, z, 0);
+        if (!place && _mode != Mode.Normal) { SetMode(Mode.Normal); return; }   // 右クリックでモードを抜ける
+        if (place && _mode == Mode.Region)
+        {
+            if (_regionA == null) { _regionA = (x, z); return; }
+            var a = _regionA.Value; _region = (Math.Min(a.x, x), Math.Min(a.z, z), Math.Max(a.x, x), Math.Max(a.z, z)); _regionA = null; ShowRegion(); _mode = Mode.Normal; _sideTick = -1; return;
+        }
+        if (place && _mode == Mode.Paste && _blueprint >= 0)
+        {
+            int before = Building.NextStructureId;
+            _sim.Enqueue(new PasteBlueprint(1, _floor, x, z, _blueprint)); _sim.Step(); _structureVersion++;
+            _undo.Clear(); _redo.Clear();   // 複数設置の取り消しは未対応
+            _status.Text = $"貼り付け  {Building.NextStructureId - before} 台";
+            return;
+        }
+        if (place && _mode == Mode.Move && _region is var (x0, z0, x1, z1))
+        {
+            _sim.Enqueue(new MoveRegion(1, _moveFromFloor, x0, z0, x1, z1, 1, _floor, x, z)); _sim.Step(); _structureVersion++; _undo.Clear(); _redo.Clear();
+            _region = null; ShowRegion(); SetMode(Mode.Normal); return;
+        }
+        if (place && _mode == Mode.Link && _linkFrom is var (lf, lid))
+        {
+            if (hit is Port) { _sim.Enqueue(new LinkPorts(1, lf, lid, 1, _floor, hit.Id)); _sim.Step(); _structureVersion++; _selected = hit.Id; }
+            SetMode(Mode.Normal); return;
+        }
         if (!place)
         {
-            if (hit != null) Apply(new RemoveStructure(1, 0, hit.Id), new PlaceStructure(1, 0, hit.DefId, hit.X, hit.Y, hit.Z, hit.Dir));
+            if (hit != null) Apply(new RemoveStructure(1, _floor, hit.Id), new PlaceStructure(1, _floor, hit.DefId, hit.X, hit.Y, hit.Z, hit.Dir));
             if (_selected == hit?.Id) _selected = -1;
             return;
         }
@@ -156,17 +190,47 @@ public partial class MicroEditor : Node3D
             var def = _data.Structures[_palette];
             if (!Floor.Fits(def, x, z, 0) || Building.Inventory.GetValueOrDefault(_palette) <= 0) return;
             int id = Building.NextStructureId;
-            Apply(new PlaceStructure(1, 0, _palette, x, z, 0, _dir), new RemoveStructure(1, 0, id));
+            Apply(new PlaceStructure(1, _floor, _palette, x, z, 0, _dir), new RemoveStructure(1, _floor, id));
             _selected = id;
             return;
         }
         _selected = hit?.Id ?? -1;
     }
 
+    int _moveFromFloor;
+    void SetMode(Mode mode)
+    {
+        _mode = mode; _regionA = null; if (mode != Mode.Link) _linkFrom = null;
+        if (mode == Mode.Move) _moveFromFloor = _floor;
+        if (mode != Mode.Paste) _palette = _mode == Mode.Normal ? _palette : null;
+        _sideTick = -1;
+    }
+
+    void ShowRegion()
+    {
+        _regionBox?.QueueFree(); _regionBox = null;
+        if (_region is not var (x0, z0, x1, z1)) return;
+        var size = new Vector3(x1 - x0 + 1, 0.08f, z1 - z0 + 1);
+        _regionBox = new MeshInstance3D { Mesh = new BoxMesh { Size = size }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.22f, 0.78f, 1f, 0.35f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, EmissionEnabled = true, Emission = Accent, EmissionEnergyMultiplier = 0.4f }, Position = new Vector3(x0 + size.X / 2, FloorY + 0.05f, z0 + size.Z / 2) };
+        AddChild(_regionBox);
+    }
+
+    void SetFloor(int f)
+    {
+        if (f < 0 || f >= Building.Floors.Count) return;
+        _floor = f; _selected = -1; _region = null; ShowRegion(); _structureVersion++; _sideTick = -1;
+        _slab?.QueueFree();
+        _slab = new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(W, 0.12f, D) }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.28f, 0.3f, 0.34f) }, Position = new Vector3(W / 2f, FloorY - 0.06f, D / 2f), Visible = f > 0 };
+        AddChild(_slab);
+        _pivot.Y = FloorY; UpdateCamera();
+        foreach (var (k, b) in _floorButtons) b.AddThemeStyleboxOverride("normal", k == f ? Box(new Color(18 / 255f, 40 / 255f, 84 / 255f, 0.9f), Accent, 2, 6) : Box(Navy, Cyan, 1, 6));
+    }
+    readonly Dictionary<int, Button> _floorButtons = new();
+
     void RemoveSelected()
     {
-        var s = Building.Find(0, _selected); if (s == null) return;
-        Apply(new RemoveStructure(1, 0, s.Id), new PlaceStructure(1, 0, s.DefId, s.X, s.Y, s.Z, s.Dir));
+        var s = Building.Find(_floor, _selected); if (s == null) return;
+        Apply(new RemoveStructure(1, _floor, s.Id), new PlaceStructure(1, _floor, s.DefId, s.X, s.Y, s.Z, s.Dir));
         _selected = -1;
     }
 
@@ -351,6 +415,8 @@ public partial class MicroEditor : Node3D
         foreach (var (n, v) in new[] { ("停止", 0), ("1x", 1), ("2x", 2), ("4x", 4) }) { var b = Btn(n, () => SetSpeed(v)); b.CustomMinimumSize = new Vector2(48, 34); _speedButtons.Add(b); top.AddChild(b); }
         top.AddChild(new VSeparator());
         top.AddChild(Btn("取り消し", Undo)); top.AddChild(Btn("やり直し", Redo));
+        top.AddChild(new VSeparator()); top.AddChild(Lbl("階", 11, Cyan));
+        for (int f = 0; f < Building.Floors.Count; f++) { int ff = f; var b = Btn($"{f + 1}", () => SetFloor(ff)); b.CustomMinimumSize = new Vector2(36, 34); _floorButtons[f] = b; top.AddChild(b); }
         var topPanel = Panel(top); topPanel.Position = new Vector2(16, 16); root.AddChild(topPanel);
         SetSpeed(1);
 
@@ -380,13 +446,20 @@ public partial class MicroEditor : Node3D
         { var dd = d; var b = Btn(n, () => SetDir(dd)); b.CustomMinimumSize = new Vector2(36, 30); _dirButtons[d] = b; dirRow.AddChild(b); }
         pal.AddChild(dirRow); SetDir(_dir);
         var scroll = new ScrollContainer { CustomMinimumSize = new Vector2(330, 0), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; scroll.AddChild(pal);
-        var palPanel = Panel(scroll); palPanel.Position = new Vector2(16, 92); palPanel.AnchorBottom = 1; palPanel.OffsetBottom = -56; palPanel.OffsetTop = 92; palPanel.CustomMinimumSize = new Vector2(0, 0);
+        var palPanel = Panel(scroll); palPanel.Position = new Vector2(16, 92); palPanel.AnchorBottom = 1; palPanel.OffsetBottom = -104; palPanel.OffsetTop = 92; palPanel.CustomMinimumSize = new Vector2(0, 0);
         root.AddChild(palPanel);
 
         // ----- 右: 選択した設備 -----
         _side = new VBoxContainer { CustomMinimumSize = new Vector2(340, 0) }; _side.AddThemeConstantOverride("separation", 8);
         var sidePanel = Panel(_side); sidePanel.AnchorLeft = 1; sidePanel.AnchorRight = 1; sidePanel.OffsetLeft = -392; sidePanel.OffsetRight = -16; sidePanel.OffsetTop = 92; root.AddChild(sidePanel);
 
+        // ----- 範囲の操作(左の板の下) -----
+        var ops = new HBoxContainer(); ops.AddThemeConstantOverride("separation", 6);
+        ops.AddChild(Btn("範囲選択", () => SetMode(Mode.Region)));
+        ops.AddChild(Btn("コピー", () => { if (_region is var (x0, z0, x1, z1)) { _blueprint = _sim.Factory.NextBlueprintId; _sim.Enqueue(new CopyRegion(1, _floor, x0, z0, x1, z1, _blueprint, $"範囲 {x1 - x0 + 1}x{z1 - z0 + 1}")); _sim.Step(); _status.Text = $"コピー  設計図 #{_blueprint}"; } }));
+        ops.AddChild(Btn("貼り付け", () => { if (_blueprint >= 0) SetMode(Mode.Paste); }));
+        ops.AddChild(Btn("引っ越し", () => { if (_region != null) SetMode(Mode.Move); }));
+        var opsPanel = Panel(ops); opsPanel.AnchorTop = 1; opsPanel.AnchorBottom = 1; opsPanel.OffsetTop = -96; opsPanel.OffsetBottom = -60; opsPanel.OffsetLeft = 16; root.AddChild(opsPanel);
         // ----- 下: 状態 -----
         _status = Lbl("", 12);
         var st = new HBoxContainer(); st.AddThemeConstantOverride("separation", 10); st.AddChild(new TextureRect { Texture = Icon("assembler"), CustomMinimumSize = new Vector2(20, 20), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered }); st.AddChild(_status);
@@ -423,11 +496,11 @@ public partial class MicroEditor : Node3D
         _powerText.Text = $"{b.LastSupply} / {b.LastDemand} kW";
         _powerBar.MaxValue = Math.Max(1, Math.Max(b.LastSupply, b.LastDemand)); _powerBar.Value = Math.Min(b.LastSupply, b.LastDemand);
         _powerBar.AddThemeStyleboxOverride("fill", Box(b.LastSupply >= b.LastDemand ? Accent : Warm, Color.Color8(0, 0, 0, 0), 0, 0));
-        _power.Text = $"供給 {b.LastSupply} kW  需要 {b.LastDemand} kW  リアクター {Floor.Structures.Count(s => s is Reactor)} 基";
+        _power.Text = $"供給 {b.LastSupply} kW  需要 {b.LastDemand} kW  リアクター {b.Floors.Sum(f => f.Structures.Count(s => s is Reactor))} 基";
         foreach (var (id, l) in _stockLabels) l.Text = b.Inventory.GetValueOrDefault(id).ToString();
         var made = Floor.Structures.OfType<Machine>().Sum(m => m.Made); var failed = Floor.Structures.OfType<Machine>().Sum(m => m.Failed);
         long stored = Floor.Structures.OfType<Battery>().Sum(x => x.Stored);
-        _status.Text = $"国庫 {_sim.Factory.Treasury:N0}   機体 {_sim.Factory.Mechs.Count} 機   設備 {Floor.Structures.Count} 台   在庫 {b.Inventory.Values.Sum()} 台   製造 {made}   不良 {failed}   蓄電 {stored / 216000.0:F2} kWh   {(_palette == null ? "" : _data.Structures[_palette].Name + " を設置中  " + DirName(_dir))}   {_lastEvent}";
+        _status.Text = $"国庫 {_sim.Factory.Treasury:N0}   機体 {_sim.Factory.Mechs.Count} 機   設備 {Floor.Structures.Count} 台   在庫 {b.Inventory.Values.Sum()} 台   製造 {made}   不良 {failed}   蓄電 {stored / 216000.0:F2} kWh   {(_palette == null ? "" : _data.Structures[_palette].Name + " を設置中  " + DirName(_dir))}   {_mode switch { Mode.Region => _regionA == null ? "範囲選択: 1 つ目の角をクリック" : "範囲選択: 2 つ目の角をクリック", Mode.Paste => $"貼り付け: 左上の位置をクリック(設計図 #{_blueprint})", Mode.Move => "引っ越し: 移動先の左上をクリック(階を変えてもよい)", Mode.Link => "接続: 相手の口をクリック(階を変えてもよい)", _ => _region is var (rx0, rz0, rx1, rz1) ? $"範囲 ({rx0},{rz0})-({rx1},{rz1})" : "" }}   {_lastEvent}";
     }
 
     int _seenEvents; string _lastEvent = "";
@@ -437,7 +510,7 @@ public partial class MicroEditor : Node3D
         if (_sim.Tick - _sideTick < 10 && _sideFor == _selected) return;   // 6 回/秒で更新
         _sideTick = _sim.Tick; _sideFor = _selected;
         foreach (var c in _side.GetChildren()) c.QueueFree();
-        var s = Building.Find(0, _selected);
+        var s = Building.Find(_floor, _selected);
         if (s == null)
         {
             _side.AddChild(Lbl("選択なし", 11, Cyan));
@@ -472,14 +545,14 @@ public partial class MicroEditor : Node3D
                 var opt = new OptionButton(); opt.AddThemeConstantOverride("icon_max_width", 24);
                 var recipes = _data.Recipes.Values.Where(r => r.Machine == def.Kind).OrderBy(r => r.TechLevel).ThenBy(r => r.Id).ToList();
                 opt.AddItem("レシピなし"); for (int i = 0; i < recipes.Count; i++) { opt.AddIconItem(Icon(recipes[i].Outputs.Count > 0 ? recipes[i].Outputs[0].Item : "mech_torso"), $"L{recipes[i].TechLevel}  {recipes[i].Name}"); if (recipes[i].Id == m.Recipe) opt.Selected = i + 1; }
-                int sid = s.Id; opt.ItemSelected += i => { _sim.Enqueue(new SetRecipe(1, 0, sid, i == 0 ? null : recipes[(int)i - 1].Id)); _sim.Step(); _sideTick = -1; };
+                int sid = s.Id; opt.ItemSelected += i => { _sim.Enqueue(new SetRecipe(1, _floor, sid, i == 0 ? null : recipes[(int)i - 1].Id)); _sim.Step(); _sideTick = -1; };
                 _side.AddChild(opt);
                 if (def.Kind == "mech_assembler")
                 {
                     var ar2 = new HBoxContainer(); ar2.AddThemeConstantOverride("separation", 8); ar2.AddChild(Lbl("系統", 11, Cyan));
                     var ao = new OptionButton(); var archs = new[] { ("heavy", "重装"), ("fast", "高速"), ("general", "汎用") };
                     for (int i = 0; i < archs.Length; i++) { ao.AddItem(archs[i].Item2); if (archs[i].Item1 == m.Archetype) ao.Selected = i; }
-                    ao.ItemSelected += i => { _sim.Enqueue(new SetArchetype(1, 0, sid, archs[(int)i].Item1)); _sim.Step(); _sideTick = -1; };
+                    ao.ItemSelected += i => { _sim.Enqueue(new SetArchetype(1, _floor, sid, archs[(int)i].Item1)); _sim.Step(); _sideTick = -1; };
                     ar2.AddChild(ao); _side.AddChild(ar2);
                 }
                 if (m.Recipe != null)
@@ -514,7 +587,7 @@ public partial class MicroEditor : Node3D
                     foreach (var w in m.Staff)
                     {
                         var chip = Chip(w.IsRobot ? "factory_robot" : "mech_head", $"{w.Name}  技能 {w.Skill}", w.IsRobot ? Accent : Line40);
-                        int wid = w.Id; var x = Btn("外す", () => { _sim.Enqueue(new RemoveStaff(1, 0, sid, wid, NearestChest(m)?.Id ?? -1)); _sim.Step(); _sideTick = -1; }); x.CustomMinimumSize = new Vector2(0, 26);
+                        int wid = w.Id; var x = Btn("外す", () => { _sim.Enqueue(new RemoveStaff(1, _floor, sid, wid, NearestChest(m)?.Id ?? -1)); _sim.Step(); _sideTick = -1; }); x.CustomMinimumSize = new Vector2(0, 26);
                         chip.AddChild(x); sr.AddChild(chip);
                     }
                     _side.AddChild(sr);
@@ -522,10 +595,10 @@ public partial class MicroEditor : Node3D
                 var ar = new HBoxContainer(); ar.AddThemeConstantOverride("separation", 8);
                 var skill = new SpinBox { MinValue = 0, MaxValue = 10, Value = 3, CustomMinimumSize = new Vector2(90, 34) };
                 ar.AddChild(Lbl("技能", 11, Cyan)); ar.AddChild(skill);
-                ar.AddChild(Btn("要員を割り当て", () => { _sim.Enqueue(new AssignStaff(1, 0, sid, new Worker(m.Staff.Count + 1, $"作業員 {m.Staff.Count + 1}", (int)skill.Value))); _sim.Step(); _sideTick = -1; }, true));
+                ar.AddChild(Btn("要員を割り当て", () => { _sim.Enqueue(new AssignStaff(1, _floor, sid, new Worker(m.Staff.Count + 1, $"作業員 {m.Staff.Count + 1}", (int)skill.Value))); _sim.Step(); _sideTick = -1; }, true));
                 _side.AddChild(ar);
                 var robotChest = Floor.Structures.OfType<Chest>().Where(c => c.Items.Any(i => i.Item == "factory_robot")).OrderBy(c => Math.Abs(c.X - m.X) + Math.Abs(c.Y - m.Y)).FirstOrDefault();
-                if (robotChest != null) _side.AddChild(Btn($"製造ロボットを割り当て(箱 ({robotChest.X}, {robotChest.Y}) から)", () => { _sim.Enqueue(new AssignRobot(1, 0, sid, robotChest.Id)); _sim.Step(); _sideTick = -1; }, true, "factory_robot"));
+                if (robotChest != null) _side.AddChild(Btn($"製造ロボットを割り当て(箱 ({robotChest.X}, {robotChest.Y}) から)", () => { _sim.Enqueue(new AssignRobot(1, _floor, sid, robotChest.Id)); _sim.Step(); _sideTick = -1; }, true, "factory_robot"));
                 break;
             }
             case Reactor r:
@@ -542,7 +615,7 @@ public partial class MicroEditor : Node3D
                 orow.AddChild(Lbl("出力設定", 11, Cyan));
                 var slider = new HSlider { MinValue = 0, MaxValue = _data.OverloadMax, Step = 5, Value = r.OutputPct, CustomMinimumSize = new Vector2(150, 24), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
                 var pctLbl = Lbl($"{r.OutputPct}%", 15, r.OutputPct > 100 ? Warm : null);
-                int rid = s.Id; slider.ValueChanged += v => { pctLbl.Text = $"{(int)v}%"; _sim.Enqueue(new SetReactorOutput(1, 0, rid, (int)v)); _sim.Step(); _sideTick = -1; };
+                int rid = s.Id; slider.ValueChanged += v => { pctLbl.Text = $"{(int)v}%"; _sim.Enqueue(new SetReactorOutput(1, _floor, rid, (int)v)); _sim.Step(); _sideTick = -1; };
                 orow.AddChild(slider); orow.AddChild(pctLbl); _side.AddChild(orow);
                 var lp = new ProgressBar { MinValue = 0, MaxValue = _data.OverloadLimit, Value = r.Load, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 8) };
                 lp.AddThemeStyleboxOverride("fill", Box(new Color(1f, 0.3f, 0.2f), Color.Color8(0, 0, 0, 0), 0, 0)); _side.AddChild(lp);
@@ -592,7 +665,7 @@ public partial class MicroEditor : Node3D
                 var pr = new ProgressBar { MinValue = 0, MaxValue = bd.Capacity, Value = bt.Stored, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 10) }; _side.AddChild(pr);
                 _side.AddChild(Lbl("方式", 10, Cyan));
                 var mode = new OptionButton(); foreach (var n in new[] { "ピーク用(不足時に放電)", "非常用(リアクター停止時だけ)", "停止" }) mode.AddItem(n); mode.Selected = (int)bt.Mode;
-                int bid = s.Id; mode.ItemSelected += i => { _sim.Enqueue(new SetBatteryMode(1, 0, bid, (BatteryMode)(int)i)); _sim.Step(); _sideTick = -1; };
+                int bid = s.Id; mode.ItemSelected += i => { _sim.Enqueue(new SetBatteryMode(1, _floor, bid, (BatteryMode)(int)i)); _sim.Step(); _sideTick = -1; };
                 _side.AddChild(mode);
                 break;
             }
@@ -607,13 +680,15 @@ public partial class MicroEditor : Node3D
                 var opt = new OptionButton(); opt.AddThemeConstantOverride("icon_max_width", 24);
                 var its = _data.Items.Values.Where(i => !i.Fluid).OrderBy(i => i.TechLevel).ThenBy(i => i.Id).ToList();
                 opt.AddItem("輸出のみ"); for (int i = 0; i < its.Count; i++) { opt.AddIconItem(Icon(its[i].Id), $"{its[i].Name}  {its[i].Price * _data.ImportMul / 100}"); if (its[i].Id == td.Import) opt.Selected = i + 1; }
-                int tid = s.Id; opt.ItemSelected += i => { _sim.Enqueue(new SetImport(1, 0, tid, i == 0 ? null : its[(int)i - 1].Id)); _sim.Step(); _sideTick = -1; };
+                int tid = s.Id; opt.ItemSelected += i => { _sim.Enqueue(new SetImport(1, _floor, tid, i == 0 ? null : its[(int)i - 1].Id)); _sim.Step(); _sideTick = -1; };
                 _side.AddChild(opt);
                 if (td.Outbox.Count > 0) _side.AddChild(Chip(td.Outbox[0].Item, $"出口に {td.Outbox.Count} 個", Accent));
                 break;
             }
             case Port p:
-                _side.AddChild(Sep()); _side.AddChild(Lbl(p.LinkBuilding < 0 ? "未接続" : $"接続先  建物 {p.LinkBuilding}  階 {p.LinkFloor + 1}  {(def.Id.Contains("lift") ? (p.LinkFloor > 0 ? "上り" : "下り") : "")}   待ち {p.Buffer.Count}  到着 {p.Inbox.Count}", 13, p.LinkBuilding < 0 ? Warm : null));
+                _side.AddChild(Sep());
+                _side.AddChild(Btn(def.Id.Contains("lift") ? "接続先の口を選ぶ(別の階へ)" : "接続先の口を選ぶ", () => { _linkFrom = (_floor, p.Id); SetMode(Mode.Link); }, true));
+                _side.AddChild(Lbl(p.LinkBuilding < 0 ? "未接続" : $"接続先  建物 {p.LinkBuilding}  階 {p.LinkFloor + 1}  {(def.Id.Contains("lift") ? (p.LinkFloor > 0 ? "上り" : "下り") : "")}   待ち {p.Buffer.Count}  到着 {p.Inbox.Count}", 13, p.LinkBuilding < 0 ? Warm : null));
                 break;
         }
         _side.AddChild(Sep());
@@ -630,41 +705,44 @@ public partial class MicroEditor : Node3D
     {
         var cmds = new List<ICommand>();
         int y0 = D - 21;   // 鉱脈のすぐ南
-        for (int x = 0; x < 12; x++) { cmds.Add(new PlaceStructure(1, 0, "miner", x, D - 20, 0, Direction.South)); cmds.Add(new PlaceStructure(1, 0, "inserter", x, y0, 0, Direction.South)); cmds.Add(new PlaceStructure(1, 0, "belt", x, y0 - 1, 0, Direction.East)); }
-        for (int x = 12; x < 20; x++) cmds.Add(new PlaceStructure(1, 0, "belt", x, y0 - 1, 0, Direction.East));
+        for (int x = 0; x < 12; x++) { cmds.Add(new PlaceStructure(1, _floor, "miner", x, D - 20, 0, Direction.South)); cmds.Add(new PlaceStructure(1, _floor, "inserter", x, y0, 0, Direction.South)); cmds.Add(new PlaceStructure(1, _floor, "belt", x, y0 - 1, 0, Direction.East)); }
+        for (int x = 12; x < 20; x++) cmds.Add(new PlaceStructure(1, _floor, "belt", x, y0 - 1, 0, Direction.East));
         for (int x = 2; x < 20; x += 3)
         {
-            cmds.Add(new PlaceStructure(1, 0, "inserter", x, y0 - 2, 0, Direction.South));
-            cmds.Add(new PlaceStructure(1, 0, "furnace", x, y0 - 3, 0, Direction.South));
-            cmds.Add(new PlaceStructure(1, 0, "inserter", x, y0 - 4, 0, Direction.South));
-            cmds.Add(new PlaceStructure(1, 0, "chest", x, y0 - 5, 0, Direction.South));
+            cmds.Add(new PlaceStructure(1, _floor, "inserter", x, y0 - 2, 0, Direction.South));
+            cmds.Add(new PlaceStructure(1, _floor, "furnace", x, y0 - 3, 0, Direction.South));
+            cmds.Add(new PlaceStructure(1, _floor, "inserter", x, y0 - 4, 0, Direction.South));
+            cmds.Add(new PlaceStructure(1, _floor, "chest", x, y0 - 5, 0, Direction.South));
         }
-        cmds.Add(new PlaceStructure(1, 0, "reactor_g2", 22, y0 - 3, 0, Direction.East)); cmds.Add(new PlaceStructure(1, 0, "reactor_g2", 24, y0 - 3, 0, Direction.East)); cmds.Add(new PlaceStructure(1, 0, "battery_g2", 22, y0 - 7, 0, Direction.East)); cmds.Add(new PlaceStructure(1, 0, "trade", 26, y0 - 5, 0, Direction.East)); cmds.Add(new AddTreasury(5000));
+        cmds.Add(new PlaceStructure(1, _floor, "reactor_g2", 22, y0 - 3, 0, Direction.East)); cmds.Add(new PlaceStructure(1, _floor, "reactor_g2", 24, y0 - 3, 0, Direction.East)); cmds.Add(new PlaceStructure(1, _floor, "battery_g2", 22, y0 - 7, 0, Direction.East)); cmds.Add(new PlaceStructure(1, _floor, "trade", 26, y0 - 5, 0, Direction.East)); cmds.Add(new AddTreasury(5000));
         // 昇降機の口: 上り(2 階へ)と下り(地下は無いので 2 階側から見た下り = 1 階の口を 2 階から結ぶ)。1 階に上り 1 つ、未接続 1 つ、2 階と 3 階にも置いて 3 階→1 階を下りとして示す
-        cmds.Add(new PlaceStructure(1, 0, "port_lift", 30, y0 - 3, 0, Direction.South)); cmds.Add(new PlaceStructure(1, 1, "port_lift", 30, y0 - 3, 0, Direction.South));
-        cmds.Add(new PlaceStructure(1, 0, "port_lift", 32, y0 - 3, 0, Direction.South));
-        cmds.Add(new PlaceStructure(1, 0, "port_lift", 34, y0 - 3, 0, Direction.South));
+        cmds.Add(new PlaceStructure(1, _floor, "port_lift", 30, y0 - 3, 0, Direction.South)); cmds.Add(new PlaceStructure(1, 1, "port_lift", 30, y0 - 3, 0, Direction.South));
+        cmds.Add(new PlaceStructure(1, _floor, "port_lift", 32, y0 - 3, 0, Direction.South));
+        cmds.Add(new PlaceStructure(1, _floor, "port_lift", 34, y0 - 3, 0, Direction.South));
         foreach (var c in cmds) _sim.Enqueue(c);
         _sim.Step();
         var lifts = Floor.Structures.OfType<Port>().OrderBy(p => p.X).ToList(); var up1 = Building.Floors[1].Structures.OfType<Port>().First();
         _sim.Enqueue(new LinkPorts(1, 0, lifts[0].Id, 1, 1, up1.Id));   // (30): 2 階へ = 上り
         _sim.Enqueue(new SetLiftDown(lifts[2].Id));                      // (34): 下り(見本用に接続先を -1 階相当として印だけ)
         int wid = 1;
-        foreach (var m in Floor.Structures.OfType<Machine>()) { _sim.Enqueue(new SetRecipe(1, 0, m.Id, "iron_plate")); _sim.Enqueue(new AssignStaff(1, 0, m.Id, new Worker(wid, $"作業員 {wid}", 4))); wid++; }
+        foreach (var m in Floor.Structures.OfType<Machine>()) { _sim.Enqueue(new SetRecipe(1, _floor, m.Id, "iron_plate")); _sim.Enqueue(new AssignStaff(1, _floor, m.Id, new Worker(wid, $"作業員 {wid}", 4))); wid++; }
         _sim.Step();
-        var rc = Floor.Structures.OfType<Chest>().First(); _sim.Enqueue(new AddItems(1, 0, rc.Id, "factory_robot", 85, 2)); _sim.Step();
+        var rc = Floor.Structures.OfType<Chest>().First(); _sim.Enqueue(new AddItems(1, _floor, rc.Id, "factory_robot", 85, 2)); _sim.Step();
         // 機体組立機(4x4)と部品の箱
         int mx = 40, my = y0 - 8;
-        _sim.Enqueue(new PlaceStructure(1, 0, "mech_assembler", mx, my, 0, Direction.South)); _sim.Enqueue(new PlaceStructure(1, 0, "inserter", mx + 4, my + 1, 0, Direction.West)); _sim.Enqueue(new PlaceStructure(1, 0, "chest", mx + 5, my + 1, 0, Direction.West)); _sim.Step();
+        _sim.Enqueue(new PlaceStructure(1, _floor, "mech_assembler", mx, my, 0, Direction.South)); _sim.Enqueue(new PlaceStructure(1, _floor, "inserter", mx + 4, my + 1, 0, Direction.West)); _sim.Enqueue(new PlaceStructure(1, _floor, "chest", mx + 5, my + 1, 0, Direction.West)); _sim.Step();
         var ma = Floor.Structures.OfType<Machine>().First(x => _data.Structures[x.DefId].Kind == "mech_assembler"); var pc = (Chest)Floor.At(mx + 5, my + 1, 0)!;
-        _sim.Enqueue(new SetRecipe(1, 0, ma.Id, "mech_g2_reactor")); _sim.Enqueue(new SetArchetype(1, 0, ma.Id, "heavy"));
-        for (int i = 1; i <= 4; i++) _sim.Enqueue(new AssignStaff(1, 0, ma.Id, new Worker(i, $"技師 {i}", 6)));
-        foreach (var (it, n) in new[] { ("mech_head", 2), ("mech_torso", 2), ("mech_arm", 4), ("mech_leg", 4), ("mech_back", 2), ("mech_weapon", 2), ("reactor_core", 2) }) _sim.Enqueue(new AddItems(1, 0, pc.Id, it, 72, n));
+        _sim.Enqueue(new SetRecipe(1, _floor, ma.Id, "mech_g2_reactor")); _sim.Enqueue(new SetArchetype(1, _floor, ma.Id, "heavy"));
+        for (int i = 1; i <= 4; i++) _sim.Enqueue(new AssignStaff(1, _floor, ma.Id, new Worker(i, $"技師 {i}", 6)));
+        foreach (var (it, n) in new[] { ("mech_head", 2), ("mech_torso", 2), ("mech_arm", 4), ("mech_leg", 4), ("mech_back", 2), ("mech_weapon", 2), ("reactor_core", 2) }) _sim.Enqueue(new AddItems(1, _floor, pc.Id, it, 72, n));
         _sim.Step();
+        _sim.Enqueue(new CopyRegion(1, 0, 2, y0 - 5, 8, y0 - 2, 99, "見本"));
+        _sim.Enqueue(new PasteBlueprint(1, 1, 10, 10, 99)); _sim.Enqueue(new PasteBlueprint(1, 1, 20, 10, 99));   // 2 階に生産線の一部を貼り付け
         _sim.Run(Arg("--select") == "mech" ? 60 * 9 + 4800 + 600 : 3600);   // 機体: 部品の搬入 + 組立 4,800 ティック
         _structureVersion++;
         _selected = Arg("--select") switch { "reactor" => Floor.Structures.First(s => s is Reactor).Id, "mech" => ma.Id, "none" => -1, _ => Floor.Structures.First(s => s is Machine).Id };
-        _pivot = new Vector3(10, FloorY, y0 - 2); _dist = 28; _yaw = 0.5f; _elev = 0.7f;
+        _pivot = new Vector3(10, GroundY, y0 - 2); _dist = 28; _yaw = 0.5f; _elev = 0.7f;
+        if (Arg("--floor") is string fs) SetFloor(int.Parse(fs) - 1);
         if (Arg("--pivot") is string pv) { var p = pv.Split(','); _pivot = new Vector3(float.Parse(p[0]), float.Parse(p[1]), float.Parse(p[2])); }
         if (Arg("--dist") is string ds) _dist = float.Parse(ds);
         if (Arg("--yaw") is string ys) _yaw = float.Parse(ys);
