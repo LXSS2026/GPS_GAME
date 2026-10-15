@@ -11,11 +11,16 @@ public sealed class GameData
     public readonly IReadOnlyList<string> Infrastructure;
     public readonly int ReactorPrecisionMin;        // 品質 0 のときの出力(%)
     public readonly int DefectReductionPerSkill;    // 担当者の技能 1 につき失敗率を下げる割合(%)
+    public readonly int BatteryChargeEfficiency;     // 充電効率(%)
+    public readonly int[] TierPriceMul = { 30, 100, 300, 1000 };   // 階級ごとの価格倍率(%)
+    public int ImportMul = 150;             // 輸入価格の倍率(%)
+    public int ImportQuality = 60;          // 輸入品の品質
+    public int RobotNormalBias = 70;        // 製造ロボットの通常品質への偏り(%)
 
     static readonly JsonSerializerOptions Opt = new() { PropertyNameCaseInsensitive = true };
 
-    GameData(Dictionary<string, ItemDef> items, Dictionary<string, StructureDef> structures, Dictionary<string, RecipeDef> recipes, List<string> infra, int precisionMin, int defectRed)
-    { Items = items; Structures = structures; Recipes = recipes; Infrastructure = infra; ReactorPrecisionMin = precisionMin; DefectReductionPerSkill = defectRed; }
+    GameData(Dictionary<string, ItemDef> items, Dictionary<string, StructureDef> structures, Dictionary<string, RecipeDef> recipes, List<string> infra, int precisionMin, int defectRed, int chargeEff)
+    { Items = items; Structures = structures; Recipes = recipes; Infrastructure = infra; ReactorPrecisionMin = precisionMin; DefectReductionPerSkill = defectRed; BatteryChargeEfficiency = chargeEff; }
 
     public static GameData Load(string dir)
     {
@@ -29,6 +34,7 @@ public sealed class GameData
         }
         int precisionMin = sdoc.RootElement.GetProperty("reactorPrecision").GetProperty("precisionMin").GetInt32();
         int defectRed = sdoc.RootElement.GetProperty("staff").GetProperty("defectReductionPerSkill").GetInt32();
+        int chargeEff = sdoc.RootElement.TryGetProperty("batteryChargeEfficiency", out var ce) ? ce.GetInt32() : 100;
         using var rdoc = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "recipes.json")));
         var recipes = new Dictionary<string, RecipeDef>();
         foreach (var r in rdoc.RootElement.GetProperty("recipes").EnumerateArray())
@@ -40,7 +46,14 @@ public sealed class GameData
         }
         using var idoc = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "infrastructure.json")));
         var infra = idoc.RootElement.GetProperty("infrastructure").EnumerateArray().Select(e => e.GetProperty("id").GetString()!).ToList();
-        return new GameData(items, structures, recipes, infra, precisionMin, defectRed);
+        var gd = new GameData(items, structures, recipes, infra, precisionMin, defectRed, chargeEff);
+        if (sdoc.RootElement.TryGetProperty("trade", out var tr))
+        {
+            foreach (var kv in tr.GetProperty("tierMul").EnumerateObject()) gd.TierPriceMul[int.Parse(kv.Name)] = kv.Value.GetInt32();
+            gd.ImportMul = tr.GetProperty("importMul").GetInt32(); gd.ImportQuality = tr.GetProperty("importQuality").GetInt32();
+        }
+        if (sdoc.RootElement.TryGetProperty("robot", out var rb)) gd.RobotNormalBias = rb.GetProperty("normalBias").GetInt32();
+        return gd;
     }
 
     /// <summary>テストや道具から: カレントから上へ辿って game/data を探す。</summary>

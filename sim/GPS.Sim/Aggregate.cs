@@ -7,7 +7,7 @@ namespace GPS.Sim;
 /// 箱の満杯・鉱脈の枯渇に当たったとき、および ReprofileEvery ごとに記録を取り直す(その間は全計算)。</summary>
 public sealed class AggregateState
 {
-    public const int ProfileTicks = 1_800;        // 記録の窓(30 秒)
+    public const int ProfileTicks = 7_200;        // 記録の窓(2 分。2026-10-15 承認: 不良数の精度のため 30 秒から延長)
     public const int Interval = 60;               // 積算の間隔(1 秒)
     public const long ReprofileEvery = Clock.TicksPerHour;
 
@@ -148,7 +148,7 @@ public static class Aggregation
                     }
                     case Chest c when a.Chests.TryGetValue(c.Id, out var deltas):
                     {
-                        int cap = data.Structures[c.DefId].Capacity;
+                        int cap = (int)data.Structures[c.DefId].Capacity;
                         for (int k = 0; k < deltas.Count; k++)
                         {
                             var d = deltas[k];
@@ -175,7 +175,7 @@ public static class Aggregation
                     }
                     case Tank t when a.TankRate.TryGetValue(t.Id, out var tr):
                     {
-                        int cap = data.Structures[t.DefId].Capacity;
+                        int cap = (int)data.Structures[t.DefId].Capacity;
                         long n = Take(t.Id * 4 + 3, tr);
                         t.Amount = (int)Math.Clamp(t.Amount + n, 0, cap);
                         if (t.Amount == 0 || t.Amount == cap) boundary = true;

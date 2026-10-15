@@ -356,7 +356,7 @@ public partial class MicroEditor : Node3D
         // ----- 左: 設備のパレット(種別ごとの格子) -----
         var pal = new VBoxContainer(); pal.AddThemeConstantOverride("separation", 8);
         pal.AddChild(Lbl("設備", 11, Cyan));
-        var groups = new (string name, string[] kinds)[] { ("生産", new[] { "miner", "furnace", "assembler" }), ("物流", new[] { "belt", "inserter", "chest", "port" }), ("流体", new[] { "pump", "pipe", "tank" }), ("動力", new[] { "reactor", "battery" }) };
+        var groups = new (string name, string[] kinds)[] { ("生産", new[] { "miner", "furnace", "assembler" }), ("物流", new[] { "belt", "inserter", "chest", "port", "trade" }), ("流体", new[] { "pump", "pipe", "tank" }), ("動力", new[] { "reactor", "battery" }) };
         foreach (var (gname, kinds) in groups)
         {
             pal.AddChild(Lbl(gname, 11, Line40));
@@ -426,7 +426,7 @@ public partial class MicroEditor : Node3D
         foreach (var (id, l) in _stockLabels) l.Text = b.Inventory.GetValueOrDefault(id).ToString();
         var made = Floor.Structures.OfType<Machine>().Sum(m => m.Made); var failed = Floor.Structures.OfType<Machine>().Sum(m => m.Failed);
         long stored = Floor.Structures.OfType<Battery>().Sum(x => x.Stored);
-        _status.Text = $"設備 {Floor.Structures.Count} 台   在庫 {b.Inventory.Values.Sum()} 台   製造 {made}   不良 {failed}   蓄電 {stored / 60 / 1000.0:F1} kWmin   {(_palette == null ? "" : _data.Structures[_palette].Name + " を設置中  " + DirName(_dir))}";
+        _status.Text = $"国庫 {_sim.Factory.Treasury:N0}   設備 {Floor.Structures.Count} 台   在庫 {b.Inventory.Values.Sum()} 台   製造 {made}   不良 {failed}   蓄電 {stored / 216000.0:F2} kWh   {(_palette == null ? "" : _data.Structures[_palette].Name + " を設置中  " + DirName(_dir))}";
     }
 
     int _sideFor = -2; long _sideTick = -1;
@@ -481,12 +481,24 @@ public partial class MicroEditor : Node3D
                     _side.AddChild(inv);
                 }
                 _side.AddChild(Sep()); _side.AddChild(Lbl($"要員  {m.Staff.Count} / {def.Workers}", 10, Cyan));
-                if (m.Staff.Count > 0) { var sr = new HBoxContainer(); sr.AddThemeConstantOverride("separation", 6); foreach (var w in m.Staff) sr.AddChild(Chip("mech_head", $"{w.Name}  技能 {w.Skill}", Line40)); _side.AddChild(sr); }
+                if (m.Staff.Count > 0)
+                {
+                    var sr = new HBoxContainer(); sr.AddThemeConstantOverride("separation", 6);
+                    foreach (var w in m.Staff)
+                    {
+                        var chip = Chip(w.IsRobot ? "factory_robot" : "mech_head", $"{w.Name}  技能 {w.Skill}", w.IsRobot ? Accent : Line40);
+                        int wid = w.Id; var x = Btn("外す", () => { _sim.Enqueue(new RemoveStaff(1, 0, sid, wid, NearestChest(m)?.Id ?? -1)); _sim.Step(); _sideTick = -1; }); x.CustomMinimumSize = new Vector2(0, 26);
+                        chip.AddChild(x); sr.AddChild(chip);
+                    }
+                    _side.AddChild(sr);
+                }
                 var ar = new HBoxContainer(); ar.AddThemeConstantOverride("separation", 8);
                 var skill = new SpinBox { MinValue = 0, MaxValue = 10, Value = 3, CustomMinimumSize = new Vector2(90, 34) };
                 ar.AddChild(Lbl("技能", 11, Cyan)); ar.AddChild(skill);
                 ar.AddChild(Btn("要員を割り当て", () => { _sim.Enqueue(new AssignStaff(1, 0, sid, new Worker(m.Staff.Count + 1, $"作業員 {m.Staff.Count + 1}", (int)skill.Value))); _sim.Step(); _sideTick = -1; }, true));
                 _side.AddChild(ar);
+                var robotChest = Floor.Structures.OfType<Chest>().Where(c => c.Items.Any(i => i.Item == "factory_robot")).OrderBy(c => Math.Abs(c.X - m.X) + Math.Abs(c.Y - m.Y)).FirstOrDefault();
+                if (robotChest != null) _side.AddChild(Btn($"製造ロボットを割り当て(箱 ({robotChest.X}, {robotChest.Y}) から)", () => { _sim.Enqueue(new AssignRobot(1, 0, sid, robotChest.Id)); _sim.Step(); _sideTick = -1; }, true, "factory_robot"));
                 break;
             }
             case Reactor r:
@@ -536,13 +548,29 @@ public partial class MicroEditor : Node3D
                 var bd = def;
                 var g4 = new GridContainer { Columns = 3 }; g4.AddThemeConstantOverride("h_separation", 14);
                 void S4(string k, string v, Color? c = null) { var vb = new VBoxContainer(); vb.AddThemeConstantOverride("separation", 0); vb.AddChild(Lbl(k, 10, Cyan)); vb.AddChild(Lbl(v, 15, c)); g4.AddChild(vb); }
-                S4("蓄電", $"{bt.Stored / 60 / 1000.0:F1} / {bd.Capacity / 60 / 1000.0:F1} kWmin", Accent); S4("充電", $"{bd.ChargeRate} kW"); S4("放電", $"{bd.DischargeRate} kW");
+                S4("蓄電", $"{bt.Stored / 216000.0:F2} / {bd.Capacity / 216000.0:F1} kWh", Accent); S4("充電", $"{bd.ChargeRate} kW"); S4("放電", $"{bd.DischargeRate} kW");
                 _side.AddChild(g4);
                 var pr = new ProgressBar { MinValue = 0, MaxValue = bd.Capacity, Value = bt.Stored, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 10) }; _side.AddChild(pr);
                 _side.AddChild(Lbl("方式", 10, Cyan));
                 var mode = new OptionButton(); foreach (var n in new[] { "ピーク用(不足時に放電)", "非常用(リアクター停止時だけ)", "停止" }) mode.AddItem(n); mode.Selected = (int)bt.Mode;
                 int bid = s.Id; mode.ItemSelected += i => { _sim.Enqueue(new SetBatteryMode(1, 0, bid, (BatteryMode)(int)i)); _sim.Step(); _sideTick = -1; };
                 _side.AddChild(mode);
+                break;
+            }
+            case Trade td:
+            {
+                _side.AddChild(Sep());
+                var g5 = new GridContainer { Columns = 3 }; g5.AddThemeConstantOverride("h_separation", 14);
+                void S5(string k, string v, Color? c = null) { var vb = new VBoxContainer(); vb.AddThemeConstantOverride("separation", 0); vb.AddChild(Lbl(k, 10, Cyan)); vb.AddChild(Lbl(v, 15, c)); g5.AddChild(vb); }
+                S5("輸出", td.Sold.ToString(), Green); S5("輸入", td.Bought.ToString(), Accent); S5("国庫", _sim.Factory.Treasury.ToString("N0"));
+                _side.AddChild(g5);
+                _side.AddChild(Lbl("輸入する品(入った品は売る)", 10, Cyan));
+                var opt = new OptionButton(); opt.AddThemeConstantOverride("icon_max_width", 24);
+                var its = _data.Items.Values.Where(i => !i.Fluid).OrderBy(i => i.TechLevel).ThenBy(i => i.Id).ToList();
+                opt.AddItem("輸出のみ"); for (int i = 0; i < its.Count; i++) { opt.AddIconItem(Icon(its[i].Id), $"{its[i].Name}  {its[i].Price * _data.ImportMul / 100}"); if (its[i].Id == td.Import) opt.Selected = i + 1; }
+                int tid = s.Id; opt.ItemSelected += i => { _sim.Enqueue(new SetImport(1, 0, tid, i == 0 ? null : its[(int)i - 1].Id)); _sim.Step(); _sideTick = -1; };
+                _side.AddChild(opt);
+                if (td.Outbox.Count > 0) _side.AddChild(Chip(td.Outbox[0].Item, $"出口に {td.Outbox.Count} 個", Accent));
                 break;
             }
             case Port p:
@@ -553,6 +581,7 @@ public partial class MicroEditor : Node3D
         var rm = Btn("撤去", RemoveSelected); rm.AddThemeStyleboxOverride("normal", Box(Navy, Warm, 1, 8)); _side.AddChild(rm);
     }
 
+    Chest? NearestChest(Structure s) => Floor.Structures.OfType<Chest>().OrderBy(c => Math.Abs(c.X - s.X) + Math.Abs(c.Y - s.Y)).FirstOrDefault();
     static string TierName(QualityTier t) => t switch { QualityTier.Defect => "不良", QualityTier.Normal => "通常", QualityTier.High => "高", _ => "最高" };
 
     // ---------- 動作確認(無人): --demo で見本の生産線を置き、--screenshot で保存 ----------
@@ -571,12 +600,13 @@ public partial class MicroEditor : Node3D
             cmds.Add(new PlaceStructure(1, 0, "inserter", x, y0 - 4, 0, Direction.South));
             cmds.Add(new PlaceStructure(1, 0, "chest", x, y0 - 5, 0, Direction.South));
         }
-        cmds.Add(new PlaceStructure(1, 0, "reactor_g2", 22, y0 - 3, 0, Direction.East)); cmds.Add(new PlaceStructure(1, 0, "reactor_g2", 24, y0 - 3, 0, Direction.East)); cmds.Add(new PlaceStructure(1, 0, "battery_l", 22, y0 - 7, 0, Direction.East));
+        cmds.Add(new PlaceStructure(1, 0, "reactor_g2", 22, y0 - 3, 0, Direction.East)); cmds.Add(new PlaceStructure(1, 0, "reactor_g2", 24, y0 - 3, 0, Direction.East)); cmds.Add(new PlaceStructure(1, 0, "battery_g2", 22, y0 - 7, 0, Direction.East)); cmds.Add(new PlaceStructure(1, 0, "trade", 26, y0 - 5, 0, Direction.East)); cmds.Add(new AddTreasury(5000));
         foreach (var c in cmds) _sim.Enqueue(c);
         _sim.Step();
         int wid = 1;
         foreach (var m in Floor.Structures.OfType<Machine>()) { _sim.Enqueue(new SetRecipe(1, 0, m.Id, "iron_plate")); _sim.Enqueue(new AssignStaff(1, 0, m.Id, new Worker(wid, $"作業員 {wid}", 4))); wid++; }
         _sim.Step();
+        var rc = Floor.Structures.OfType<Chest>().First(); _sim.Enqueue(new AddItems(1, 0, rc.Id, "factory_robot", 85, 2)); _sim.Step();
         _sim.Run(3600);
         _structureVersion++;
         _selected = Floor.Structures.First(s => s is Machine).Id;

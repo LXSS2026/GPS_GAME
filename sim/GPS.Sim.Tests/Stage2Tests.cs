@@ -1,0 +1,109 @@
+using GPS.Sim;
+using Xunit;
+
+public class Stage2Tests
+{
+    static readonly GameData Data = GameData.Load(GameData.FindDataDir());
+    static BlockRegistry Blocks() => BlockRegistry.FromJson(File.ReadAllText(Path.Combine(GameData.FindDataDir(), "blocks.json")));
+    static Simulation NewSim(ulong seed) { var s = new Simulation(Blocks(), Data, seed); s.Factory.Creative = true; return s; }
+    static void Do(Simulation s, params ICommand[] cmds) { foreach (var c in cmds) s.Enqueue(c); s.Step(); }
+
+    [Fact]
+    public void Trade_ExportSellsByTier_ImportBuysIntoOutbox()
+    {
+        var s = NewSim(1);
+        Do(s, new CreateBuilding(1, "t", 6, 3, 1, false),
+              new PlaceStructure(1, 0, "chest", 0, 0, 0, Direction.East), new PlaceStructure(1, 0, "inserter", 1, 0, 0, Direction.East), new PlaceStructure(1, 0, "trade", 2, 0, 0, Direction.East),
+              new PlaceStructure(1, 0, "inserter", 4, 0, 0, Direction.East), new PlaceStructure(1, 0, "chest", 5, 0, 0, Direction.East), new PlaceStructure(1, 0, "reactor_g2", 0, 2, 0, Direction.East),
+              new AddItems(1, 0, 1, "gear", 95, 2), new AddItems(1, 0, 1, "gear", 60, 3));   // 高品質 2 + 通常 3
+        s.Run(60 * 5 + 40);   // インサータは 1 個に 60 ティック(掴む 30 + 置く 30)
+        long expected = 2 * (12 * 300 / 100) + 3 * 12;   // 高品質は 3 倍
+        Assert.Equal(expected, s.Factory.Treasury);
+        var t = (Trade)s.Factory.Get(1)!.Find(0, 3)!; Assert.Equal(5, t.Sold);
+        Do(s, new SetImport(1, 0, 3, "steel"));
+        s.Run(120 * 3 + 60);
+        var outChest = (Chest)s.Factory.Get(1)!.Find(0, 5)!;
+        Assert.True(t.Bought >= 2 && outChest.Items.Count + t.Outbox.Count >= 2);
+        Assert.All(outChest.Items, it => Assert.Equal("steel", it.Item));
+        Assert.True(s.Factory.Treasury < expected);
+        // 国庫が尽きたら買わない
+        Do(s, new AddTreasury(-s.Factory.Treasury));
+        long bought = t.Bought; s.Run(600); Assert.Equal(bought, t.Bought);
+    }
+
+    [Fact]
+    public void Robot_ReplacesWorker_SkillFromQuality_AndBiasesToNormal()
+    {
+        var s = NewSim(5);
+        Do(s, new CreateBuilding(1, "r", 4, 2, 1, false),
+              new PlaceStructure(1, 0, "assembler", 0, 0, 0, Direction.East), new PlaceStructure(1, 0, "chest", 1, 0, 0, Direction.East), new PlaceStructure(1, 0, "reactor_g2", 2, 0, 0, Direction.East),
+              new SetRecipe(1, 0, 1, "gear"), new AddItems(1, 0, 2, "factory_robot", 83, 1));
+        var m = (Machine)s.Factory.Get(1)!.Find(0, 1)!;
+        m.Inputs.Add(new ItemStack("iron_plate", 60, 2)); s.Run(130);
+        Assert.Equal(0, m.Made + m.Failed);                       // 要員なし
+        Do(s, new AssignRobot(1, 0, 1, 2));
+        Assert.Single(m.Staff); Assert.True(m.Staff[0].IsRobot); Assert.Equal(8, m.Staff[0].Skill);
+        int tails = 0;
+        for (int i = 0; i < 3000; i++) { m.Inputs.Add(new ItemStack("iron_plate", 60, 2)); s.Run(121); foreach (var o in m.Outputs) if (o.Item == "gear" && o.Tier != QualityTier.Normal) tails++; m.Outputs.Clear(); }
+        Assert.True(m.Made > 2500);
+        Assert.True(tails < 3000 * 0.011 * 0.6, $"tails {tails}");   // 高・最高が 7 割減(不良は技能 8 でも減る)
+        Do(s, new RemoveStaff(1, 0, 1, m.Staff[0].Id, 2));
+        Assert.Empty(m.Staff); Assert.Contains(((Chest)s.Factory.Get(1)!.Find(0, 2)!).Items, it => it.Item == "factory_robot" && it.Quality == 83);
+    }
+
+    [Fact]
+    public void CopyPaste_ReproducesLayoutWithRecipes_AndNeedsInventory()
+    {
+        var s = NewSim(2);
+        foreach (var c in SampleLines.Build(1, 4, reactors: 1)) s.Enqueue(c);
+        s.Step();
+        Do(s, new CopyRegion(1, 0, 0, 0, 3, 5, 1, "生産線 4 本"));
+        var bp = s.Factory.Blueprints[1];
+        Assert.Equal(4 * 5 + 1, bp.Entries.Count);
+        Assert.Contains(bp.Entries, e => e.Def == "furnace" && e.Recipe == "iron_plate");
+        // 在庫が無い建物には貼れない、在庫があれば貼れる
+        s.Factory.Creative = false;
+        Do(s, new CreateBuilding(2, "b", 10, 10, 2, false), new PasteBlueprint(2, 1, 2, 2, 1));
+        Assert.Empty(s.Factory.Get(2)!.Floors[1].Structures);
+        foreach (var e in bp.Entries) s.Enqueue(new AddInventory(2, e.Def, 1));
+        Do(s, new PasteBlueprint(2, 1, 2, 2, 1));
+        var fl = s.Factory.Get(2)!.Floors[1];
+        Assert.Equal(bp.Entries.Count, fl.Structures.Count);
+        Assert.NotNull(fl.At(2, 2, 0)); Assert.Equal("iron_plate", ((Machine)fl.At(2, 4, 0)!).Recipe);
+        Assert.All(s.Factory.Get(2)!.Inventory.Values, v => Assert.Equal(0, v));
+    }
+
+    [Fact]
+    public void Move_RelocatesWithStaffAndRecipes_AcrossBuildings()
+    {
+        var s = NewSim(3);
+        foreach (var c in SampleLines.Build(1, 3, reactors: 1)) s.Enqueue(c);
+        s.Enqueue(new CreateBuilding(2, "新棟", 8, 8, 1, false));
+        s.Step();
+        s.Factory.Creative = false;
+        var m0 = s.Factory.Get(1)!.Floors[0].Structures.OfType<Machine>().First();
+        Do(s, new MoveRegion(1, 0, 0, 0, 2, 5, 2, 0, 3, 1));
+        Assert.Empty(s.Factory.Get(1)!.Floors[0].Structures);
+        var fl = s.Factory.Get(2)!.Floors[0];
+        Assert.Equal(3 * 5 + 1, fl.Structures.Count);
+        var m = (Machine)fl.At(3, 3, 0)!;
+        Assert.Equal("iron_plate", m.Recipe); Assert.Single(m.Staff); Assert.Equal(m0.Staff[0].Name, m.Staff[0].Name);
+        Assert.All(s.Factory.Get(1)!.Inventory.Values, v => Assert.Equal(0, v));
+        Assert.All(s.Factory.Get(2)!.Inventory.Values, v => Assert.Equal(0, v));
+    }
+
+    [Fact]
+    public void Stage2_Commands_SurviveSaveAndReplay()
+    {
+        var s = NewSim(8);
+        foreach (var c in SampleLines.Build(1, 4, reactors: 2)) s.Enqueue(c);
+        s.Step();
+        Do(s, new PlaceStructure(1, 0, "trade", 5, 0, 0, Direction.East), new SetImport(1, 0, s.Factory.Get(1)!.NextStructureId - 1, "coal"), new AddTreasury(5000),
+              new CopyRegion(1, 0, 0, 0, 1, 5, 1, "x"), new CreateBuilding(2, "b", 8, 8, 1, false), new PasteBlueprint(2, 0, 1, 1, 1));
+        s.Run(2000);
+        var replayed = Save.Replay(8, s.Log, s.Tick, Blocks(), Data, creative: true);
+        Assert.Equal(Save.StateHash(s), Save.StateHash(replayed));
+        var loaded = Save.Load(Save.Snapshot(s), Blocks(), Data); loaded.Factory.Creative = true;
+        Assert.Equal(Save.StateHash(s), Save.StateHash(loaded));
+    }
+}

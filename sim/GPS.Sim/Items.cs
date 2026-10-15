@@ -3,7 +3,8 @@ namespace GPS.Sim;
 /// <summary>品質の階級(2026-10-15 確定): 製造不良 0〜39 / 通常 40〜89 / 高品質 90〜98 / 最高品質 99〜100。</summary>
 public enum QualityTier { Defect = 0, Normal = 1, High = 2, Top = 3 }
 
-public sealed record ItemDef(string Id, string Name, bool Fluid, bool Recyclable, int TechLevel);
+/// <summary>Price は輸出入の基準価格(通常品質)。階級で倍率がかかる。</summary>
+public sealed record ItemDef(string Id, string Name, bool Fluid, bool Recyclable, int TechLevel, int Price = 0);
 
 /// <summary>アイテム 1 個。品質値(0〜100)を個体ごとに持つ。流体は量(単位)を Count に持つ。</summary>
 public readonly record struct ItemStack(string Item, int Quality, int Count = 1)

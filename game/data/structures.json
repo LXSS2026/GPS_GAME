@@ -1,5 +1,5 @@
 {
-  "_comment": "設備の定義。バッテリーの capacity は kW·ティック(120,000 = 100 kW を 20 秒)、chargeRate/dischargeRate は kW。大きさはセル(w × d × h)。power は消費電力(kW)。workers は必要な要員数。priority は動力の優先順位(小さいほど先)。品質の倍率はパーセント(100 = 変化なし)。ティックは 60/秒、1 ゲーム時間 = 18,000 ティック。",
+  "_comment": "設備の定義。バッテリー(2026-10-15 確定)はリアクターと同じ大きさで、容量 = 同世代リアクターの 1 日分の出力(kW × 432,000 ティック)、充電効率 9 割(batteryChargeEfficiency)。充電の上限 = 同世代の出力、放電の上限 = その 2 倍(仮定)。大きさはセル(w × d × h)。power は消費電力(kW)。workers は必要な要員数。priority は動力の優先順位(小さいほど先)。品質の倍率はパーセント(100 = 変化なし)。ティックは 60/秒、1 ゲーム時間 = 18,000 ティック。",
   "structures": [
     { "id": "belt",      "name": "ベルト",       "kind": "belt",      "w": 1, "d": 1, "h": 1, "power": 0,   "workers": 0, "priority": 9, "techLevel": 2, "ticksPerStep": 10 },
     { "id": "inserter",  "name": "インサータ",   "kind": "inserter",  "w": 1, "d": 1, "h": 1, "power": 2,   "workers": 0, "priority": 5, "techLevel": 2, "ticks": 30 },
@@ -13,8 +13,14 @@
     { "id": "pump",      "name": "揚水機",       "kind": "pump",      "w": 1, "d": 1, "h": 1, "power": 10,  "workers": 0, "priority": 1, "techLevel": 1, "ticks": 60, "fluid": "water", "amount": 10 },
     { "id": "port_lift", "name": "昇降機の口",   "kind": "port",      "w": 1, "d": 1, "h": 1, "power": 5,   "workers": 0, "priority": 4, "techLevel": 3, "perSecond": 4 },
     { "id": "port_bridge", "name": "渡り廊下の口", "kind": "port",    "w": 1, "d": 1, "h": 1, "power": 5,   "workers": 0, "priority": 4, "techLevel": 3, "perSecond": 4 },
-    { "id": "battery_s",  "name": "バッテリー(小)", "kind": "battery", "w": 1, "d": 1, "h": 1, "power": 0, "workers": 0, "priority": 0, "techLevel": 2, "capacity": 120000, "chargeRate": 100, "dischargeRate": 300 },
-    { "id": "battery_l",  "name": "バッテリー(大)", "kind": "battery", "w": 2, "d": 2, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 3, "capacity": 600000, "chargeRate": 400, "dischargeRate": 1200 },
+    { "id": "trade",      "name": "交易所",       "kind": "trade",     "w": 2, "d": 2, "h": 2, "power": 20,  "workers": 1, "priority": 6, "techLevel": 2, "ticks": 120, "capacity": 50 },
+    { "id": "battery_g0", "name": "バッテリー(第 0 世代)", "kind": "battery", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 1, "generation": 0, "capacity": 43200000, "chargeRate": 100, "dischargeRate": 200 },
+    { "id": "battery_g1", "name": "バッテリー(第 1 世代)", "kind": "battery", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 2, "generation": 1, "capacity": 86400000, "chargeRate": 200, "dischargeRate": 400 },
+    { "id": "battery_g2", "name": "バッテリー(第 2 世代)", "kind": "battery", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 3, "generation": 2, "capacity": 172800000, "chargeRate": 400, "dischargeRate": 800 },
+    { "id": "battery_g3", "name": "バッテリー(第 3 世代)", "kind": "battery", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 3, "generation": 3, "capacity": 345600000, "chargeRate": 800, "dischargeRate": 1600 },
+    { "id": "battery_g4", "name": "バッテリー(第 4 世代)", "kind": "battery", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 3, "generation": 4, "capacity": 691200000, "chargeRate": 1600, "dischargeRate": 3200 },
+    { "id": "battery_g5", "name": "バッテリー(第 5 世代)", "kind": "battery", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 4, "generation": 5, "capacity": 1382400000, "chargeRate": 3200, "dischargeRate": 6400 },
+    { "id": "battery_g6", "name": "バッテリー(第 6 世代)", "kind": "battery", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 4, "generation": 6, "capacity": 2764800000, "chargeRate": 6400, "dischargeRate": 12800 },
     { "id": "reactor_g0", "name": "リアクター(工作機)", "kind": "reactor", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 1, "generation": 0, "output": 100 },
     { "id": "reactor_g1", "name": "リアクター(第 1 世代)", "kind": "reactor", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 2, "generation": 1, "output": 200 },
     { "id": "reactor_g2", "name": "リアクター(第 2 世代)", "kind": "reactor", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 3, "generation": 2, "output": 400 },
@@ -23,6 +29,9 @@
     { "id": "reactor_g5", "name": "リアクター(第 5 世代)", "kind": "reactor", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 4, "generation": 5, "output": 3200 },
     { "id": "reactor_g6", "name": "リアクター(第 6 世代)", "kind": "reactor", "w": 1, "d": 1, "h": 2, "power": 0, "workers": 0, "priority": 0, "techLevel": 4, "generation": 6, "output": 6400 }
   ],
+  "batteryChargeEfficiency": 90,
+  "trade": { "_comment": "輸出入(2026-10-15: 無制限)。輸出は入った品を価格 × 階級倍率で売る。輸入は ticks ごとに 1 個を価格 × 輸入倍率で買い、品質は importQuality。", "tierMul": { "0": 30, "1": 100, "2": 300, "3": 1000 }, "importMul": 150, "importQuality": 60 },
+  "robot": { "_comment": "製造ロボット(2026-10-15 確定): 要員の代わりに機械へ割り当てる。技能 = 製造ロボットの品質 / 10。製造は通常品質に偏る(normalBias)。", "normalBias": 70 },
   "reactorPrecision": { "_comment": "出力 = output × (precisionMin + 品質値 × (100 - precisionMin) / 100) / 100。品質 0 で precisionMin%、品質 100 で 100%", "precisionMin": 50 },
   "staff": { "_comment": "担当者は失敗率だけに効く。失敗率の倍率 = 100 - 技能 × defectReductionPerSkill(%)。技能 0〜10", "defectReductionPerSkill": 5 }
 }

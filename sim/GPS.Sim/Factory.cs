@@ -116,8 +116,8 @@ public sealed class Building
                     if (bt.Mode == BatteryMode.Off || surplus <= 0) continue;
                     var bd = data.Structures[bt.DefId];
                     long room = bd.Capacity - bt.Stored; if (room <= 0) continue;
-                    int take = (int)Math.Min(Math.Min(surplus, bd.ChargeRate), room);
-                    bt.Stored += take; surplus -= take;
+                    int take = (int)Math.Min(Math.Min(surplus, bd.ChargeRate), room * 100L / Math.Max(1, data.BatteryChargeEfficiency));
+                    bt.Stored += take * data.BatteryChargeEfficiency / 100; surplus -= take;   // 充電効率 9 割: 入った電力の 9 割が蓄えられる
                 }
             }
             else if (surplus < 0)
@@ -160,6 +160,7 @@ public sealed class Building
     {
         Machine m => m.Recipe != null && m.Staff.Count >= def.Workers && (m.Progress >= 0 || Factory.InputsReady(m, data.Recipes[m.Recipe])),
         Miner mi => mi.Output == null && fl.OreAt(mi.X, mi.Y) != null && mi.Staff(def),
+        Trade td => td.Import != null,
         _ => true,
     };
 }
@@ -175,6 +176,11 @@ public sealed class Factory
 {
     public List<Building> Buildings { get; set; } = new();
     public int NextBuildingId { get; set; } = 1;
+    /// <summary>国庫(輸出入の収支)。</summary>
+    public long Treasury { get; set; }
+    /// <summary>設計図(コピー&ペースト用)。</summary>
+    public Dictionary<int, Blueprint> Blueprints { get; set; } = new();
+    public int NextBlueprintId { get; set; } = 1;
     /// <summary>true なら在庫なしで設備を置ける(試験・見本用)。</summary>
     public bool Creative { get; set; }
 
@@ -196,6 +202,7 @@ public sealed class Factory
                 foreach (var s in fl.Structures) if (s is Inserter ins) StepInserter(ins, fl, data);
                 StepBelts(fl, data);
                 foreach (var s in fl.Structures) if (s is Port po) StepPort(po, fl, data);
+                foreach (var s in fl.Structures) if (s is Trade td) StepTrade(td, fl, data);
             }
             if (b.Aggregate != null) Aggregation.AfterTick(b);
         }
@@ -210,6 +217,8 @@ public sealed class Factory
             case Belt b: if (b.Slots[0] != null) return false; b.Slots[0] = it; return true;
             case Chest c: if (c.Items.Count >= def.Capacity) return false; c.Items.Add(it); return true;
             case Port p: if (p.Buffer.Count >= 8) return false; p.Buffer.Add(it); return true;
+            case Trade td:   // 輸出: 入った瞬間に売る
+                Treasury += Price(it, data); td.Sold += it.Count; return true;
             case Machine m:
             {
                 if (m.Recipe == null) return false;
@@ -237,8 +246,25 @@ public sealed class Factory
             case Machine m: { if (m.Outputs.Count == 0) return null; var it = m.Outputs[0]; m.Outputs.RemoveAt(0); return it; }
             case Miner mi: { var it = mi.Output; mi.Output = null; return it; }
             case Port p: { if (p.Inbox.Count == 0) return null; var it = p.Inbox[0]; p.Inbox.RemoveAt(0); return it; }
+            case Trade td: { if (td.Outbox.Count == 0) return null; var it = td.Outbox[0]; td.Outbox.RemoveAt(0); return it; }
             default: return null;
         }
+    }
+
+    public static long Price(ItemStack it, GameData data) => (long)data.Items[it.Item].Price * data.TierPriceMul[(int)it.Tier] / 100 * it.Count;
+
+    void StepTrade(Trade td, Floor fl, GameData data)
+    {
+        if (td.Import == null) return;
+        var def = data.Structures[td.DefId];
+        if (td.Outbox.Count >= def.Capacity) return;
+        td.Timer += td.PowerPct;
+        if (td.Timer < def.Ticks * 100) return;
+        td.Timer = 0;
+        var it = new ItemStack(td.Import, data.ImportQuality);
+        long cost = Price(it, data) * data.ImportMul / 100;
+        if (Treasury < cost) return;   // 国庫が足りなければ買わない
+        Treasury -= cost; td.Bought++; td.Outbox.Add(it);
     }
 
     // ---------- 各設備 ----------
@@ -264,7 +290,7 @@ public sealed class Factory
         {
             var tdef = data.Structures[t.DefId];
             if (t.Fluid != null && t.Fluid != def.Fluid) continue;
-            int room = tdef.Capacity - t.Amount;
+            int room = (int)(tdef.Capacity - t.Amount);
             if (room <= 0) continue;
             t.Fluid = def.Fluid; t.Amount += Math.Min(room, def.Amount);
             return;
@@ -312,7 +338,8 @@ public sealed class Factory
         m.Progress = -1;
         int skill = m.Staff.Count == 0 ? 0 : m.Staff.Max(w => w.Skill);
         int staffMul = Math.Max(0, 100 - skill * data.DefectReductionPerSkill);
-        int q = Quality.Roll(rng, def.QualityTopMul * r.QualityTopMul / 100, def.QualityHighMul * r.QualityHighMul / 100, def.QualityDefectMul * r.QualityDefectMul / 100 * staffMul / 100);
+        int bias = m.Staff.Any(w => w.IsRobot) ? data.RobotNormalBias : 0;   // 製造ロボットは通常品質に偏る(成功も失敗もしにくい)
+        int q = Quality.Roll(rng, def.QualityTopMul * r.QualityTopMul / 100, def.QualityHighMul * r.QualityHighMul / 100, def.QualityDefectMul * r.QualityDefectMul / 100 * staffMul / 100, bias);
         if (Quality.TierOf(q) == QualityTier.Defect)
         {
             m.Failed++;
@@ -427,3 +454,14 @@ public sealed class Factory
         target.Inbox.Add(po.Buffer[0]); po.Buffer.RemoveAt(0);
     }
 }
+
+/// <summary>設計図: 設備の相対配置とレシピ。コピー&ペーストと引っ越しに使う。</summary>
+public sealed class Blueprint
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
+    public int W { get; set; }
+    public int D { get; set; }
+    public List<BlueprintEntry> Entries { get; set; } = new();
+}
+public sealed class BlueprintEntry { public string Def { get; set; } = ""; public int X { get; set; } public int Y { get; set; } public int Z { get; set; } public Direction Dir { get; set; } public string? Recipe { get; set; } public BatteryMode? BatteryMode { get; set; } public string? Import { get; set; } }

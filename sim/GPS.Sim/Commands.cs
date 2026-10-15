@@ -115,3 +115,112 @@ public sealed record SetBatteryMode(int Building, int Floor, int Id, BatteryMode
 {
     public void Apply(Simulation s) { if (s.Factory.Get(Building)?.Find(Floor, Id) is Battery b) b.Mode = Mode; }
 }
+
+/// <summary>交易所の輸入品を設定(null で輸出のみ)。</summary>
+public sealed record SetImport(int Building, int Floor, int Id, string? Item) : ICommand
+{
+    public void Apply(Simulation s)
+    {
+        if (s.Factory.Get(Building)?.Find(Floor, Id) is not Trade t) return;
+        if (Item != null && !s.Data.Items.ContainsKey(Item)) return;
+        t.Import = Item; t.Timer = 0;
+    }
+}
+
+/// <summary>国庫への入金(開始資金・試験用)。</summary>
+public sealed record AddTreasury(long Amount) : ICommand
+{
+    public void Apply(Simulation s) => s.Factory.Treasury += Amount;
+}
+
+/// <summary>製造ロボットを箱から 1 体取り、機械の要員にする。技能 = ロボットの品質 / 10。</summary>
+public sealed record AssignRobot(int Building, int Floor, int MachineId, int ChestId) : ICommand
+{
+    public void Apply(Simulation s)
+    {
+        var b = s.Factory.Get(Building); if (b == null) return;
+        if (b.Find(Floor, MachineId) is not Machine m || b.Find(Floor, ChestId) is not Chest c) return;
+        int idx = c.Items.FindLastIndex(it => it.Item == "factory_robot");
+        if (idx < 0) return;
+        var robot = c.Items[idx]; c.Items.RemoveAt(idx);
+        int wid = m.Staff.Count == 0 ? 1 : m.Staff.Max(x => x.Id) + 1;
+        m.Staff.Add(new Worker(wid, "製造ロボット", robot.Quality / 10, true, robot.Quality));
+    }
+}
+
+/// <summary>要員を外す(人もロボットも)。ロボットは箱へ戻す(箱が無ければ消える)。</summary>
+public sealed record RemoveStaff(int Building, int Floor, int MachineId, int WorkerId, int ChestId = -1) : ICommand
+{
+    public void Apply(Simulation s)
+    {
+        var b = s.Factory.Get(Building); if (b?.Find(Floor, MachineId) is not Machine m) return;
+        var w = m.Staff.FirstOrDefault(x => x.Id == WorkerId); if (w == null) return;
+        m.Staff.Remove(w);
+        if (w.IsRobot && b.Find(Floor, ChestId) is Chest c) c.Items.Add(new ItemStack("factory_robot", w.RobotQuality));
+    }
+}
+
+/// <summary>範囲をコピーして設計図にする(X0..X1, Y0..Y1 は含む。原点がその範囲内にある設備)。</summary>
+public sealed record CopyRegion(int Building, int Floor, int X0, int Y0, int X1, int Y1, int BlueprintId, string Name) : ICommand
+{
+    public void Apply(Simulation s)
+    {
+        var b = s.Factory.Get(Building); if (b == null || Floor < 0 || Floor >= b.Floors.Count) return;
+        var bp = new Blueprint { Id = BlueprintId, Name = Name, W = X1 - X0 + 1, D = Y1 - Y0 + 1 };
+        foreach (var st in b.Floors[Floor].Structures.OrderBy(x => x.Id))
+        {
+            if (st.X < X0 || st.X > X1 || st.Y < Y0 || st.Y > Y1) continue;
+            bp.Entries.Add(new BlueprintEntry { Def = st.DefId, X = st.X - X0, Y = st.Y - Y0, Z = st.Z, Dir = st.Dir, Recipe = (st as Machine)?.Recipe, BatteryMode = (st as Battery)?.Mode, Import = (st as Trade)?.Import });
+        }
+        s.Factory.Blueprints[BlueprintId] = bp;
+        s.Factory.NextBlueprintId = Math.Max(s.Factory.NextBlueprintId, BlueprintId + 1);
+    }
+}
+
+/// <summary>設計図を貼り付ける。在庫から設備を使う(Creative なら不要)。置けない設備は飛ばす。レシピ・方式・輸入品も写す。</summary>
+public sealed record PasteBlueprint(int Building, int Floor, int X, int Y, int BlueprintId) : ICommand
+{
+    public void Apply(Simulation s)
+    {
+        if (!s.Factory.Blueprints.TryGetValue(BlueprintId, out var bp)) return;
+        var b = s.Factory.Get(Building); if (b == null || Floor < 0 || Floor >= b.Floors.Count) return;
+        foreach (var e in bp.Entries)
+        {
+            int before = b.NextStructureId;
+            new PlaceStructure(Building, Floor, e.Def, X + e.X, Y + e.Y, e.Z, e.Dir).Apply(s);
+            if (b.NextStructureId == before) continue;   // 置けなかった
+            var st = b.Find(Floor, before)!;
+            if (st is Machine m && e.Recipe != null) m.Recipe = e.Recipe;
+            if (st is Battery bt && e.BatteryMode != null) bt.Mode = e.BatteryMode.Value;
+            if (st is Trade td) td.Import = e.Import;
+        }
+    }
+}
+
+/// <summary>引っ越し: 範囲の設備を撤去して(在庫へ)、別の場所へ同じ配置で置き直す。レシピ・方式・輸入品・要員は引き継ぐ。中の品は消える(第 2 段階)。</summary>
+public sealed record MoveRegion(int Building, int Floor, int X0, int Y0, int X1, int Y1, int ToBuilding, int ToFloor, int ToX, int ToY) : ICommand
+{
+    public void Apply(Simulation s)
+    {
+        var b = s.Factory.Get(Building); var tb = s.Factory.Get(ToBuilding);
+        if (b == null || tb == null || Floor < 0 || Floor >= b.Floors.Count || ToFloor < 0 || ToFloor >= tb.Floors.Count) return;
+        var src = b.Floors[Floor].Structures.Where(st => st.X >= X0 && st.X <= X1 && st.Y >= Y0 && st.Y <= Y1).OrderBy(st => st.Id).ToList();
+        // 先に全て撤去(在庫へ)、次に置き直す。元の建物と先の建物が違えば在庫を移す
+        foreach (var st in src) new RemoveStructure(Building, Floor, st.Id).Apply(s);
+        if (tb != b) foreach (var st in src) { b.Inventory[st.DefId]--; tb.Inventory[st.DefId] = tb.Inventory.GetValueOrDefault(st.DefId) + 1; }
+        foreach (var st in src)
+        {
+            int before = tb.NextStructureId;
+            new PlaceStructure(ToBuilding, ToFloor, st.DefId, ToX + st.X - X0, ToY + st.Y - Y0, st.Z, st.Dir).Apply(s);
+            if (tb.NextStructureId == before) continue;   // 置けなかった分は在庫に残る
+            var ns = tb.Find(ToFloor, before)!;
+            switch (st)
+            {
+                case Machine m when ns is Machine nm: nm.Recipe = m.Recipe; nm.Staff.AddRange(m.Staff); break;
+                case Battery bt when ns is Battery nb: nb.Mode = bt.Mode; nb.Stored = bt.Stored; break;
+                case Trade td when ns is Trade nt: nt.Import = td.Import; break;
+                case Reactor r when ns is Reactor nr: nr.Quality = r.Quality; break;
+            }
+        }
+    }
+}

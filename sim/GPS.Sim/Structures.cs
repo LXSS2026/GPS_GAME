@@ -19,13 +19,14 @@ public static class Directions
 
 /// <summary>設備の定義(structures.json)。大きさはセル。Power は消費電力(kW)。Workers は必要な要員数。</summary>
 public sealed record StructureDef(string Id, string Name, string Kind, int W, int D, int H, int Power, int Workers, int Priority, int TechLevel,
-                                  int TicksPerStep = 10, int Ticks = 30, int Capacity = 100, int PerSecond = 4, int Generation = 0, int Output = 0,
+                                  int TicksPerStep = 10, int Ticks = 30, long Capacity = 100, int PerSecond = 4, int Generation = 0, int Output = 0,
                                   string? Fluid = null, int Amount = 0, int QualityTopMul = 100, int QualityHighMul = 100, int QualityDefectMul = 100, int ChargeRate = 0, int DischargeRate = 0);
 
 /// <summary>動力不足時の挙動(2026-10-15 確定: プレイヤーが設定する)。</summary>
 public enum PowerPolicy { Proportional = 0, Priority = 1, Stop = 2 }
 
-public sealed record Worker(int Id, string Name, int Skill);   // 技能 0〜10。失敗率だけに効く
+/// <summary>要員。技能 0〜10 は失敗率だけに効く。IsRobot = 製造ロボット(品質から技能を決め、製造は通常品質に偏る)。</summary>
+public sealed record Worker(int Id, string Name, int Skill, bool IsRobot = false, int RobotQuality = 0);
 
 /// <summary>設備の実体。保存のため多相 JSON。</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$t")]
@@ -40,6 +41,7 @@ public sealed record Worker(int Id, string Name, int Skill);   // 技能 0〜10�
 [JsonDerivedType(typeof(Pump), "pump")]
 [JsonDerivedType(typeof(Port), "port")]
 [JsonDerivedType(typeof(Battery), "battery")]
+[JsonDerivedType(typeof(Trade), "trade")]
 public abstract class Structure
 {
     public int Id { get; set; }
@@ -54,7 +56,7 @@ public abstract class Structure
     public static Structure Create(StructureDef def) => def.Kind switch
     {
         "belt" => new Belt(), "inserter" => new Inserter(), "miner" => new Miner(), "chest" => new Chest(),
-        "furnace" or "assembler" => new Machine(), "reactor" => new Reactor(), "battery" => new Battery(), "tank" => new Tank(), "pipe" => new Pipe(), "pump" => new Pump(), "port" => new Port(),
+        "furnace" or "assembler" => new Machine(), "reactor" => new Reactor(), "battery" => new Battery(), "trade" => new Trade(), "tank" => new Tank(), "pipe" => new Pipe(), "pump" => new Pump(), "port" => new Port(),
         _ => throw new InvalidDataException($"unknown structure kind {def.Kind}"),
     };
 }
@@ -110,6 +112,16 @@ public sealed class Tank : Structure
 }
 
 public sealed class Pipe : Structure { }
+
+/// <summary>交易所(2026-10-15: 輸出入は無制限)。Export に入った品は売る。Import を設定すると ticks ごとに 1 個買って出口に置く。</summary>
+public sealed class Trade : Structure
+{
+    public string? Import { get; set; }
+    public List<ItemStack> Outbox { get; set; } = new();   // 買った品(インサータが取る)
+    public int Timer { get; set; }
+    public long Sold { get; set; }
+    public long Bought { get; set; }
+}
 
 /// <summary>バッテリーの方式(2026-10-15 指示): ピーク用 = 需要が供給を超えたときだけ放電、非常用 = リアクターの供給が止まったときだけ放電、停止 = 充電も放電もしない。</summary>
 public enum BatteryMode { Peak = 0, Emergency = 1, Off = 2 }

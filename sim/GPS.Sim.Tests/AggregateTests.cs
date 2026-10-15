@@ -18,7 +18,7 @@ public class AggregateTests
     [Fact]
     public void Aggregate_TracksFullSimulation_WithinTolerance_AndIsMuchCheaper()
     {
-        const int ticks = 60 * 60 * 2;   // 2 ゲーム分(再記録を 1 回含む長さではないが、窓 30 秒 + 積算)
+        const int ticks = 60 * 60 * 10;   // 10 分(記録の窓 2 分 + 積算 8 分)
         var full = NewSim(42); var agg = NewSim(42);
         foreach (var c in SampleLines.Build(1, 24, reactors: 6)) { full.Enqueue(c); agg.Enqueue(c); }
         full.Step(); agg.Step();
@@ -33,7 +33,8 @@ public class AggregateTests
         Assert.InRange(b.chest, a.chest * 0.9, a.chest * 1.1);
         Assert.InRange(b.ore, a.ore - (a.ore == 0 ? 0 : 50), a.ore + 50);
         Assert.True(a.made > 100);
-        Assert.True(sw2.ElapsedMilliseconds * 3 < sw1.ElapsedMilliseconds, $"aggregate {sw2.ElapsedMilliseconds} ms vs full {sw1.ElapsedMilliseconds} ms");
+        // 10 分のうち記録の窓が 2 分(2 割)なので上限は約 2.5 分の 1。定常(1 時間に 2 分)では約 3%
+        Assert.True(sw2.ElapsedMilliseconds * 1.8 < sw1.ElapsedMilliseconds, $"aggregate {sw2.ElapsedMilliseconds} ms vs full {sw1.ElapsedMilliseconds} ms");
     }
 
     [Fact]
@@ -73,11 +74,11 @@ public class AggregateTests
         var s = NewSim(1);
         Do(s, new CreateBuilding(1, "g", 6, 2, 1, false),
               new PlaceStructure(1, 0, "reactor_g1", 0, 0, 0, Direction.East),       // 供給 170 (品質 70)
-              new PlaceStructure(1, 0, "battery_s", 1, 0, 0, Direction.East),
+              new PlaceStructure(1, 0, "battery_g1", 1, 0, 0, Direction.East),
               new PlaceStructure(1, 0, "furnace", 2, 0, 0, Direction.East), new PlaceStructure(1, 0, "furnace", 3, 0, 0, Direction.East), new PlaceStructure(1, 0, "furnace", 4, 0, 0, Direction.East), new PlaceStructure(1, 0, "furnace", 5, 0, 0, Direction.East));
         var b = s.Factory.Get(1)!; var bat = (Battery)b.Find(0, 2)!;
         s.Run(600);
-        Assert.True(bat.Stored >= 100 * 600 * 0.9, $"stored {bat.Stored}");          // 余剰 170 kW のうち充電速度 100 kW
+        Assert.InRange(bat.Stored, 170 * 600 * 0.9 * 0.95, 170 * 600 * 0.9 * 1.05);   // 余剰 170 kW(充電上限 200)× 効率 9 割
         // 需要 200 kW(炉 4 台)> 供給 170: ピーク用なら放電して 100%
         for (int i = 3; i <= 6; i++) { Do(s, new SetRecipe(1, 0, i, "iron_plate"), new AssignStaff(1, 0, i, new Worker(i, "a", 0))); ((Machine)b.Find(0, i)!).Inputs.Add(new ItemStack("iron_ore", 50, 4)); }
         s.Step();
