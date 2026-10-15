@@ -343,23 +343,37 @@ public partial class Preview : Node3D
                 switch (District(bi, bj))
                 {
                     case "downtown":
-                    {
-                        string fam = new[] { "office", "office", "exo", "svc", "concrete" }[rnd.Next(5)];
-                        _fm.Build(this, cx, Y, cz, _fm.Plan(fam, S, S, rnd.Next(20, 61), false), rnd.Next(4) * 90);   // 60〜180 m
+                    {   // 床面積 50〜100 m(都市レベルが高い地区)。100 m 街区に 1〜2 棟 × 1〜2 棟
+                        int sz = new[] { 50, 50, 100 }[rnd.Next(3)];
+                        Lots(x0, z0, S, sz, (lx, lz) =>
+                        {
+                            string fam = new[] { "office", "office", "exo", "svc", "concrete" }[rnd.Next(5)];
+                            _fm.Build(this, lx, Y, lz, _fm.Plan(fam, sz, sz, rnd.Next(sz == 100 ? 20 : 12, sz == 100 ? 61 : 40), false), rnd.Next(4) * 90);
+                        });
                         break;
                     }
                     case "residential":
-                        _fm.Build(this, cx, Y, cz, _fm.Plan(rnd.NextDouble() < 0.6 ? "res" : "concrete", S, S, rnd.Next(3, 8), false), rnd.Next(4) * 90);
+                    {   // 床面積 10〜30 m。街区に複数棟(間に 2 m 以上の路地)
+                        int sz = new[] { 10, 20, 20, 30 }[rnd.Next(4)];
+                        Lots(x0, z0, S, sz, (lx, lz) =>
+                        {
+                            if (rnd.NextDouble() < 0.1) { _kb.Pine(this, lx, Y, lz, 3f + (float)rnd.NextDouble() * 3f); return; }
+                            _fm.Build(this, lx, Y, lz, _fm.Plan(rnd.NextDouble() < 0.6 ? "res" : "concrete", sz, sz, rnd.Next(2, sz >= 30 ? 10 : 6), false), rnd.Next(4) * 90);
+                        });
                         break;
+                    }
                     case "park":
                         for (int i = 0; i < 60; i++) _kb.Pine(this, x0 + 2f + rnd.Next(S - 4), Y, z0 + 2f + rnd.Next(S - 4), 4f + (float)rnd.NextDouble() * 4f);
                         _kb.Box(this, new Vector3(cx, Y + 0.3f, cz), new Vector3(12f, 0.6f, 12f), _kb.Concrete);
                         break;
                     case "industry":
-                    {   // 工場棟(コンクリート 2〜4 階)。1 階を開いて設備を敷く
-                        int floors = rnd.Next(2, 5);
-                        _fm.Build(this, cx, Y, cz, _fm.Plan("concrete", S, S, floors, false, "boiler"), 0, cutawayBelow: 2, cutawayFrom: 1, interior: false);
-                        _eq.SampleFactory(x0 + 2, Y + _fm.FloorHeight + 0.12f, z0 + 2, S - 4, S - 4, rnd);
+                    {   // 工場棟(コンクリート 2〜4 階、床面積 40〜100 m)。1 階を開いて設備を敷く
+                        int sz = new[] { 40, 50, 100 }[rnd.Next(3)];
+                        Lots(x0, z0, S, sz, (lx, lz) =>
+                        {
+                            _fm.Build(this, lx, Y, lz, _fm.Plan("concrete", sz, sz, rnd.Next(2, 5), false, "boiler"), 0, cutawayBelow: 2, cutawayFrom: 1, interior: false);
+                            _eq.SampleFactory((int)(lx - sz / 2f) + 2, Y + _fm.FloorHeight + 0.12f, (int)(lz - sz / 2f) + 2, sz - 4, sz - 4, rnd);
+                        });
                         break;
                     }
                     case "military":
@@ -396,6 +410,14 @@ public partial class Preview : Node3D
             _fm.Character(this, _fm.RandomHuman(), x + (float)rnd.NextDouble(), Y, z + (float)rnd.NextDouble(), rnd.Next(360));
         }
         GD.Print($"[city] equipment placed: {_eq.Count}");
+    }
+
+    /// <summary>街区(原点 x0, z0・一辺 S)を一辺 sz の敷地で埋め、各敷地の中心で build を呼ぶ。敷地の間は 2 m 以上の路地。</summary>
+    static void Lots(int x0, int z0, int S, int sz, Action<float, float> build)
+    {
+        int n = Math.Max(1, S / (sz + 2));
+        float pitch = (float)S / n, off = pitch / 2f;
+        for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) build(x0 + off + i * pitch, z0 + off + j * pitch);
     }
 
     /// <summary>街区 (bi, bj) の地区。5 × 5 の街区。</summary>

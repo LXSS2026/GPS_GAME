@@ -6,3 +6,9 @@ obj/
 .vs/
 /*.png
 game/*.png
+
+# 10 m 刻み(10x10〜100x100)の階モジュールは生成物(make_modules.py big で再生成。合計 300 MB 超のため git に上げない)
+game/assets/modules/*_[1-9]0x[1-9]0*.glb
+game/assets/modules/*_[1-9]0x[1-9]0*.glb.import
+game/assets/modules/*_100x100*.glb
+game/assets/modules/*_100x100*.glb.import

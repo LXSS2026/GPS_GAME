@@ -695,8 +695,12 @@ def ship_bridge(W, L, decks):
 
 
 def gen_big():
-    """床面積 100x100 m(2026-10-15 決定: 建物と平地ブロックは 100x100、1 階 = 100x100 マス)。既存の JSON に追記する。"""
-    w = d = 100
+    """床面積 10 m 単位の正方形 10x10〜100x100(2026-10-15 決定: 技術・都市レベルで上限が上がる)。既存の JSON に追記する。"""
+    for n in range(10, 101, 10):
+        gen_size(n, n)
+
+
+def gen_size(w, d):
     for fam in ("office", "concrete"):
         mod_base(w, d, fam)
         mod_mech(w, d, fam)
