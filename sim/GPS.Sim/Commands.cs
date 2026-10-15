@@ -224,3 +224,9 @@ public sealed record MoveRegion(int Building, int Floor, int X0, int Y0, int X1,
         }
     }
 }
+
+/// <summary>リアクターの出力設定(%)。100 未満で負荷が回復し、100 超で負荷が溜まる(上限 OverloadMax)。</summary>
+public sealed record SetReactorOutput(int Building, int Floor, int Id, int Pct) : ICommand
+{
+    public void Apply(Simulation s) { if (s.Factory.Get(Building)?.Find(Floor, Id) is Reactor r) r.OutputPct = Math.Clamp(Pct, 0, s.Data.OverloadMax); }
+}

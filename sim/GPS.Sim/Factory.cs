@@ -98,7 +98,7 @@ public sealed class Building
             foreach (var s in fl.Structures)
             {
                 var def = data.Structures[s.DefId];
-                if (s is Reactor r) supply += ReactorOutput(def, r.Quality, data);
+                if (s is Reactor r) supply += ReactorOutput(def, r.Quality, data) * r.OutputPct / 100;
                 else if (def.Power > 0 && Wants(s, def, fl, data)) consumers.Add((s, def));
                 else s.PowerPct = 100;
             }
@@ -188,11 +188,15 @@ public sealed class Factory
 
     public void Reindex(GameData data) { foreach (var b in Buildings) foreach (var f in b.Floors) f.Reindex(data); }
 
+    /// <summary>爆発などの出来事(描画・通知用)。</summary>
+    public List<FactoryEvent> Events { get; set; } = new();
+
     public void Tick(GameData data, Rng rng)
     {
         foreach (var b in Buildings)
         {
             if (b.Aggregate != null && !Aggregation.BeforeTick(b, this, data, rng)) continue;   // 集計近似で済ませた
+            StepOverload(b, data);
             b.AssignPower(data);
             foreach (var fl in b.Floors)
             {
@@ -249,6 +253,36 @@ public sealed class Factory
             case Trade td: { if (td.Outbox.Count == 0) return null; var it = td.Outbox[0]; td.Outbox.RemoveAt(0); return it; }
             default: return null;
         }
+    }
+
+    /// <summary>過負荷の蓄積と爆発。設定 100% 超: 超過分が毎ティック溜まる。100% 未満: 不足分 × 倍率が回復する。</summary>
+    void StepOverload(Building b, GameData data)
+    {
+        for (int fi = 0; fi < b.Floors.Count; fi++)
+        {
+            var fl = b.Floors[fi];
+            foreach (var r in fl.Structures.OfType<Reactor>().OrderBy(x => x.Id).ToList())
+            {
+                if (r.OutputPct > 100) r.Load += r.OutputPct - 100;
+                else if (r.OutputPct < 100) r.Load = Math.Max(0, r.Load - (long)(100 - r.OutputPct) * data.OverloadRecoveryMul);
+                if (r.Load < data.OverloadLimit) continue;
+                Explode(b, fi, r, data);
+            }
+        }
+    }
+
+    /// <summary>リアクターの爆発: 出力(kW)× radiusPerKw セルの半径内の設備を消す(在庫には戻らない)。爆発の面積は発電量の 2 乗に比例。</summary>
+    public void Explode(Building b, int floorIndex, Reactor r, GameData data)
+    {
+        var fl = b.Floors[floorIndex];
+        var def = data.Structures[r.DefId];
+        int output = Building.ReactorOutput(def, r.Quality, data) * r.OutputPct / 100;
+        double radius = output * data.BlastRadiusPerKw;
+        float cx = r.X + def.W / 2f, cy = r.Y + def.D / 2f;
+        var gone = fl.Structures.Where(s => { var d = data.Structures[s.DefId]; float sx = s.X + d.W / 2f, sy = s.Y + d.D / 2f; return (sx - cx) * (sx - cx) + (sy - cy) * (sy - cy) <= radius * radius; }).ToList();
+        if (!gone.Contains(r)) gone.Add(r);
+        foreach (var s in gone) fl.Remove(s);
+        Events.Add(new FactoryEvent { Kind = "explosion", Building = b.Id, Floor = floorIndex, X = r.X, Y = r.Y, Power = output, Radius = radius, Destroyed = gone.Count });
     }
 
     public static long Price(ItemStack it, GameData data) => (long)data.Items[it.Item].Price * data.TierPriceMul[(int)it.Tier] / 100 * it.Count;
@@ -465,3 +499,5 @@ public sealed class Blueprint
     public List<BlueprintEntry> Entries { get; set; } = new();
 }
 public sealed class BlueprintEntry { public string Def { get; set; } = ""; public int X { get; set; } public int Y { get; set; } public int Z { get; set; } public Direction Dir { get; set; } public string? Recipe { get; set; } public BatteryMode? BatteryMode { get; set; } public string? Import { get; set; } }
+
+public sealed class FactoryEvent { public string Kind { get; set; } = ""; public int Building { get; set; } public int Floor { get; set; } public int X { get; set; } public int Y { get; set; } public int Power { get; set; } public double Radius { get; set; } public int Destroyed { get; set; } }

@@ -16,6 +16,8 @@ public sealed class GameData
     public int ImportMul = 150;             // 輸入価格の倍率(%)
     public int ImportQuality = 60;          // 輸入品の品質
     public int RobotNormalBias = 70;        // 製造ロボットの通常品質への偏り(%)
+    public int OverloadMax = 150, OverloadLimit = 900_000, OverloadRecoveryMul = 1;   // 過負荷の上限(%)、爆発する負荷(%·ティック)、回復の倍率
+    public double BlastRadiusPerKw = 0.02;   // 爆発の半径(セル / kW)
 
     static readonly JsonSerializerOptions Opt = new() { PropertyNameCaseInsensitive = true };
 
@@ -53,6 +55,11 @@ public sealed class GameData
             gd.ImportMul = tr.GetProperty("importMul").GetInt32(); gd.ImportQuality = tr.GetProperty("importQuality").GetInt32();
         }
         if (sdoc.RootElement.TryGetProperty("robot", out var rb)) gd.RobotNormalBias = rb.GetProperty("normalBias").GetInt32();
+        if (sdoc.RootElement.TryGetProperty("overload", out var ov))
+        {
+            gd.OverloadMax = ov.GetProperty("max").GetInt32(); gd.OverloadLimit = ov.GetProperty("limit").GetInt32();
+            gd.OverloadRecoveryMul = ov.GetProperty("recoveryMul").GetInt32(); gd.BlastRadiusPerKw = ov.GetProperty("radiusPerKw").GetDouble();
+        }
         return gd;
     }
 

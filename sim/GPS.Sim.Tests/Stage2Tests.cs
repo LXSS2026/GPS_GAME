@@ -106,4 +106,28 @@ public class Stage2Tests
         var loaded = Save.Load(Save.Snapshot(s), Blocks(), Data); loaded.Factory.Creative = true;
         Assert.Equal(Save.StateHash(s), Save.StateHash(loaded));
     }
+
+    [Fact]
+    public void Reactor_Overload_AccumulatesAndRecovers_ThenExplodesAndDestroysNearby()
+    {
+        var s = NewSim(4);
+        Do(s, new CreateBuilding(1, "x", 20, 20, 1, false),
+              new PlaceStructure(1, 0, "reactor_g1", 10, 10, 0, Direction.East),       // 品質 70 → 170 kW、150% で 255 kW → 半径 5.1 セル
+              new PlaceStructure(1, 0, "chest", 12, 10, 0, Direction.East),           // 2 セル: 消える
+              new PlaceStructure(1, 0, "chest", 10, 17, 0, Direction.East),           // 7 セル: 残る
+              new PlaceStructure(1, 0, "furnace", 0, 0, 0, Direction.East));         // 遠い: 残る
+        var b = s.Factory.Get(1)!; var r = (Reactor)b.Find(0, 1)!;
+        Do(s, new SetReactorOutput(1, 0, 1, 200));
+        Assert.Equal(150, r.OutputPct);                                               // 上限 150
+        s.Step(); Assert.Equal(255, b.LastSupply);                                    // 170 × 1.5
+        s.Run(999); Assert.Equal(50L * 1001, r.Load);                                  // Do の 1 ティック + Step + 999
+        Do(s, new SetReactorOutput(1, 0, 1, 100)); s.Run(100); Assert.Equal(50L * 1001, r.Load);   // 100% では回復しない
+        Do(s, new SetReactorOutput(1, 0, 1, 50)); s.Run(100); Assert.Equal(50L * 1001 - 50 * 101, r.Load);   // 100% 未満で回復(101 ティック × 50)
+        Do(s, new SetReactorOutput(1, 0, 1, 150));
+        s.Run(Data.OverloadLimit / 50 + 10);
+        Assert.Null(b.Find(0, 1)); Assert.Null(b.Find(0, 2));                        // リアクターと近い箱が消える
+        Assert.NotNull(b.Find(0, 3)); Assert.NotNull(b.Find(0, 4));
+        var ev = Assert.Single(s.Factory.Events); Assert.Equal("explosion", ev.Kind); Assert.Equal(255, ev.Power); Assert.Equal(2, ev.Destroyed);
+        Assert.Equal(0, b.Inventory.GetValueOrDefault("reactor_g1"));                 // 在庫には戻らない
+    }
 }

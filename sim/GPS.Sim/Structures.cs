@@ -103,6 +103,10 @@ public sealed class Machine : Structure
 public sealed class Reactor : Structure
 {
     public int Quality { get; set; } = 70;
+    /// <summary>出力設定(%)。100〜OverloadMax。100 超で負荷が溜まり、100 未満で回復する。</summary>
+    public int OutputPct { get; set; } = 100;
+    /// <summary>過負荷の蓄積(%·ティック)。OverloadLimit に達すると爆発。</summary>
+    public long Load { get; set; }
 }
 
 public sealed class Tank : Structure

@@ -87,6 +87,7 @@ public partial class MicroEditor : Node3D
         RebuildItems();
         RefreshTop();
         RefreshSide();
+        if (_sim.Factory.Events.Count > _seenEvents) { _seenEvents = _sim.Factory.Events.Count; _structureVersion++; var ev = _sim.Factory.Events[^1]; _lastEvent = $"爆発  ({ev.X}, {ev.Y})  {ev.Power} kW  半径 {ev.Radius:F1}  消失 {ev.Destroyed} 台"; _selected = -1; }
         Screenshot();
     }
 
@@ -426,9 +427,10 @@ public partial class MicroEditor : Node3D
         foreach (var (id, l) in _stockLabels) l.Text = b.Inventory.GetValueOrDefault(id).ToString();
         var made = Floor.Structures.OfType<Machine>().Sum(m => m.Made); var failed = Floor.Structures.OfType<Machine>().Sum(m => m.Failed);
         long stored = Floor.Structures.OfType<Battery>().Sum(x => x.Stored);
-        _status.Text = $"国庫 {_sim.Factory.Treasury:N0}   設備 {Floor.Structures.Count} 台   在庫 {b.Inventory.Values.Sum()} 台   製造 {made}   不良 {failed}   蓄電 {stored / 216000.0:F2} kWh   {(_palette == null ? "" : _data.Structures[_palette].Name + " を設置中  " + DirName(_dir))}";
+        _status.Text = $"国庫 {_sim.Factory.Treasury:N0}   設備 {Floor.Structures.Count} 台   在庫 {b.Inventory.Values.Sum()} 台   製造 {made}   不良 {failed}   蓄電 {stored / 216000.0:F2} kWh   {(_palette == null ? "" : _data.Structures[_palette].Name + " を設置中  " + DirName(_dir))}   {_lastEvent}";
     }
 
+    int _seenEvents; string _lastEvent = "";
     int _sideFor = -2; long _sideTick = -1;
     void RefreshSide()
     {
@@ -508,8 +510,20 @@ public partial class MicroEditor : Node3D
                 void S3(string k, string v, Color? c = null) { var vb = new VBoxContainer(); vb.AddThemeConstantOverride("separation", 0); vb.AddChild(Lbl(k, 10, Cyan)); vb.AddChild(Lbl(v, 15, c)); g3.AddChild(vb); }
                 S3("世代", $"第 {def.Generation}", ReactorColor(def.Generation)); S3("品質", r.Quality.ToString(), TierColor(Quality.TierOf(r.Quality))); S3("出力", $"{Building.ReactorOutput(def, r.Quality, _data)} / {def.Output} kW", Green);
                 _side.AddChild(g3);
-                var pr = new ProgressBar { MinValue = 0, MaxValue = def.Output, Value = Building.ReactorOutput(def, r.Quality, _data), ShowPercentage = false, CustomMinimumSize = new Vector2(0, 10) };
-                pr.AddThemeStyleboxOverride("fill", Box(ReactorColor(def.Generation), Color.Color8(0, 0, 0, 0), 0, 0)); _side.AddChild(pr);
+                var pr = new ProgressBar { MinValue = 0, MaxValue = def.Output * _data.OverloadMax / 100, Value = Building.ReactorOutput(def, r.Quality, _data) * r.OutputPct / 100, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 10) };
+                pr.AddThemeStyleboxOverride("fill", Box(r.OutputPct > 100 ? Warm : ReactorColor(def.Generation), Color.Color8(0, 0, 0, 0), 0, 0)); _side.AddChild(pr);
+                // 出力設定(0〜150%)と過負荷
+                var orow = new HBoxContainer(); orow.AddThemeConstantOverride("separation", 8);
+                orow.AddChild(Lbl("出力設定", 11, Cyan));
+                var slider = new HSlider { MinValue = 0, MaxValue = _data.OverloadMax, Step = 5, Value = r.OutputPct, CustomMinimumSize = new Vector2(150, 24), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+                var pctLbl = Lbl($"{r.OutputPct}%", 15, r.OutputPct > 100 ? Warm : null);
+                int rid = s.Id; slider.ValueChanged += v => { pctLbl.Text = $"{(int)v}%"; _sim.Enqueue(new SetReactorOutput(1, 0, rid, (int)v)); _sim.Step(); _sideTick = -1; };
+                orow.AddChild(slider); orow.AddChild(pctLbl); _side.AddChild(orow);
+                var lp = new ProgressBar { MinValue = 0, MaxValue = _data.OverloadLimit, Value = r.Load, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 8) };
+                lp.AddThemeStyleboxOverride("fill", Box(new Color(1f, 0.3f, 0.2f), Color.Color8(0, 0, 0, 0), 0, 0)); _side.AddChild(lp);
+                string loadText = r.Load == 0 ? "なし" : r.OutputPct > 100 ? $"{r.Load * 100.0 / _data.OverloadLimit:F1}%  爆発まで {(_data.OverloadLimit - r.Load) / (r.OutputPct - 100) / 60.0:F0} 秒" : r.OutputPct < 100 ? $"{r.Load * 100.0 / _data.OverloadLimit:F1}%  回復中" : $"{r.Load * 100.0 / _data.OverloadLimit:F1}%  100% では回復しない";
+                _side.AddChild(Lbl("過負荷  " + loadText, 11, r.Load > 0 ? Warm : Cyan));
+                _side.AddChild(Lbl($"爆発の半径 {Building.ReactorOutput(def, r.Quality, _data) * r.OutputPct / 100 * _data.BlastRadiusPerKw:F1} セル(面積は発電量の 2 乗に比例)", 11, Cyan));
                 break;
             }
             case Chest c:
@@ -609,7 +623,7 @@ public partial class MicroEditor : Node3D
         var rc = Floor.Structures.OfType<Chest>().First(); _sim.Enqueue(new AddItems(1, 0, rc.Id, "factory_robot", 85, 2)); _sim.Step();
         _sim.Run(3600);
         _structureVersion++;
-        _selected = Floor.Structures.First(s => s is Machine).Id;
+        _selected = Arg("--select") == "reactor" ? Floor.Structures.First(s => s is Reactor).Id : Floor.Structures.First(s => s is Machine).Id;
         _pivot = new Vector3(10, FloorY, y0 - 2); _dist = 28; _yaw = 0.5f; _elev = 0.7f; UpdateCamera();
     }
 

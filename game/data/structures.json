@@ -33,5 +33,6 @@
   "trade": { "_comment": "輸出入(2026-10-15: 無制限)。輸出は入った品を価格 × 階級倍率で売る。輸入は ticks ごとに 1 個を価格 × 輸入倍率で買い、品質は importQuality。", "tierMul": { "0": 30, "1": 100, "2": 300, "3": 1000 }, "importMul": 150, "importQuality": 60 },
   "robot": { "_comment": "製造ロボット(2026-10-15 確定): 要員の代わりに機械へ割り当てる。技能 = 製造ロボットの品質 / 10。製造は通常品質に偏る(normalBias)。", "normalBias": 70 },
   "reactorPrecision": { "_comment": "出力 = output × (precisionMin + 品質値 × (100 - precisionMin) / 100) / 100。品質 0 で precisionMin%、品質 100 で 100%", "precisionMin": 50 },
+  "overload": { "_comment": "過負荷(2026-10-15 指示): 出力設定は 100〜150%。100% 超では超過分(%)が毎ティック負荷に溜まり、100% 未満では不足分 × recoveryMul が毎ティック回復する(100% ちょうどは変化なし)。負荷が limit(%·ティック。150% で 1 時間 = 50 × 18,000)に達すると爆発し、リアクターと半径内の設備が消える。爆発の面積は発電量の 2 乗に比例 = 半径 = 出力(kW) × radiusPerKw セル", "max": 150, "limit": 900000, "recoveryMul": 1, "radiusPerKw": 0.02 },
   "staff": { "_comment": "担当者は失敗率だけに効く。失敗率の倍率 = 100 - 技能 × defectReductionPerSkill(%)。技能 0〜10", "defectReductionPerSkill": 5 }
 }
