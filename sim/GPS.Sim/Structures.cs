@@ -42,6 +42,7 @@ public sealed record Worker(int Id, string Name, int Skill, bool IsRobot = false
 [JsonDerivedType(typeof(Port), "port")]
 [JsonDerivedType(typeof(Battery), "battery")]
 [JsonDerivedType(typeof(Trade), "trade")]
+[JsonDerivedType(typeof(Mcu), "mcu")]
 public abstract class Structure
 {
     public int Id { get; set; }
@@ -52,11 +53,13 @@ public abstract class Structure
     public Direction Dir { get; set; }
     /// <summary>このティックに動力を得た割合(%)。動力の割り当てで毎ティック決まる。</summary>
     [JsonIgnore] public int PowerPct { get; set; } = 100;
+    /// <summary>稼働の有効/無効(マイコンの出力や手動で止める)。false の設備は動かず電力も使わない。</summary>
+    public bool Enabled { get; set; } = true;
 
     public static Structure Create(StructureDef def) => def.Kind switch
     {
         "belt" => new Belt(), "inserter" => new Inserter(), "miner" => new Miner(), "chest" => new Chest(),
-        "furnace" or "assembler" or "mech_assembler" => new Machine(), "reactor" => new Reactor(), "battery" => new Battery(), "trade" => new Trade(), "tank" => new Tank(), "pipe" => new Pipe(), "pump" => new Pump(), "port" => new Port(),
+        "furnace" or "assembler" or "mech_assembler" => new Machine(), "reactor" => new Reactor(), "battery" => new Battery(), "trade" => new Trade(), "mcu" => new Mcu(), "tank" => new Tank(), "pipe" => new Pipe(), "pump" => new Pump(), "port" => new Port(),
         _ => throw new InvalidDataException($"unknown structure kind {def.Kind}"),
     };
 }
@@ -123,6 +126,7 @@ public sealed class Pipe : Structure { }
 public sealed class Trade : Structure
 {
     public string? Import { get; set; }
+    public bool ImportEnabled { get; set; } = true;
     public List<ItemStack> Outbox { get; set; } = new();   // 買った品(インサータが取る)
     public int Timer { get; set; }
     public long Sold { get; set; }

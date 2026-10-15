@@ -99,7 +99,7 @@ public sealed class Building
             {
                 var def = data.Structures[s.DefId];
                 if (s is Reactor r) supply += ReactorOutput(def, r.Quality, data) * r.OutputPct / 100;
-                else if (def.Power > 0 && Wants(s, def, fl, data)) consumers.Add((s, def));
+                else if (def.Power > 0 && s.Enabled && Wants(s, def, fl, data)) consumers.Add((s, def));
                 else s.PowerPct = 100;
             }
         int demand = consumers.Sum(c => c.def.Power);
@@ -160,7 +160,7 @@ public sealed class Building
     {
         Machine m => m.Recipe != null && m.Staff.Count >= def.Workers && (m.Progress >= 0 || Factory.InputsReady(m, data.Recipes[m.Recipe])),
         Miner mi => mi.Output == null && fl.OreAt(mi.X, mi.Y) != null && mi.Staff(def),
-        Trade td => td.Import != null,
+        Trade td => td.Import != null && td.ImportEnabled,
         _ => true,
     };
 }
@@ -193,14 +193,17 @@ public sealed class Factory
     /// <summary>製造した機体(手順 3)。軍の Unit へ渡すのは手順 4。</summary>
     public List<Mech> Mechs { get; set; } = new();
     public int NextMechId { get; set; } = 1;
+    public long TickCount { get; set; }
 
     public void Tick(GameData data, Rng rng)
     {
+        TickCount++;
         foreach (var b in Buildings)
         {
             if (b.Aggregate != null && !Aggregation.BeforeTick(b, this, data, rng)) continue;   // 集計近似で済ませた
             StepOverload(b, data);
             b.AssignPower(data);
+            foreach (var fl in b.Floors) foreach (var s in fl.Structures) if (s is Mcu mcu && mcu.Enabled) McuRunner.Step(mcu, b, this, data);   // マイコンは動力の割り当ての後に評価(出力は次ティックに効く)
             foreach (var fl in b.Floors)
             {
                 foreach (var s in fl.Structures) if (s is Miner mi) StepMiner(mi, fl, data);
@@ -294,7 +297,7 @@ public sealed class Factory
 
     void StepTrade(Trade td, Floor fl, GameData data)
     {
-        if (td.Import == null) return;
+        if (td.Import == null || !td.Enabled || !td.ImportEnabled) return;
         var def = data.Structures[td.DefId];
         if (td.Outbox.Count >= def.Capacity) return;
         td.Timer += td.PowerPct;
@@ -310,7 +313,7 @@ public sealed class Factory
     void StepMiner(Miner mi, Floor fl, GameData data)
     {
         var ore = fl.OreAt(mi.X, mi.Y);
-        if (ore == null || mi.Output != null) return;
+        if (!mi.Enabled || ore == null || mi.Output != null) return;
         var def = data.Structures[mi.DefId];
         mi.Timer += mi.PowerPct;
         if (mi.Timer < def.Ticks * 100) return;
@@ -321,6 +324,7 @@ public sealed class Factory
 
     void StepPump(Pump p, Floor fl, GameData data)
     {
+        if (!p.Enabled) return;
         var def = data.Structures[p.DefId];
         p.Timer += p.PowerPct;
         if (p.Timer < def.Ticks * 100) return;
@@ -345,7 +349,7 @@ public sealed class Factory
 
     void StepMachine(Machine m, Floor fl, GameData data, Rng rng)
     {
-        if (m.Recipe == null) return;
+        if (m.Recipe == null || !m.Enabled) return;
         var def = data.Structures[m.DefId];
         var r = data.Recipes[m.Recipe];
         if (m.Staff.Count < def.Workers) return;
@@ -445,6 +449,7 @@ public sealed class Factory
 
     void StepInserter(Inserter ins, Floor fl, GameData data)
     {
+        if (!ins.Enabled) return;
         var def = data.Structures[ins.DefId];
         ins.Timer += ins.PowerPct;
         if (ins.Timer < def.Ticks * 100) return;
@@ -512,7 +517,7 @@ public sealed class Blueprint
     public int D { get; set; }
     public List<BlueprintEntry> Entries { get; set; } = new();
 }
-public sealed class BlueprintEntry { public string Def { get; set; } = ""; public int X { get; set; } public int Y { get; set; } public int Z { get; set; } public Direction Dir { get; set; } public string? Recipe { get; set; } public BatteryMode? BatteryMode { get; set; } public string? Import { get; set; } }
+public sealed class BlueprintEntry { public string Def { get; set; } = ""; public int X { get; set; } public int Y { get; set; } public int Z { get; set; } public Direction Dir { get; set; } public string? Recipe { get; set; } public BatteryMode? BatteryMode { get; set; } public string? Import { get; set; } public Program? Program { get; set; } }
 
 public sealed class FactoryEvent { public string Kind { get; set; } = ""; public int Building { get; set; } public int Floor { get; set; } public int X { get; set; } public int Y { get; set; } public int Power { get; set; } public double Radius { get; set; } public int Destroyed { get; set; } }
 
@@ -527,5 +532,7 @@ public sealed class Mech
     public int Building { get; set; }
     public long MadeTick { get; set; }
     public List<MechPart> Parts { get; set; } = new();
+    /// <summary>制御基板(索敵・戦闘のプログラム)。評価は戦闘の実装時。</summary>
+    public Program? Program { get; set; }
 }
 public sealed class MechPart { public string Item { get; set; } = ""; public int Quality { get; set; } }
