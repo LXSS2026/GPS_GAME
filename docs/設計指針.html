@@ -102,11 +102,12 @@
   <tr><td>開始状態</td><td>一つの村と自警団から始める(案として採用)。</td><td>2026-10-14</td></tr>
   <tr><td>相手</td><td>同じ地図上の AI 国家(勢力)が複数。</td><td>2026-10-14</td></tr>
   <tr><td>建物内の工場</td><td>建物の中にも工場施設を作れる(Industries of Titan 型)。内部は階ごとの切り取り表示(G9 の工場ビル)。</td><td>2026-10-14</td></tr>
-  <tr><td>設備の配置と編集</td><td>設備(炉・組立機・ベルトなど)は、建物内(階ごと)か平地の 1 ブロックに、それぞれ置く。都市の地図(マクロ)では建物とブロックの単位で扱い、設備を編集するときはその建物の階または平地ブロックのミクロの地図に切り替わる。</td><td>2026-10-15</td></tr>
+  <tr><td>設備の配置と編集</td><td>設備(炉・組立機・ベルトなど)は、建物内(階ごと)か平地の 1 ブロックに、それぞれ置く。都市の地図(マクロ)では建物とブロックの単位で扱い、設備を編集するときはその建物の階または平地ブロックのミクロの地図(100x100 マス)に切り替わる。</td><td>2026-10-15</td></tr>
   <tr><td>陰影</td><td>テクスチャに加えて陰影(面の光・接地の環境遮蔽・落ち影・霧・発光)を入れる。軽量の範囲で(G8 第 7 節)。</td><td>2026-10-14</td></tr>
   <tr><td>物体の形</td><td>格子は論理、見た目は自由形状。建物は階モジュール方式(Blender 生成の部品を積む)。有償キットは予算の制約で不採用、AI 3D 生成は最後に検討。以後のモックは Godot の描画試作(G10)で判断する。</td><td>2026-10-14</td></tr>
   <tr><td>戦艦</td><td>Industries of Titan のように戦艦を建造でき、戦艦は小さな都市のように内部を組み立てられる(建物内工場と同じ「階を持つ器」の仕組みを船体に適用)。人型ロボットは戦艦または地上施設から出撃する。<b>戦艦は航空戦艦(空中に浮かぶ)。</b></td><td>2026-10-14</td></tr>
   <tr><td>寸法の基準</td><td>1 セル = 1 m。人間 1.7 m。階高 3 m(3 セル)。設備は床面積 1 セルで高さ 1〜2 セル。ロボットは 15〜20 m の大型機体(5〜7 階分)で、本作のデザインの核心。</td><td>2026-10-14</td></tr>
+  <tr><td>建物と街区の大きさ</td><td>建物と平地ブロックの床面積は 100x100 m(1 階 = 100x100 マス、1 マス = 1 m のまま)。街区 100 m、街路 16 m、都市は km 級(試作は 5x5 街区 = 596 m 四方)。建物は 100 m 角の大型構造物として扱う。小さな建物(住宅・商業)の扱いと 1 階あたりの設備台数の目安は未確定。</td><td>2026-10-15</td></tr>
   <tr><td>空中の接続</td><td>メガタワーのように建物どうしを空中で接続できる。渡り廊下は人の通路ではなく物流路で、中にベルトを通して隣の建物へ生産物を運ぶ。両端はそれぞれの階の内部格子に接続する。3 棟以上は空中の結節点を介して放射状につなぐ。</td><td>2026-10-14</td></tr>
 </table>
 
@@ -143,7 +144,7 @@ dotnet build game\GPS.csproj
 <table>
   <tr><th>地図</th><th>単位</th><th>見せ方と操作</th></tr>
   <tr><td>マクロ(都市)</td><td>建物・平地ブロック・道路・戦艦</td><td>俯瞰で都市全体を見る。建物やブロックを選ぶと概要(設備の数・稼働・在庫)を示し、「編集」でミクロへ切り替わる。</td></tr>
-  <tr><td>ミクロ(工場)</td><td>建物の 1 つの階、または平地の 1 ブロック(1 セル = 1 m の格子)</td><td>その階(床面積 W×D)またはブロックだけを切り取って表示し、1 セル単位で設備を置く・向きを変える・撤去する。階の切り替えで上下の階へ移る。建物の外側と周囲は薄く残す。ベルトは階の縁の物流路の口(渡り廊下・昇降機)で隣の階やブロックとつながる。</td></tr>
+  <tr><td>ミクロ(工場)</td><td>建物の 1 つの階、または平地の 1 ブロック(100x100 マス、1 セル = 1 m)</td><td>その階(床面積 W×D)またはブロックだけを切り取って表示し、1 セル単位で設備を置く・向きを変える・撤去する。階の切り替えで上下の階へ移る。建物の外側と周囲は薄く残す。ベルトは階の縁の物流路の口(渡り廊下・昇降機)で隣の階やブロックとつながる。</td></tr>
 </table>
 <p>ミクロの地図は建物の種類を問わず同じ仕組み(建物の階・平地ブロック・戦艦の区画はすべて「W×D の格子を持つ器」)。設備の描画は 1 セル角・高さ 1〜2 セルで作り直した(G10)。画面モックは G5。</p>
 <table>
@@ -1023,7 +1024,8 @@ dotnet build game\GPS.csproj
 <img src="img/preview_modules.png" alt="階モジュール方式の 3 棟" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
 <p>人型(機体と人間 2 種)は G11 に移した。</p>
 <h3>ミクロの地図と設備(2026-10-15)</h3>
-<p>設備を 1 セル角・高さ 1〜2 セルで作り直し(<code>tools/blender/make_equipment.py</code> → <code>game/assets/equipment</code>、配置は <code>game/scripts/Equipment.cs</code>)、ミクロの地図の 2 種(平地 1 ブロック、建物の 1 階)を <code>--scene micro</code> で描く。建物の階は、選んだ階より上を描かず、その階の外装を外して設備を置く(実装では上の階を薄く残す)。</p>
+<p>設備を 1 セル角・高さ 1〜2 セルで作り直し(<code>tools/blender/make_equipment.py</code> → <code>game/assets/equipment</code>、配置は <code>game/scripts/Equipment.cs</code>)、ミクロの地図の 2 種(平地 1 ブロック 100x100、建物の 1 階 100x100)を <code>--scene micro</code> で描く。建物の階は、選んだ階より上を描かず、その階の外装・天井・襟板を外して設備を置く(実装では上の階を薄く残す)。</p>
+<p><b>100x100 への拡大(2026-10-15 決定)</b>。1 マス = 1 m のまま床面積を 100x100 m にした。部品は <code>make_modules.py big</code> で 100x100 の階モジュール 15 種を追加生成(1 階あたり GLB 8〜10 MB、生成 17 秒)。設備は同じ部品を MultiMesh にまとめて描く(<code>Equipment.Place</code> で溜めて <code>Flush</code>)。実測: ミクロの場面は設備 14,492 台を置いて構築 3.3 秒、大都市(5x5 街区)は設備 21,354 台 + 建物 25 棟で 4.9 秒(いずれも起動から画像保存まで)。</p>
 <table>
   <tr><th>設備</th><th>高さ</th><th>造形</th></tr>
   <tr><td>炉</td><td>2</td><td>錆びた炉体に鋼の帯 2 本、前面に橙に光る炉口と格子、上に煙突(光る口)と配管、表示板。</td></tr>
@@ -1036,9 +1038,10 @@ dotnet build game\GPS.csproj
   <tr><td>電柱</td><td>2</td><td>コンクリートの台、柱、横木と光る碍子。</td></tr>
 </table>
 <p>どの設備も鋼の縁と格子の台座を持ち、原点はセルの床の中心、正面(出口)は -Z。向きは 90 度単位。材質名は階モジュールと同じ(M_Steel など)で Godot が差し替える。</p>
-<img src="img/preview_micro.png" alt="ミクロの地図: 左に平地 1 ブロック(5x5)の工場、右に建物(5x5・4 階)の 2 階を開いた状態" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
-<img src="img/preview_micro_ground.png" alt="平地 1 ブロック: 採掘機 → ベルト → インサータ → 炉 → ベルト → 組立機 → 箱、タンクと電柱" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
-<img src="img/preview_micro_floor.png" alt="建物の 2 階: 外周のベルト、炉と組立機の列、箱とタンク" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
+<img src="img/preview_micro.png" alt="ミクロの地図: 左に平地 1 ブロック(100x100)の工場、右に建物(100x100・4 階)の 2 階を開いた状態" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
+<img src="img/preview_micro_ground.png" alt="平地 1 ブロック 100x100: 6 行周期の生産ライン(ベルト・インサータ・機械・インサータ・ベルト)、20 列ごとの通路、縁に採掘機" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
+<img src="img/preview_micro_floor.png" alt="建物の 2 階 100x100 を開いた状態" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
+<img src="img/preview_micro_floor_close.png" alt="建物の 2 階の近景(生産ラインと通路、タンクと電柱)" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
 <img src="img/preview_equipment.png" alt="設備の近景(採掘機・タンク・インサータ・炉・組立機・箱)" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
 
 <h3>機体に合わせた格納庫と航空戦艦(2026-10-15)</h3>
@@ -1056,7 +1059,7 @@ dotnet build game\GPS.csproj
 <img src="img/preview_hangar_door.png" alt="機体格納庫の閉じた状態(半開きの大扉)" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
 <p>空中の接続の近景(縦リブの塔と外骨格の塔の間に広幅の渡り廊下、右に普通幅)。</p>
 <img src="img/preview_bridges.png" alt="渡り廊下の近景" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
-<p>大都市(全建物を階モジュールに置き換え、練兵場に戦艦、近い建物どうしを空中の物流路で接続)。</p>
+<p>大都市(2026-10-15: 街区 100 m × 5 × 5、街路 16 m、建物は 100x100 m の階モジュール。中心街 20〜60 階、住宅 3〜7 階、工場棟は 1 階を開いて設備、軍区画に機体格納庫 4 棟、公園、太陽光。上空に航空戦艦 2 隻)。</p>
 <img src="img/preview_city.png" alt="階モジュールの大都市" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
 <p>以下の節(16 様式・部品メッシュ方式・キットバッシュ)は経緯の記録で、建物は階モジュール方式に置き換えた。</p>
 <h3>0000. 名建築を参考にした建物 16 様式(廃止予定)</h3>

@@ -88,6 +88,12 @@ public sealed class FloorModules
         }
     }
 
+    static void SetNamedVisible(Node node, string name, bool visible)
+    {
+        foreach (var c in node.GetChildren()) SetNamedVisible(c, name, visible);
+        if (node is Node3D n3 && node.Name.ToString().StartsWith(name)) n3.Visible = visible;
+    }
+
     static void SetExteriorVisible(Node node, bool visible)
     {
         foreach (var c in node.GetChildren()) SetExteriorVisible(c, visible);
@@ -129,10 +135,11 @@ public sealed class FloorModules
             if (f >= cutawayFrom && f < cutawayBelow && def.Kind != "roof")
             {
                 SetExteriorVisible(n, false);
+                if (f == cutawayBelow - 1) SetNamedVisible(n, "int_ceiling", false);   // 開いた最上階は天井も外す(上から見下ろすため)
                 if (interior && def.Kind != "hangar") Interior(root, cy + 0.12f, def.W, def.D, f);   // 格納庫は設備を置かず(機体が入る)
             }
             float h = FloorHeight * def.Floors;
-            if (def.Kind != "roof")
+            if (def.Kind != "roof" && f != cutawayBelow - 1)   // 開いた最上階は襟板(蓋)を置かない
             {
                 float w = def.TopW > 0 ? def.TopW : def.W, d = def.TopD > 0 ? def.TopD : def.D;
                 _kb.Box(root, new Vector3(0, cy + h, 0), new Vector3(w + 0.36f, 0.08f, d + 0.36f), _kb.Steel);

@@ -1,15 +1,19 @@
+using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using Godot;
 
 /// <summary>設備(工場の機械)の配置。部品は tools/blender/make_equipment.py が assets/equipment/*.glb と data/equipment.json に書く。
-/// 1 セル角、原点はセルの床の中心、正面は Blender の +Y(GLB の -Z)。rot は正面の向き(度)。</summary>
+/// 1 セル角、原点はセルの床の中心、正面は Blender の +Y(GLB の -Z)。rot は正面の向き(度)。
+/// 1 階 100x100 マスに数千台を置くため、同じ部品の同じメッシュを 1 つの MultiMesh にまとめて描く(Place で溜め、Flush で追加)。</summary>
 public sealed class Equipment
 {
     public sealed record Def(string Id, int H);
     public readonly Dictionary<string, Def> Defs = new();
-    readonly Dictionary<string, PackedScene> _scenes = new();
+    readonly Dictionary<string, List<(Mesh mesh, Transform3D local)>> _parts = new();
+    readonly Dictionary<string, List<Transform3D>> _placed = new();
     readonly FloorModules _fm;
+    public int Count { get; private set; }
 
     public Equipment(FloorModules fm)
     {
@@ -19,64 +23,86 @@ public sealed class Equipment
             Defs[e.GetProperty("id").GetString()!] = new Def(e.GetProperty("id").GetString()!, e.GetProperty("h").GetInt32());
     }
 
-    /// <summary>セル (cx, cz) の床 y に設備を置く。rot は 0 = -Z 向き(手前)、90 = +X、180 = +Z、270 = -X。</summary>
-    public Node3D Place(Node3D parent, string id, int cx, float y, int cz, int rot = 0)
+    /// <summary>セル (cx, cz) の床 y に設備を置く(溜めるだけ)。rot は 0 = -Z 向き(手前)、90 = +X、180 = +Z、270 = -X。</summary>
+    public void Place(string id, int cx, float y, int cz, int rot = 0)
     {
-        if (!_scenes.TryGetValue(id, out var ps)) _scenes[id] = ps = GD.Load<PackedScene>($"res://assets/equipment/{id}.glb");
-        var n = (Node3D)ps.Instantiate();
-        n.Name = $"{id}_{cx}_{cz}";
-        Swap(n);
-        n.Position = new Vector3(cx + 0.5f, y, cz + 0.5f);
-        n.RotationDegrees = new Vector3(0, rot, 0);
-        parent.AddChild(n);
-        return n;
+        if (!_placed.TryGetValue(id, out var list)) _placed[id] = list = new List<Transform3D>();
+        list.Add(new Transform3D(Basis.FromEuler(new Vector3(0, Mathf.DegToRad(rot), 0)), new Vector3(cx + 0.5f, y, cz + 0.5f)));
+        Count++;
     }
 
-    void Swap(Node node)
+    /// <summary>溜めた設備を MultiMesh として親に追加する。場面の構築の最後に 1 回呼ぶ。</summary>
+    public void Flush(Node3D parent)
     {
-        foreach (var c in node.GetChildren()) Swap(c);
-        if (node is not MeshInstance3D mi || mi.Mesh == null) return;
-        for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
+        foreach (var (id, xforms) in _placed)
         {
-            var m = mi.GetActiveMaterial(i);
-            if (m != null && _fm.Materials.TryGetValue(m.ResourceName, out var rep)) mi.SetSurfaceOverrideMaterial(i, rep);
+            foreach (var (mesh, local) in Parts(id))
+            {
+                var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = mesh, InstanceCount = xforms.Count };
+                for (int i = 0; i < xforms.Count; i++) mm.SetInstanceTransform(i, xforms[i] * local);
+                parent.AddChild(new MultiMeshInstance3D { Multimesh = mm, Name = $"eq_{id}_{mesh.GetInstanceId()}" });
+            }
         }
+        _placed.Clear();
     }
 
-    /// <summary>平地 1 ブロック(5x5)の工場の見本: 採掘機 → ベルト → 炉 → ベルト → 組立機 → 箱。ox, oz はブロックの左手前のセル。</summary>
-    public void SampleGround(Node3D parent, int ox, float y, int oz)
+    /// <summary>部品の GLB を 1 度だけ読み、メッシュ(材質差し替え済み)と原点からの相対変換の一覧にする。</summary>
+    List<(Mesh, Transform3D)> Parts(string id)
     {
-        Place(parent, "miner", ox + 0, y, oz + 4, 0);
-        Place(parent, "belt", ox + 0, y, oz + 3, 0);
-        Place(parent, "belt", ox + 0, y, oz + 2, 0);
-        Place(parent, "belt_turn", ox + 0, y, oz + 1, 0);
-        Place(parent, "belt", ox + 1, y, oz + 1, 90);
-        Place(parent, "inserter", ox + 2, y, oz + 1, 90);
-        Place(parent, "furnace", ox + 3, y, oz + 1, 180);
-        Place(parent, "inserter", ox + 3, y, oz + 2, 180);
-        Place(parent, "belt", ox + 3, y, oz + 3, 180);
-        Place(parent, "inserter", ox + 3, y, oz + 4, 180);
-        Place(parent, "assembler", ox + 4, y, oz + 4, 270);
-        Place(parent, "chest", ox + 4, y, oz + 2, 0);
-        Place(parent, "inserter", ox + 4, y, oz + 3, 0);
-        Place(parent, "tank", ox + 2, y, oz + 4, 0);
-        Place(parent, "pole", ox + 1, y, oz + 3, 0);
+        if (_parts.TryGetValue(id, out var cached)) return cached;
+        var ps = GD.Load<PackedScene>($"res://assets/equipment/{id}.glb");
+        var root = (Node3D)ps.Instantiate();
+        var list = new List<(Mesh, Transform3D)>();
+        Collect(root, Transform3D.Identity, list);
+        root.QueueFree();
+        return _parts[id] = list;
     }
 
-    /// <summary>建物の 1 階(W×D)の工場の見本: 外周に沿ったベルトと中央の機械列。</summary>
-    public void SampleFloor(Node3D parent, int ox, float y, int oz, int w, int d)
+    void Collect(Node node, Transform3D acc, List<(Mesh, Transform3D)> list)
     {
-        for (int i = 0; i < w - 1; i++) Place(parent, i == w - 2 ? "belt_turn" : "belt", ox + i, y, oz, 90);
-        for (int j = 1; j < d - 1; j++) Place(parent, "belt", ox + w - 1, y, oz + j, 180);
-        Place(parent, "chest", ox + w - 1, y, oz + d - 1, 0);
-        Place(parent, "inserter", ox + 0, y, oz + 1, 180);
-        Place(parent, "furnace", ox + 0, y, oz + 2, 180);
-        Place(parent, "inserter", ox + 1, y, oz + 2, 90);
-        Place(parent, "assembler", ox + 2, y, oz + 2, 180);
-        Place(parent, "inserter", ox + 3, y, oz + 2, 90);
-        if (w > 4) Place(parent, "inserter", ox + w - 2, y, oz + 1, 90);
-        Place(parent, "tank", ox + 1, y, oz + d - 1, 0);
-        Place(parent, "chest", ox + 2, y, oz + d - 1, 0);
-        Place(parent, "pole", ox + 0, y, oz + d - 1, 0);
+        var xf = node is Node3D n3 ? acc * n3.Transform : acc;
+        if (node is MeshInstance3D mi && mi.Mesh is ArrayMesh am)
+        {
+            var mesh = (ArrayMesh)am.Duplicate();
+            for (int i = 0; i < mesh.GetSurfaceCount(); i++)
+            {
+                var m = mi.GetActiveMaterial(i);
+                if (m != null && _fm.Materials.TryGetValue(m.ResourceName, out var rep)) mesh.SurfaceSetMaterial(i, rep);
+            }
+            list.Add((mesh, xf));
+        }
+        foreach (var c in node.GetChildren()) Collect(c, xf, list);
+    }
+
+    /// <summary>平地 1 ブロックや建物の 1 階(w×d)に工場の見本を敷く: 5 列周期の生産ライン(ベルト・インサータ・機械・インサータ・ベルト)、20 列ごとの通路、縁に採掘機・タンク・箱・電柱。</summary>
+    public void SampleFactory(int ox, float y, int oz, int w, int d, Random rnd)
+    {
+        for (int j = 0; j + 4 < d; j += 6)
+        {
+            for (int i = 0; i < w; i++)
+            {
+                if (i % 20 == 19 || i % 20 == 0) continue;   // 通路
+                Place("belt", ox + i, y, oz + j, 90);
+                Place("inserter", ox + i, y, oz + j + 1, 180);
+                Place(rnd.NextDouble() < 0.5 ? "furnace" : "assembler", ox + i, y, oz + j + 2, 180);
+                Place("inserter", ox + i, y, oz + j + 3, 180);
+                Place("belt", ox + i, y, oz + j + 4, 270);
+            }
+            for (int i = 0; i < w; i += 20)
+            {
+                Place("pole", ox + i, y, oz + j + 2, 0);
+                if (i + 19 < w) Place(rnd.NextDouble() < 0.5 ? "tank" : "chest", ox + i + 19, y, oz + j + 2, 0);
+            }
+        }
+        for (int i = 2; i < w; i += 7) Place("miner", ox + i, y, oz + d - 1, 0);
+    }
+
+    /// <summary>平地 1 ブロック(5x5)の小さな見本(近景用)。</summary>
+    public void SampleGround(int ox, float y, int oz)
+    {
+        Place("miner", ox + 0, y, oz + 4, 0); Place("belt", ox + 0, y, oz + 3, 0); Place("belt", ox + 0, y, oz + 2, 0); Place("belt_turn", ox + 0, y, oz + 1, 0);
+        Place("belt", ox + 1, y, oz + 1, 90); Place("inserter", ox + 2, y, oz + 1, 90); Place("furnace", ox + 3, y, oz + 1, 180); Place("inserter", ox + 3, y, oz + 2, 180);
+        Place("belt", ox + 3, y, oz + 3, 180); Place("inserter", ox + 3, y, oz + 4, 180); Place("assembler", ox + 4, y, oz + 4, 270); Place("chest", ox + 4, y, oz + 2, 0);
+        Place("inserter", ox + 4, y, oz + 3, 0); Place("tank", ox + 2, y, oz + 4, 0); Place("pole", ox + 1, y, oz + 3, 0);
     }
 }

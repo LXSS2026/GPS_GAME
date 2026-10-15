@@ -386,8 +386,9 @@ def mod_roof(w, d, kind, family="office"):
         add_cyl("ext_mast", (0, 0, 3.52), 0.03, 2.0, M["steel"], 8, bevel=0)
         add_cyl("ext_beacon", (0, 0, 4.57), 0.09, 0.14, M["glowred"], 8, bevel=0)
     elif kind == "heli":
-        add_cyl("ext_helipad", (-w * 0.15, d * 0.15, 0.84), min(w, d) * 0.3, 0.1, M["concrete"], 24)
-        add_cyl("ext_helipad_ring", (-w * 0.15, d * 0.15, 0.9), min(w, d) * 0.31, 0.02, M["glowcyan"], 24, bevel=0)
+        hr = min(min(w, d) * 0.3, 12.0)   # 100 m 角でも半径 12 m まで
+        add_cyl("ext_helipad", (-w * 0.15, d * 0.15, 0.84), hr, 0.1, M["concrete"], 24)
+        add_cyl("ext_helipad_ring", (-w * 0.15, d * 0.15, 0.9), hr * 1.03, 0.02, M["glowcyan"], 24, bevel=0)
         add_cyl("ext_mast", (w * 0.3, -d * 0.3, 0.92), 0.025, 1.4, M["steel"], 8, bevel=0)
         add_cyl("ext_beacon", (w * 0.3, -d * 0.3, 1.67), 0.07, 0.12, M["glowred"], 8, bevel=0)
     elif kind == "boiler":
@@ -692,6 +693,34 @@ def ship_bridge(W, L, decks):
     add_box("ext_radar_arm", (0.4 * s_, 0.8 * s_, z + 4.15 * s_), (0.08 * s_, 0.08 * s_, 0.3 * s_), M["steel"], bevel=0)
     ship_export("bridge", W, L, decks)
 
+
+def gen_big():
+    """床面積 100x100 m(2026-10-15 決定: 建物と平地ブロックは 100x100、1 階 = 100x100 マス)。既存の JSON に追記する。"""
+    w = d = 100
+    for fam in ("office", "concrete"):
+        mod_base(w, d, fam)
+        mod_mech(w, d, fam)
+    mod_standard(w, d, "office")
+    mod_standard(w, d, "office", cool=True)
+    mod_standard(w, d, "res")
+    mod_standard(w, d, "concrete")
+    mod_standard(w, d, "svc")
+    mod_standard(w, d, "exo")
+    mod_roof(w, d, "mech")
+    mod_roof(w, d, "heli")
+    mod_roof(w, d, "spire")
+    mod_roof(w, d, "boiler", "concrete")
+    mod_roof(w, d, "mech", "concrete")
+
+
+if __name__ == "__main__" and "big" in sys.argv:
+    gen_big()
+    old = json.loads(JSON_OUT.read_text(encoding="utf-8")) if JSON_OUT.exists() else {"floorHeight": FH, "modules": []}
+    ids = {e["id"] for e in ENTRIES}
+    merged = [e for e in old["modules"] if e["id"] not in ids] + ENTRIES
+    JSON_OUT.write_text(json.dumps({"floorHeight": FH, "modules": merged}, ensure_ascii=False, indent=1), encoding="utf-8")
+    print("modules(big):", len(ENTRIES), "total:", len(merged))
+    sys.exit(0)
 
 if __name__ == "__main__":
     # 床面積: 3x3, 2x2, 5x5, 4x6

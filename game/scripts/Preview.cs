@@ -31,25 +31,26 @@ public partial class Preview : Node3D
         var args = OS.GetCmdlineUserArgs();
         string scene = Arg(args, "--scene") ?? "village";
         Vector3 pivot; float dist;
-        if (scene == "city") { BuildCity(); pivot = new Vector3(30, 18, 30); dist = 122; }
+        if (scene == "city") { BuildCity(); pivot = new Vector3(298, 40, 298); dist = 900; }
         else if (scene == "buildings") { BuildShowcase(); pivot = new Vector3(60, 17, 12); dist = 112; }
         else if (scene == "modules") { BuildModules(); pivot = new Vector3(48, 14, 16); dist = 100; }
-        else if (scene == "micro") { BuildMicro(); pivot = new Vector3(12f, 4f, 6f); dist = 30f; }
+        else if (scene == "micro") { BuildMicro(); pivot = new Vector3(108f, 6f, 50f); dist = 260f; }
         else if (scene == "ship") { BuildShip(); pivot = new Vector3(0f, 22f, 10f); dist = 230f; }
         else if (scene == "robots") { BuildRobots(); pivot = new Vector3(48f, 9f, 34f); dist = 80f; }
         else { BuildVillage(); pivot = new Vector3(22, 6, 27); dist = 40; }
-        if (Arg(args, "--view") == "close") { pivot = scene == "city" ? new Vector3(24, 9, 20) : new Vector3(24, 6, 33); dist = scene == "city" ? 34 : 16; }
+        if (Arg(args, "--view") == "close") { pivot = scene == "city" ? new Vector3(240, 40, 180) : new Vector3(24, 6, 33); dist = scene == "city" ? 300 : 16; }
         if (Arg(args, "--pivot") is string pv) { var p = pv.Split(','); pivot = new Vector3(float.Parse(p[0]), float.Parse(p[1]), float.Parse(p[2])); }   // --view より後に適用(明示指定が勝つ)
         if (Arg(args, "--dist") is string ds) dist = float.Parse(ds);
 
         _kb.Flush(this);
+        _eq.Flush(this);
         var tr = new TerrainRenderer();
         AddChild(tr);
         tr.Init(_world, _blocks);
         tr.BuildAll();
         AddChild(SceneSetup.Lighting());
 
-        _cam = new Camera3D { Fov = 38, Far = 800 };
+        _cam = new Camera3D { Fov = 38, Far = 3000 };
         AddChild(_cam);
         float yaw = scene == "buildings" ? 0.35f : scene == "modules" ? 0.6f : scene == "robots" ? 0.2f : scene == "ship" ? 2.3f : scene == "micro" ? 0.5f : 0.78f, elev = scene == "buildings" ? 0.30f : scene == "modules" ? 0.38f : scene == "robots" ? 0.16f : scene == "ship" ? 0.3f : scene == "micro" ? 0.75f : 0.52f;
         if (Arg(args, "--yaw") is string ys) yaw = float.Parse(ys);     // 視点の向き(ラジアン)を明示する
@@ -188,34 +189,40 @@ public partial class Preview : Node3D
     static readonly List<string> BigShip = new() { "ship_stern_30x16", "ship_turret_30x16", "ship_lift_30x16", "ship_mid_30x16", "ship_hangar_30x24", "ship_hangar_30x24", "ship_mid_30x16", "ship_bridge_30x16", "ship_lift_30x16", "ship_turret_30x16", "ship_bow_30x28" };   // 全長 204 m
     static readonly List<string> SmallShip = new() { "ship_stern_18x12", "ship_lift_18x12", "ship_mid_18x12", "ship_hangar_18x18", "ship_bridge_18x12", "ship_turret_18x12", "ship_bow_18x24" };   // 全長 102 m
 
-    // ---------- ミクロの地図(平地 1 ブロックと建物の 1 階。設備は 1 セル角) ----------
+    // ---------- ミクロの地図(平地 1 ブロック 100x100 と建物の 1 階 100x100。設備は 1 セル角) ----------
     void BuildMicro()
     {
         byte stone = B("Stone"), plaza = B("Plaza"), conc = B("Concrete"), road = B("RoadX");
-        for (int x = -10; x < 40; x++) for (int z = -10; z < 30; z++)
+        string? only = Arg(OS.GetCmdlineUserArgs(), "--only");
+        const int S = 100, G = 16;   // 街区 100 m、街路 16 m
+        for (int x = -G; x < S * 2 + G * 2; x++) for (int z = -G; z < S + G; z++)
         {
             _world.Set(x, 0, z, stone); _world.Set(x, 1, z, stone);
-            bool block = x >= 0 && x < 5 && z >= 0 && z < 5;
-            _world.Set(x, 2, z, block ? conc : (z == -2 || z == 6 || x == -2 || x == 6) ? road : plaza);
+            bool inBlockA = x >= 0 && x < S && z >= 0 && z < S, inBlockB = x >= S + G && x < S * 2 + G && z >= 0 && z < S;
+            _world.Set(x, 2, z, inBlockA ? conc : inBlockB ? plaza : road);
         }
         _world.Dirty.Clear();
-        string? only = Arg(OS.GetCmdlineUserArgs(), "--only");
-        // 左: 平地 1 ブロック(5x5)。周囲は薄い柱で区画の枠だけ示す
+        var rnd = new Random(3);
+        // 左: 平地 1 ブロック(100x100)の工場。区画の縁を光る線で示す
         if (only != "floor")
         {
-            _eq.SampleGround(this, 0, 3f, 0);
-            for (int i = 0; i <= 5; i++) { _kb.Strip(this, new Vector3(i, 3.02f, 2.5f), new Vector3(0.02f, 0.02f, 5f), _kb.GlowCyan); _kb.Strip(this, new Vector3(2.5f, 3.02f, i), new Vector3(5f, 0.02f, 0.02f), _kb.GlowCyan); }
-            _fm.Character(this, "citizen", 1.5f, 3f, 2.5f, 120);
+            _eq.SampleFactory(0, 3f, 0, S, S, rnd);
+            for (int i = 0; i <= S; i += 10) { _kb.Strip(this, new Vector3(i, 3.02f, S / 2f), new Vector3(0.04f, 0.02f, S), _kb.GlowCyan); _kb.Strip(this, new Vector3(S / 2f, 3.02f, i), new Vector3(S, 0.02f, 0.04f), _kb.GlowCyan); }
+            for (int i = 0; i < 12; i++) _fm.Character(this, "citizen", 0.5f + rnd.Next(S), 3f, 0.5f + rnd.Next(S), rnd.Next(360));
         }
-        // 右: 建物(5x5 事務所・4 階)の 2 階だけを切り取り表示し、設備を置く。上の階は残す
+        // 右: 建物(100x100 事務所・4 階)の 2 階だけを開き、設備を敷く。上の階は描かない(実装では薄く残す)
         if (only != "ground")
         {
-            var stack = _fm.Plan("office", 5, 5, 4, false, "heli").GetRange(0, 3);   // 選んだ階(2 階)より上は描かない(実装では薄く残す)
-            _fm.Build(this, 16.5f, 3f, 2.5f, stack, 0, cutawayBelow: 3, cutawayFrom: 2, interior: false);
-            _eq.SampleFloor(this, 14, 3f + _fm.FloorHeight * 2 + 0.12f, 0, 5, 5);
-            _fm.Character(this, "citizen", 16.2f, 3f + _fm.FloorHeight * 2 + 0.12f, 1.5f, 200);
+            var stack = _fm.Plan("office", S, S, 4, false, "heli").GetRange(0, 3);
+            float ox = S + G;
+            _fm.Build(this, ox + S / 2f, 3f, S / 2f, stack, 0, cutawayBelow: 3, cutawayFrom: 2, interior: false);
+            float fy = 3f + _fm.FloorHeight * 2 + 0.12f;
+            _eq.SampleFactory((int)ox + 2, fy, 2, S - 4, S - 4, rnd);
+            for (int i = 0; i < 12; i++) _fm.Character(this, "citizen", ox + 2.5f + rnd.Next(S - 4), fy, 2.5f + rnd.Next(S - 4), rnd.Next(360));
         }
-        _kb.Light(this, new Vector3(8f, 12f, 10f), new Color(0.9f, 0.92f, 1.0f), 30f, 1.6f);
+        _eq.Flush(this);
+        GD.Print($"[micro] equipment placed: {_eq.Count}");
+        _kb.Light(this, new Vector3(S, 60f, S / 2f), new Color(0.9f, 0.92f, 1.0f), 220f, 1.4f);
     }
 
     // ---------- 航空戦艦と機体格納庫(機体 15〜20 m に合わせた寸法の確認) ----------
@@ -306,125 +313,100 @@ public partial class Preview : Node3D
     // ---------- 大都市 ----------
     void BuildCity()
     {
-        const int N = 64;
+        // 街区 100 m を 5 × 5、街路 16 m(2026-10-15 決定: 1 マス = 1 m、建物と平地ブロックは 100x100 m)
+        const int S = 100, G = 16, NB = 5, N = NB * S + (NB + 1) * G;   // 596 m 四方
         byte stone = B("Stone"), dirt = B("Dirt"), plaza = B("Plaza"), concrete = B("Concrete"), asphalt = B("Asphalt"), rx = B("RoadX"), rz = B("RoadY");
         byte grass = B("Grass"), water = B("Water");
+        static int Lane(int v) { int p = v % (S + G); return p < G ? -1 : v / (S + G); }   // 街路なら -1、街区番号
+        static int LanePos(int v) => v % (S + G);
         for (int x = 0; x < N; x++)
             for (int z = 0; z < N; z++)
             {
                 _world.Set(x, 0, z, stone); _world.Set(x, 1, z, stone); _world.Set(x, 2, z, dirt);
-                bool river = x - z >= 16 && x - z <= 17;
-                bool roadX = z % 7 == 0 || z == 28 || z == 29;
-                bool roadZ = x % 7 == 0;
-                byte top = roadX && roadZ ? asphalt : roadX ? rx : roadZ ? rz : District(x, z) switch { "park" => grass, "industry" => concrete, _ => plaza };
-                if (river && !(z == 28 || z == 29)) { _world.Set(x, 2, z, water); continue; }
+                int bi = Lane(x), bj = Lane(z);
+                bool roadX = bj < 0, roadZ = bi < 0;
+                bool river = roadX && z / (S + G) == 3 && LanePos(z) >= 2 && LanePos(z) < G - 2 && !roadZ;   // 川は 4 本目の横街路に沿う(縦街路との交点が橋)
+                bool centerLine = (roadX && LanePos(z) == G / 2) || (roadZ && LanePos(x) == G / 2);
+                byte top = roadX && roadZ ? asphalt : roadX ? (centerLine ? asphalt : rx) : roadZ ? (centerLine ? asphalt : rz) : District(bi, bj) switch { "park" => grass, "industry" => concrete, _ => plaza };
+                if (river) { _world.Set(x, 2, z, water); continue; }
                 _world.Set(x, 3, z, top);
             }
         _world.Dirty.Clear();
         const float Y = 4f;
+        var rnd = _rnd;
 
-        var used = new HashSet<(int, int)>();
-        for (int bx = 0; bx < N; bx += 7)
-            for (int bz = 0; bz < N; bz += 7)
+        for (int bi = 0; bi < NB; bi++)
+            for (int bj = 0; bj < NB; bj++)
             {
-                int x0 = bx + 1, z0 = bz + 1;
-                if (used.Contains((bx, bz))) continue;
-                if (x0 + 5 >= N || z0 + 5 >= N) continue;
-                if (z0 <= 29 && z0 + 5 >= 28) continue;
-                if (NearRiver(x0, z0)) continue;
-                string d = District(x0 + 2, z0 + 2);
-                switch (d)
+                int x0 = G + bi * (S + G), z0 = G + bj * (S + G);
+                float cx = x0 + S / 2f, cz = z0 + S / 2f;
+                switch (District(bi, bj))
                 {
                     case "downtown":
                     {
-                        string fam = new[] { "office", "office", "deco", "exo", "svc", "concrete" }[_rnd.Next(6)];
-                        double r = _rnd.NextDouble();
-                        if (r < 0.5) _fm.Build(this, x0 + 3f, Y, z0 + 3f, _fm.Plan(fam, 5, 5, _rnd.Next(10, 23)), _rnd.Next(4) * 90);
-                        else if (r < 0.7) _fm.Build(this, x0 + 3f, Y, z0 + 3f, _fm.Plan(fam, 4, 6, _rnd.Next(8, 20)), _rnd.Next(2) * 90);
-                        else if (r < 0.85) _fm.Twin(this, x0 + 3f, Y, z0 + 3f, fam == "concrete" ? "office" : fam, _rnd.Next(8, 16), 3, _rnd.Next(3, 7), _rnd.Next(2) * 90);
-                        else foreach (var (ox, oz) in new[] { (1.5f, 1.5f), (4.5f, 1.5f), (1.5f, 4.5f), (4.5f, 4.5f) })
-                            _fm.Build(this, x0 + ox, Y, z0 + oz, _fm.Plan(fam, 3, 3, _rnd.Next(5, 14)), _rnd.Next(4) * 90);
+                        string fam = new[] { "office", "office", "exo", "svc", "concrete" }[rnd.Next(5)];
+                        _fm.Build(this, cx, Y, cz, _fm.Plan(fam, S, S, rnd.Next(20, 61), false), rnd.Next(4) * 90);   // 60〜180 m
                         break;
                     }
                     case "residential":
-                    {
-                        string fam = _rnd.NextDouble() < 0.6 ? "res" : "concrete";
-                        if (_rnd.NextDouble() < 0.4) _fm.Build(this, x0 + 3f, Y, z0 + 3f, _fm.Plan(fam, 4, 6, _rnd.Next(3, 7), false), _rnd.Next(2) * 90);
-                        else foreach (var (ox, oz) in new[] { (1.5f, 1.5f), (4.5f, 1.5f), (1.5f, 4.5f), (4.5f, 4.5f) })
-                        {
-                            if (_rnd.NextDouble() < 0.85) _fm.Build(this, x0 + ox, Y, z0 + oz, _fm.Plan(fam, 3, 3, _rnd.Next(2, 6), false), _rnd.Next(4) * 90);
-                            else _kb.Pine(this, x0 + ox, Y, z0 + oz, 2.2f);
-                        }
+                        _fm.Build(this, cx, Y, cz, _fm.Plan(rnd.NextDouble() < 0.6 ? "res" : "concrete", S, S, rnd.Next(3, 8), false), rnd.Next(4) * 90);
                         break;
-                    }
                     case "park":
-                        for (int i = 0; i < 8; i++) _kb.Pine(this, x0 + 0.5f + _rnd.Next(6), Y, z0 + 0.5f + _rnd.Next(6), 1.8f + (float)_rnd.NextDouble() * 1.4f);
-                        _kb.Box(this, new Vector3(x0 + 3f, Y + 0.2f, z0 + 3f), new Vector3(1.4f, 0.4f, 1.4f), _kb.Concrete);
+                        for (int i = 0; i < 60; i++) _kb.Pine(this, x0 + 2f + rnd.Next(S - 4), Y, z0 + 2f + rnd.Next(S - 4), 4f + (float)rnd.NextDouble() * 4f);
+                        _kb.Box(this, new Vector3(cx, Y + 0.3f, cz), new Vector3(12f, 0.6f, 12f), _kb.Concrete);
                         break;
                     case "industry":
-                        _kb.Factory(this, x0 + 2.2f, Y, z0 + 1.7f, 3.4f, 2.2f, 1.6f, 0);
-                        _kb.Chimney(this, x0 + 5.0f, Y, z0 + 1.0f, 2.8f);
-                        _kb.Tank(this, x0 + 1.2f, Y, z0 + 4.8f, 0.5f, 1.5f);
-                        _kb.Tank(this, x0 + 2.4f, Y, z0 + 4.8f, 0.4f, 1.2f);
-                        _kb.Chest(this, x0 + 5.3f, Y, z0 + 5.2f, 90);
-                        for (int i = 0; i < 3; i++) _kb.Belt(this, x0 + 3.5f + i, Y, z0 + 3.6f, 0, i != 1);
-                        _kb.Assembler(this, x0 + 2.0f, Y, z0 + 3.6f, 90);
-                        _fm.Character(this, "citizen", x0 + 5.5f, Y, z0 + 2.6f, -90);
+                    {   // 工場棟(コンクリート 2〜4 階)。1 階を開いて設備を敷く
+                        int floors = rnd.Next(2, 5);
+                        _fm.Build(this, cx, Y, cz, _fm.Plan("concrete", S, S, floors, false, "boiler"), 0, cutawayBelow: 2, cutawayFrom: 1, interior: false);
+                        _eq.SampleFactory(x0 + 2, Y + _fm.FloorHeight + 0.12f, z0 + 2, S - 4, S - 4, rnd);
                         break;
+                    }
                     case "military":
-                        if (!used.Contains((bx + 7, bz)) && !used.Contains((bx, bz + 7)) && x0 + 12 < N && z0 + 12 < N && District(x0 + 9, z0 + 9) == "military")
-                        {   // 街区 4 つを併合して機体格納庫(12x12・6 階分)。扉の前に機体
-                            used.Add((bx + 7, bz)); used.Add((bx, bz + 7)); used.Add((bx + 7, bz + 7));
-                            _fm.Build(this, x0 + 6f, Y, z0 + 6f, MechHangar, 0);
-                            _mb.Build(this, _rnd.NextDouble() < 0.5 ? "heavy" : "general", _rnd.NextDouble() < 0.5 ? "g1" : "g2", x0 + 6f, Y, z0 + 14f, 180);
-                        }
-                        else
+                        // 機体格納庫(12x12・6 階分)を 4 棟、扉の前に機体
+                        foreach (var (ox, oz) in new[] { (20f, 30f), (50f, 30f), (80f, 30f), (35f, 70f) })
                         {
-                            _fm.Build(this, x0 + 3f, Y, z0 + 3f, _fm.Plan("svc", 5, 5, 3, false, "heli"), 0);
-                            _mb.Build(this, "general", "g1", x0 + 3f, Y, z0 + 8.5f, 180);
+                            _fm.Build(this, x0 + ox, Y, z0 + oz, MechHangar, 0);
+                            _mb.Build(this, rnd.NextDouble() < 0.5 ? "heavy" : "general", $"g{rnd.Next(1, 5)}", x0 + ox, Y, z0 + oz - 12f, 180);
                         }
+                        _mb.BuildFighter(this, _mb.Presets["fast"], "g3", x0 + 70f, Y + 30f, z0 + 75f, 30);
                         break;
                     case "solar":
-                        for (int i = 0; i < 5; i++) for (int j = 0; j < 3; j++) _kb.Solar(this, x0 + 0.8f + i * 1.1f, Y, z0 + 1.0f + j * 1.8f, 0);
+                        for (int i = 0; i < 40; i++) for (int j = 0; j < 25; j++) _kb.Solar(this, x0 + 2f + i * 2.4f, Y, z0 + 2f + j * 3.8f, 0);
                         break;
                 }
             }
-        // メガタワー間の空中回廊(2 層目のデッキ高さ)
-        _fm.Ship(this, 32f, Y + 44f, 40f, SmallShip, 60);   // 小型の航空戦艦(全長 102 m)が市街の上空を通過
-        // 空中の物流路: 近い建物どうしを自動で結ぶ
-        _fm.AutoConnect(this, _rnd);
-        // 高架の軌道(x = 21 の道路上)と列車
+        _eq.Flush(this);
+        // 航空戦艦: 大型が中心街の上空、小型が軍区画の上空
+        _fm.Ship(this, N * 0.45f, Y + 90f, N * 0.3f, BigShip, 25);
+        _fm.Ship(this, N * 0.2f, Y + 60f, N * 0.8f, SmallShip, 70);
+        // 高架の軌道(2 本目の縦街路の中央)と列車
+        float railX = G + (S + G) + G / 2f + 0.5f;
         for (int z = 0; z < N; z++)
         {
-            if (z % 3 == 0) _kb.RailPillar(this, 21.5f, Y, z + 0.5f, 3.4f);
-            _kb.RailSegment(this, 21.5f, Y + 3.5f, z + 0.5f);
+            if (z % 6 == 0) _kb.RailPillar(this, railX, Y, z + 0.5f, 6.4f);
+            _kb.RailSegment(this, railX, Y + 6.5f, z + 0.5f);
         }
-        _kb.Train(this, 21.5f, Y + 3.6f, 19.0f, 4.0f);
-        // 路上の市民と人型ロボット
-        for (int i = 0; i < 80; i++)
+        for (int k = 0; k < 3; k++) _kb.Train(this, railX, Y + 6.6f, 120f + k * 4.2f, 4.0f);
+        // 路上の市民
+        for (int i = 0; i < 400; i++)
         {
-            int x = _rnd.Next(1, N - 1), z = _rnd.Next(1, N - 1);
-            bool road = x % 7 == 0 || z % 7 == 0 || z == 28 || z == 29;
-            if (!road || (x - z >= 16 && x - z <= 17)) continue;
-            _fm.Character(this, _fm.RandomHuman(), x + (float)_rnd.NextDouble(), Y, z + (float)_rnd.NextDouble(), _rnd.Next(360));
+            int x = rnd.Next(1, N - 1), z = rnd.Next(1, N - 1);
+            if (Lane(x) >= 0 && Lane(z) >= 0) continue;
+            _fm.Character(this, _fm.RandomHuman(), x + (float)rnd.NextDouble(), Y, z + (float)rnd.NextDouble(), rnd.Next(360));
         }
-        // 橋の欄干
-        for (int x = 44; x <= 47; x++) { _kb.Box(this, new Vector3(x + 0.5f, Y + 0.3f, 28.05f), new Vector3(1.0f, 0.04f, 0.04f), _kb.Rust); _kb.Box(this, new Vector3(x + 0.5f, Y + 0.3f, 29.95f), new Vector3(1.0f, 0.04f, 0.04f), _kb.Rust); }
+        GD.Print($"[city] equipment placed: {_eq.Count}");
     }
 
-    static bool NearRiver(int x0, int z0)
+    /// <summary>街区 (bi, bj) の地区。5 × 5 の街区。</summary>
+    static string District(int bi, int bj)
     {
-        for (int x = x0 - 1; x <= x0 + 6; x++) for (int z = z0 - 1; z <= z0 + 6; z++) if (x - z >= 16 && x - z <= 17) return true;
-        return false;
-    }
-
-    static string District(int x, int z)
-    {
-        if (x >= 22 && x <= 27 && z >= 31 && z <= 36) return "park";
-        if (x >= 8 && x <= 34 && z <= 27) return "downtown";
-        if (x >= 36 && z >= 31) return "industry";
-        if (x >= 22 && x <= 34 && z >= 38 && z <= 55) return "military";
-        if (x <= 13 && z >= 45) return "solar";
+        if (bi < 0 || bj < 0) return "road";
+        if (bi == 2 && bj == 2) return "park";
+        if (bj <= 1 && bi >= 1 && bi <= 3) return "downtown";
+        if (bj >= 3 && bi >= 3) return "industry";
+        if (bj >= 3 && bi <= 1) return "military";
+        if (bi == 0 && bj == 0) return "solar";
         return "residential";
     }
 }

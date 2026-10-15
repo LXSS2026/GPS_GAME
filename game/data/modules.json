@@ -1196,6 +1196,171 @@
    "floors": 3,
    "belly": 3.0,
    "decks": 3
+  },
+  {
+   "id": "base_100x100_office",
+   "kind": "base",
+   "family": "office",
+   "w": 100,
+   "d": 100,
+   "topW": 100,
+   "topD": 100,
+   "length": 0,
+   "floors": 1
+  },
+  {
+   "id": "mech_100x100_office",
+   "kind": "mech",
+   "family": "office",
+   "w": 100,
+   "d": 100,
+   "topW": 100,
+   "topD": 100,
+   "length": 0,
+   "floors": 1
+  },
+  {
+   "id": "base_100x100_concrete",
+   "kind": "base",
+   "family": "concrete",
+   "w": 100,
+   "d": 100,
+   "topW": 100,
+   "topD": 100,
+   "length": 0,
+   "floors": 1
+  },
+  {
+   "id": "mech_100x100_concrete",
+   "kind": "mech",
+   "family": "concrete",
+   "w": 100,
+   "d": 100,
+   "topW": 100,
+   "topD": 100,
+   "length": 0,
+   "floors": 1
+  },
+  {
+   "id": "office_100x100",
+   "kind": "standard",
+   "family": "office",
+   "w": 100,
+   "d": 100,
+   "topW": 100,
+   "topD": 100,
+   "length": 0,
+   "floors": 1
+  },
+  {
+   "id": "office_100x100_c",
+   "kind": "standard",
+   "family": "office",
+   "w": 100,
+   "d": 100,
+   "topW": 100,
+   "topD": 100,
+   "length": 0,
+   "floors": 1
+  },
+  {
+   "id": "res_100x100",
+   "kind": "standard",
+   "family": "res",
+   "w": 100,
+   "d": 100,
+   "topW": 100,
+   "topD": 100,
+   "length": 0,
+   "floors": 1
+  },
+  {
+   "id": "concrete_100x100",
+   "kind": "standard",
+   "family": "concrete",
+   "w": 100,
+   "d": 100,
+   "topW": 100,
+   "topD": 100,
+   "length": 0,
+   "floors": 1
+  },
+  {
+   "id": "svc_100x100",
+   "kind": "standard",
+   "family": "svc",
+   "w": 100,
+   "d": 100,
+   "topW": 100,
+   "topD": 100,
+   "length": 0,
+   "floors": 1
+  },
+  {
+   "id": "exo_100x100",
+   "kind": "standard",
+   "family": "exo",
+   "w": 100,
+   "d": 100,
+   "topW": 100,
+   "topD": 100,
+   "length": 0,
+   "floors": 1
+  },
+  {
+   "id": "roof_100x100_mech_office",
+   "kind": "roof",
+   "family": "office",
+   "w": 100,
+   "d": 100,
+   "topW": 0,
+   "topD": 0,
+   "length": 0,
+   "floors": 1
+  },
+  {
+   "id": "roof_100x100_heli_office",
+   "kind": "roof",
+   "family": "office",
+   "w": 100,
+   "d": 100,
+   "topW": 0,
+   "topD": 0,
+   "length": 0,
+   "floors": 1
+  },
+  {
+   "id": "roof_100x100_spire_office",
+   "kind": "roof",
+   "family": "office",
+   "w": 100,
+   "d": 100,
+   "topW": 0,
+   "topD": 0,
+   "length": 0,
+   "floors": 1
+  },
+  {
+   "id": "roof_100x100_boiler_concrete",
+   "kind": "roof",
+   "family": "concrete",
+   "w": 100,
+   "d": 100,
+   "topW": 0,
+   "topD": 0,
+   "length": 0,
+   "floors": 1
+  },
+  {
+   "id": "roof_100x100_mech_concrete",
+   "kind": "roof",
+   "family": "concrete",
+   "w": 100,
+   "d": 100,
+   "topW": 0,
+   "topD": 0,
+   "length": 0,
+   "floors": 1
   }
  ]
 }
