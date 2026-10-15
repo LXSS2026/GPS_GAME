@@ -53,6 +53,11 @@ public static class McuCatalog
         new NodeType("in.chest.count", "箱の品数", "入力", 0, 1, "chest"),
         new NodeType("in.tank.amount", "タンクの量", "入力", 0, 1, "tank"),
         new NodeType("in.port.waiting", "口の待ち数", "入力", 0, 1, "port"),
+        new NodeType("in.turret.shots", "砲塔の発射数", "入力", 0, 1, "turret"),
+        new NodeType("in.turret.ready", "砲塔の射撃準備(1/0)", "入力", 0, 1, "turret"),
+        new NodeType("in.building.hp", "建物・戦艦の耐久 %", "入力", 0, 1),
+        new NodeType("in.ship.moving", "戦艦の移動中(1/0)", "入力", 0, 1),
+        new NodeType("in.ship.x", "戦艦の位置 x", "入力", 0, 1), new NodeType("in.ship.y", "戦艦の位置 y", "入力", 0, 1),
         // 演算
         new NodeType("op.add", "足す", "演算", 2, 1), new NodeType("op.sub", "引く", "演算", 2, 1), new NodeType("op.mul", "掛ける", "演算", 2, 1), new NodeType("op.div", "割る", "演算", 2, 1),
         new NodeType("op.min", "小さい方", "演算", 2, 1), new NodeType("op.max", "大きい方", "演算", 2, 1), new NodeType("op.abs", "絶対値", "演算", 1, 1),
@@ -67,6 +72,7 @@ public static class McuCatalog
         new NodeType("out.building.policy", "建物の不足時方針(0 比例/1 優先/2 停止)", "出力", 1, 0, "building"),
         new NodeType("out.structure.enabled", "設備の稼働(1/0)", "出力", 1, 0, "any"),
         new NodeType("out.trade.enabled", "交易所の輸入(1/0)", "出力", 1, 0, "trade"),
+        new NodeType("out.ship.go", "戦艦を動かす(1 で x, y へ)", "出力", 1, 0, "building", new[] { "x", "y" }),
         // 機体の制御基板(索敵・戦闘。計算は戦闘の実装時。種類だけ先に定義)
         new NodeType("in.mech.hp", "自機の耐久 %", "機体", 0, 1), new NodeType("in.mech.power", "自機の電力 %", "機体", 0, 1), new NodeType("in.mech.ammo", "自機の弾薬 %", "機体", 0, 1),
         new NodeType("in.enemy.distance", "最寄りの敵との距離", "機体", 0, 1), new NodeType("in.enemy.count", "索敵範囲の敵数", "機体", 0, 1), new NodeType("in.enemy.generation", "最寄りの敵の世代", "機体", 0, 1),
@@ -138,6 +144,11 @@ public static class McuRunner
     {
         if (type == "in.tick") return f.TickCount;
         if (type == "in.building.supply" || type == "in.building.demand") { var b = n.TargetBuilding < 0 ? home : f.Get(n.TargetBuilding); return b == null ? 0 : type.EndsWith("supply") ? b.LastSupply : b.LastDemand; }
+        if (type.StartsWith("in.ship.") || type == "in.building.hp")
+        {
+            var b = n.TargetBuilding < 0 ? home : f.Get(n.TargetBuilding); if (b == null) return 0;
+            return type switch { "in.building.hp" => b.MaxHp <= 0 ? 0 : b.Hp * 100 / b.MaxHp, "in.ship.moving" => b.MoveTargetX != null ? 1 : 0, "in.ship.x" => b.X, "in.ship.y" => b.Y, _ => 0 };
+        }
         var s = Target(n, f, home, out var tb);
         if (s == null || tb == null || tb.LastSupply <= 0) return 0;   // 電気の無い建物の設備は読めない
         var def = data.Structures[s.DefId];
@@ -153,6 +164,8 @@ public static class McuRunner
             ("in.chest.count", Chest c) => c.Items.Count,
             ("in.tank.amount", Tank t) => t.Amount,
             ("in.port.waiting", Port p) => p.Buffer.Count + p.Inbox.Count,
+            ("in.turret.shots", Turret tu) => tu.Shots,
+            ("in.turret.ready", Turret tu) => tu.Cooldown <= 0 && tu.PowerPct > 0 ? 1 : 0,
             _ => 0,
         };
     }
@@ -160,6 +173,7 @@ public static class McuRunner
     static void WriteFactory(string type, McuNode n, double v, Factory f, GameData data, Building home)
     {
         if (type == "out.building.policy") { var b = n.TargetBuilding < 0 ? home : f.Get(n.TargetBuilding); if (b != null) b.Policy = (PowerPolicy)Math.Clamp((int)v, 0, 2); return; }
+        if (type == "out.ship.go") { var b = n.TargetBuilding < 0 ? home : f.Get(n.TargetBuilding); if (b != null && b.IsShip && !b.Destroyed && v != 0 && b.MoveTargetX == null) { b.MoveTargetX = n.Params.GetValueOrDefault("x"); b.MoveTargetZ = n.Params.GetValueOrDefault("y"); } return; }
         var s = Target(n, f, home, out var tb);
         if (s == null || tb == null || tb.LastSupply <= 0) return;
         switch (type, s)

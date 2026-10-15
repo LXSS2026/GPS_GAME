@@ -9,6 +9,8 @@ public partial class CityScreen
 {
     int _pickPower = -1;
     readonly Dictionary<int, Node3D> _fieldMechs = new();
+    readonly Dictionary<int, Node3D> _fieldFighters = new();   // 高速機の戦闘機モード
+    bool _drawAll;   // 村(段階 1)は全機、町以降は隊の代表機 1 体(G2 の粒度)。--all で全機
     readonly Dictionary<int, Label3D> _fieldTags = new();
     readonly List<(Node3D n, int life)> _fieldFx = new();
     readonly Dictionary<Loot, Node3D> _lootMarks = new();
@@ -102,11 +104,13 @@ public partial class CityScreen
             n.AddChild(tag); _cityRoot.AddChild(n); _lootMarks[l] = n;
         }
         foreach (var (l, n) in _lootMarks.ToList()) if (!f.Loot.Contains(l)) { n.QueueFree(); _lootMarks.Remove(l); }
+        bool representative = !_drawAll && (f.City?.Stage ?? 1) >= 2;
         foreach (var sq in f.Squads)
         {
+            var lead = sq.Members.FirstOrDefault(u => u.Alive);
             foreach (var u in sq.Members)
             {
-                bool show = sq.State == SquadState.Field && u.Alive;
+                bool show = sq.State == SquadState.Field && u.Alive && (!representative || u == lead);
                 if (!_fieldMechs.TryGetValue(u.MechId, out var node))
                 {
                     if (!show) continue;
@@ -114,13 +118,19 @@ public partial class CityScreen
                     node = _mb.Build(_cityRoot, m.Archetype, $"g{m.Generation}", 0, Y, 0, 0); _fieldMechs[u.MechId] = node;
                     var tag = new Label3D { FontSize = 36, PixelSize = 0.03f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, NoDepthTest = true, OutlineSize = 10 }; _cityRoot.AddChild(tag); _fieldTags[u.MechId] = tag;
                 }
-                node.Visible = show; _fieldTags[u.MechId].Visible = show;
+                var m0 = f.Mechs.FirstOrDefault(x => x.Id == u.MechId);
+                if (u.Flying && !_fieldFighters.ContainsKey(u.MechId) && m0 != null) _fieldFighters[u.MechId] = _mb.BuildFighter(_cityRoot, _mb.Presets[m0.Archetype], $"g{m0.Generation}", 0, Y, 0, 0);
+                bool fly = show && u.Flying && _fieldFighters.ContainsKey(u.MechId);
+                node.Visible = show && !fly; if (_fieldFighters.TryGetValue(u.MechId, out var fn)) fn.Visible = fly;
+                _fieldTags[u.MechId].Visible = show;
                 if (!show) continue;
                 var tgt = u.TargetMech >= 0 ? f.Squads.SelectMany(s => s.Members).FirstOrDefault(x => x.MechId == u.TargetMech) : null;
                 double dx = tgt != null ? tgt.X - u.X : (sq.Faction == 1 ? 1 : -1), dy = tgt != null ? tgt.Y - u.Y : 0;
-                node.Position = new Vector3((float)u.X, Y, (float)u.Y); node.RotationDegrees = new Vector3(0, Mathf.RadToDeg((float)Math.Atan2(dx, dy)), 0);
-                int pct = (int)Math.Round(u.Hp * 100 / Math.Max(1, u.MaxHp));
-                var t = _fieldTags[u.MechId]; t.Position = node.Position + new Vector3(0, 9.5f, 0); t.Text = $"{sq.Name}\n{pct}%"; t.Modulate = sq.Faction == 1 ? Cyan : Red;
+                float yaw = Mathf.RadToDeg((float)Math.Atan2(dx, dy));
+                node.Position = new Vector3((float)u.X, Y, (float)u.Y); node.RotationDegrees = new Vector3(0, yaw, 0);
+                if (fly) { var fnode = _fieldFighters[u.MechId]; fnode.Position = new Vector3((float)u.X, Y + 18f, (float)u.Y); fnode.RotationDegrees = new Vector3(0, yaw, 0); }   // 戦闘機モードは高度 18 m
+                int pct = representative ? (int)Math.Round(sq.Members.Where(x => x.Alive).Sum(x => x.Hp) * 100 / Math.Max(1, sq.Members.Where(x => x.Alive).Sum(x => x.MaxHp))) : (int)Math.Round(u.Hp * 100 / Math.Max(1, u.MaxHp));
+                var t = _fieldTags[u.MechId]; t.Position = (fly ? _fieldFighters[u.MechId].Position : node.Position) + new Vector3(0, 9.5f, 0); t.Text = representative ? $"{sq.Name} {sq.Alive} 機\n{pct}%" : $"{sq.Name}\n{pct}%" + (fly ? " 飛行" : ""); t.Modulate = sq.Faction == 1 ? Cyan : Red;
             }
         }
         // 射線と閃光(Battle と同じ見せ方)

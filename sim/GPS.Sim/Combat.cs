@@ -29,6 +29,8 @@ public sealed class CombatData
     public double SelfDestructDamagePerKw { get; set; } = 5;
     public double LootRate { get; set; } = 0.3;
     public double CollectRange { get; set; } = 3;
+    public int CoverCell { get; set; } = 16; public double CoverMinHeight { get; set; } = 6; public double CoverCloseRange { get; set; } = 20;
+    public double FighterMinDist { get; set; } = 60; public double FighterSpeedMul { get; set; } = 2; public double FlyingHitMul { get; set; } = 0.7;
     public double WallHpPerCell { get; set; } = 400;
     public double WallCostPerCell { get; set; } = 5;
     public int WallMaxLevel { get; set; } = 3;
@@ -61,6 +63,8 @@ public sealed class CombatData
         c.AmmoCapacity = r.GetProperty("ammoCapacity").GetInt32(); c.ReactorEnergySeconds = r.GetProperty("reactorEnergySeconds").GetInt32(); c.FieldChargeMul = r.GetProperty("fieldChargeMul").GetDouble();
         c.SelfDestructRadiusPerKw = r.GetProperty("selfDestruct").GetProperty("radiusPerKw").GetDouble(); c.SelfDestructDamagePerKw = r.GetProperty("selfDestruct").GetProperty("damagePerKw").GetDouble();
         c.LootRate = r.GetProperty("lootRate").GetDouble(); c.CollectRange = r.GetProperty("collectRange").GetDouble();
+        var cv = r.GetProperty("cover"); c.CoverCell = cv.GetProperty("cellSize").GetInt32(); c.CoverMinHeight = cv.GetProperty("minHeight").GetDouble(); c.CoverCloseRange = cv.GetProperty("closeRange").GetDouble();
+        var fy = r.GetProperty("flight"); c.FighterMinDist = fy.GetProperty("fighterMinDist").GetDouble(); c.FighterSpeedMul = fy.GetProperty("speedMul").GetDouble(); c.FlyingHitMul = fy.GetProperty("hitMul").GetDouble();
         var wl = r.GetProperty("wall"); c.WallHpPerCell = wl.GetProperty("hpPerCell").GetDouble(); c.WallCostPerCell = wl.GetProperty("costPerCell").GetDouble(); c.WallMaxLevel = wl.GetProperty("maxLevel").GetInt32();
         var rp = r.GetProperty("repair"); c.RepairPerPart = rp.GetProperty("perPart").GetDouble(); c.RepairPartsPerHour = rp.GetProperty("partsPerHour").GetInt32(); c.RepairItems = rp.GetProperty("items").EnumerateArray().Select(e => e.GetString()!).ToList(); c.DefaultRetreatHp = r.GetProperty("defaultRetreatHp").GetDouble(); c.SquadMax = r.GetProperty("squadMax").GetInt32(); c.FormationSpacing = r.GetProperty("formationSpacing").GetDouble();
         return c;
@@ -93,6 +97,7 @@ public sealed class MechUnit
     public double SearchOverride { get; set; }
     public int SelfDestruct { get; set; }
     public int McuTimer { get; set; }
+    [JsonIgnore] public bool Flying { get; set; }
     [JsonIgnore] public int LastEnemyCount { get; set; }
     [JsonIgnore] public double LastEnemyDist { get; set; } = 1e9;
     [JsonIgnore] public int LastEnemyGen { get; set; }
@@ -149,17 +154,17 @@ public static class Combat
 {
     public static void Tick(Factory f, GameData data, CombatData c, Rng rng, Simulation? sim = null)
     {
-        Ships.Step(f);
+        Ships.Step(f); RefreshCover(f, c);
         var field = f.Squads.Where(s => s.State == SquadState.Field).ToList();
-        if (field.Count == 0) return;
         StepTurrets(f, data, c, rng, field);
+        if (field.Count == 0) return;
         var mechs = f.Mechs.ToDictionary(m => m.Id);
         // 索敵と制御基板
         foreach (var s in field)
             foreach (var u in s.Members.Where(u => u.Alive))
             {
                 var me = mechs[u.MechId];
-                Sense(s, u, me, field, mechs, data, c);
+                Sense(f, s, u, me, field, mechs, data, c);
                 if (me.Program != null && ++u.McuTimer >= Math.Max(1, me.Program.Interval)) { u.McuTimer = 0; RunBoard(s, u, me, f, data); }
                 else if (me.Program == null) { u.Retreat = u.Hp < u.MaxHp * f.RetreatHp ? 1 : 0; u.Engage = 1; }
             }
@@ -183,7 +188,8 @@ public static class Combat
                 }
                 else if (s.Order == SquadOrder.Attack && s.TargetSquad >= 0) { var ts = f.Squads.FirstOrDefault(x => x.Id == s.TargetSquad); if (ts != null && ts.Alive > 0) goal = Slot(s, idx, ts.X, ts.Y, c); }
                 else if (s.Order == SquadOrder.Attack && s.TargetBuilding >= 0) { var tb = f.Get(s.TargetBuilding); if (tb != null && !tb.Destroyed) { var (bx, by) = Center(tb); var w = c.Weapons[WeaponId(u, me, c)]; double dd = Math.Sqrt((bx - u.X) * (bx - u.X) + (by - u.Y) * (by - u.Y)); if (dd > w.Range * 0.7) goal = Slot(s, idx, bx, by - w.Range * 0.6, c); } }
-                if (goal is var (gx, gy)) { double dx = gx - u.X, dy = gy - u.Y, d = Math.Sqrt(dx * dx + dy * dy); if (d > 0.5) { double k = Math.Min(1, spd / d); u.X += dx * k; u.Y += dy * k; } }
+                u.Flying = false;
+                if (goal is var (gx, gy)) { double dx = gx - u.X, dy = gy - u.Y, d = Math.Sqrt(dx * dx + dy * dy); if (me.Archetype == "fast" && d > c.FighterMinDist) { u.Flying = true; spd *= c.FighterSpeedMul; } if (d > 0.5) { double k = Math.Min(1, spd / d); u.X += dx * k; u.Y += dy * k; } }
                 idx++;
             }
             // 回収: 部品の落ちている所に着いたら拾う。無くなれば帰還
@@ -235,7 +241,8 @@ public static class Combat
                 u.Cooldown = w.Cooldown;
                 if (w.Kind == "beam") u.Energy -= w.EnergyPerShot; else u.Ammo -= w.AmmoPerShot;
                 var tm = mechs[t.MechId];
-                double hit = w.Accuracy * (dist <= w.Range ? 1 : 1 - (dist - w.Range) / (w.Range * (c.FarMul - 1)) * (1 - c.FarHit)) * Math.Max(c.MinHit, 1 - MechStats.Speed(tm, c) / c.SpeedRef) * f.HitMulPct / 100.0;   // 軍の長の効果(G19)
+                if (t.Flying && w.Melee != null) continue;   // 飛んでいる相手に近接は届かない
+                double hit = w.Accuracy * (dist <= w.Range ? 1 : 1 - (dist - w.Range) / (w.Range * (c.FarMul - 1)) * (1 - c.FarHit)) * Math.Max(c.MinHit, 1 - MechStats.Speed(tm, c) / c.SpeedRef) * f.HitMulPct / 100.0 * (t.Flying ? c.FlyingHitMul : 1);   // 軍の長の効果(G19)、飛行中は当たりにくい
                 if (w.Missile && tm.Generation >= 5)
                 {   // 誘導弾はステルスに当たらない(弾幕か偶然を除く)
                     int inbound = s.Members.Count(x => x.Alive && x.TargetMech == t.MechId && c.Weapons[WeaponId(x, mechs[x.MechId], c)].Missile);
@@ -294,7 +301,7 @@ public static class Combat
     static MechUnit? FindUnit(List<Squad> field, int mechId) => field.SelectMany(s => s.Members).FirstOrDefault(u => u.MechId == mechId);
     static string WeaponId(MechUnit u, Mech me, CombatData c) => u.WeaponSel == 2 ? MechStats.Melee(me, c) : MechStats.Primary(me, c);
 
-    static void Sense(Squad s, MechUnit u, Mech me, List<Squad> field, Dictionary<int, Mech> mechs, GameData data, CombatData c)
+    static void Sense(Factory f, Squad s, MechUnit u, Mech me, List<Squad> field, Dictionary<int, Mech> mechs, GameData data, CombatData c)
     {
         double search = u.SearchOverride > 0 ? u.SearchOverride : MechStats.Search(me, c);
         var seen = new List<(MechUnit t, Mech tm, double d)>();
@@ -304,7 +311,7 @@ public static class Combat
                 var tm = mechs[t.MechId];
                 double d = Dist(u, t);
                 double range = search * c.StealthSearchMul.GetValueOrDefault(tm.Generation, 1.0);
-                if (d <= Math.Max(range, c.VisualRange)) seen.Add((t, tm, d));
+                if (d <= Math.Max(range, c.VisualRange) && (d <= c.CoverCloseRange || !LineBlocked(f, u.X, u.Y, t.X, t.Y, c))) seen.Add((t, tm, d));   // 遮蔽: 近距離以外は射線が通るときだけ
             }
         u.LastEnemyCount = seen.Count; u.LastEnemyDist = seen.Count == 0 ? 1e9 : seen.Min(x => x.d);
         u.LastEnemyGen = seen.Count == 0 ? 0 : seen.OrderBy(x => x.d).First().tm.Generation;
@@ -361,8 +368,27 @@ public static class Combat
                 if (t.Cooldown > 0) { t.Cooldown--; continue; }
                 double tx = b.X + s.X + 0.5, ty = b.Y + s.Y + 0.5;
                 MechUnit? best = null; double bestD = def.Range;
-                foreach (var sq in field) { if (sq.Faction == owner) continue; foreach (var u in sq.Members) { if (!u.Alive) continue; double d = Math.Sqrt((u.X - tx) * (u.X - tx) + (u.Y - ty) * (u.Y - ty)); if (d <= bestD) { bestD = d; best = u; } } }
-                if (best == null) continue;
+                foreach (var sq in field) { if (sq.Faction == owner) continue; foreach (var u in sq.Members) { if (!u.Alive) continue; double d = Math.Sqrt((u.X - tx) * (u.X - tx) + (u.Y - ty) * (u.Y - ty)); if (d <= bestD && (d <= c.CoverCloseRange || !LineBlocked(f, tx, ty, u.X, u.Y, c))) { bestD = d; best = u; } } }
+                if (best == null)
+                {   // 機体がいなければ、戦争中の敵の建物(勢力の拠点・プレイヤーの拠点)を砲撃する(戦艦の砲撃戦。地上の砲塔も同じ)
+                    Building? tb = null; double td = def.Range;
+                    foreach (var ob in f.Buildings)
+                    {
+                        if (ob == b || ob.Destroyed || ob.Floors.Count == 0) continue;
+                        var pw = f.Diplomacy?.Powers.FirstOrDefault(p => p.HomeBuilding == ob.Id);
+                        bool enemy = owner == 1 ? pw != null && pw.AtWar && !pw.Vassal : (ob.Id == f.City?.Capital && (f.Diplomacy?.Powers.FirstOrDefault(p => p.Faction == owner)?.AtWar ?? false));
+                        if (!enemy) continue;
+                        double cx = ob.X + ob.Floors[0].W / 2.0, cy = ob.Y + ob.Floors[0].D / 2.0, d = Math.Sqrt((cx - tx) * (cx - tx) + (cy - ty) * (cy - ty));
+                        if (d <= td) { td = d; tb = ob; }
+                    }
+                    if (tb == null) continue;
+                    if (def.Ammo != null) { int ai = b.Cargo.FindIndex(x => x.Item == def.Ammo && x.Count > 0); if (ai < 0) continue; var ast = b.Cargo[ai]; if (ast.Count <= 1) b.Cargo.RemoveAt(ai); else b.Cargo[ai] = ast with { Count = ast.Count - 1 }; }
+                    t.Cooldown = def.Cooldown; t.Shots++;
+                    double bdmg = def.Damage * def.Accuracy / 100.0; tb.Hp = Math.Max(0, tb.Hp - bdmg);
+                    f.Events.Add(new FactoryEvent { Kind = "hit_building", Building = -b.Id, Floor = tb.Id, X = (int)tx, Y = (int)ty, Power = (int)bdmg, Radius = td, Destroyed = 1 });
+                    if (tb.Hp <= 0) { tb.Destroyed = true; f.Events.Add(new FactoryEvent { Kind = "building_destroyed", Building = tb.Id, Power = -b.Id }); if (tb.IsShip) Ships.Sunk(f, tb); else if (f.Owner != null) DiplomacySim.BuildingFell(f.Owner, tb, null); }
+                    continue;
+                }
                 if (def.Ammo != null)
                 {
                     int idx = b.Cargo.FindIndex(x => x.Item == def.Ammo && x.Count > 0); if (idx < 0) continue;
@@ -370,7 +396,7 @@ public static class Combat
                 }
                 t.Cooldown = def.Cooldown; t.Shots++;
                 var tm = mechs[best.MechId];
-                double hit = def.Accuracy / 100.0 * Math.Max(c.MinHit, 1 - MechStats.Speed(tm, c) / c.SpeedRef) * (owner == 1 ? f.HitMulPct / 100.0 : 1);
+                double hit = def.Accuracy / 100.0 * Math.Max(c.MinHit, 1 - MechStats.Speed(tm, c) / c.SpeedRef) * (owner == 1 ? f.HitMulPct / 100.0 : 1) * (best.Flying ? c.FlyingHitMul : 1);
                 bool landed = rng.Next(10_000) < (int)(hit * 10_000);
                 f.Events.Add(new FactoryEvent { Kind = landed ? "hit" : "miss", Building = -b.Id, Floor = best.MechId, X = (int)tx, Y = (int)ty, Power = def.Damage, Radius = bestD, Destroyed = landed ? 1 : 0 });   // Building が負 = 砲塔
                 if (!landed) continue;
@@ -378,6 +404,39 @@ public static class Combat
                 if (best.Hp <= 0) Kill(f, best, tm, c, field);
             }
         }
+    }
+
+    // ---------- 遮蔽(街区単位の粗格子) ----------
+    // 格子は工場(Factory)ごとに持つ(静的にすると複数の計算が混ざる)
+    static void RefreshCover(Factory f, CombatData c)
+    {
+        int key = f.Buildings.Count * 1000003 + f.Buildings.Sum(b => b.Id * (b.Destroyed ? 7 : 1) + b.Floors.Count * 31);
+        if (f.CoverGrid != null && key == f.CoverKey && f.CoverCell == c.CoverCell) return;
+        f.CoverKey = key; f.CoverCell = c.CoverCell;
+        int n = 0; foreach (var b in f.Buildings) if (!b.IsShip && b.Floors.Count > 0) n = Math.Max(n, (int)Math.Max(b.X + b.Floors[0].W, b.Y + b.Floors[0].D));
+        int cells = n / c.CoverCell + 2; var grid = new bool[cells, cells];
+        foreach (var b in f.Buildings)
+        {
+            if (b.IsShip || b.Destroyed || b.Floors.Count == 0 || b.Floors.Count * 3 < c.CoverMinHeight) continue;
+            for (int x = (int)b.X / c.CoverCell; x <= (int)(b.X + b.Floors[0].W - 1) / c.CoverCell; x++) for (int y = (int)b.Y / c.CoverCell; y <= (int)(b.Y + b.Floors[0].D - 1) / c.CoverCell; y++)
+                if (x >= 0 && y >= 0 && x < cells && y < cells) grid[x, y] = true;
+        }
+        f.CoverGrid = grid;
+    }
+    /// <summary>射線が建物の粗格子に遮られるか(両端のセルは除く)。</summary>
+    public static bool LineBlocked(Factory f, double x0, double y0, double x1, double y1, CombatData c)
+    {
+        var grid = f.CoverGrid; if (grid == null) return false;
+        int cs = c.CoverCell, n = (int)Math.Ceiling(Math.Sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0)) / (cs / 2.0)); if (n < 2) return false;
+        int sx = (int)x0 / cs, sy = (int)y0 / cs, ex = (int)x1 / cs, ey = (int)y1 / cs;
+        for (int i = 1; i < n; i++)
+        {
+            double t = (double)i / n; int gx = (int)(x0 + (x1 - x0) * t) / cs, gy = (int)(y0 + (y1 - y0) * t) / cs;
+            if ((gx == sx && gy == sy) || (gx == ex && gy == ey)) continue;
+            if (gx < 0 || gy < 0 || gx >= grid.GetLength(0) || gy >= grid.GetLength(1)) continue;
+            if (grid[gx, gy]) return true;
+        }
+        return false;
     }
 
     static Loot? NearestLoot(Factory f, Squad s) { double cx = s.X, cy = s.Y; return f.Loot.OrderBy(l => (l.X - cx) * (l.X - cx) + (l.Y - cy) * (l.Y - cy)).FirstOrDefault(); }

@@ -50,6 +50,12 @@ public partial class CityScreen : Node3D
         SampleCity.Build(_sim);
         if (Arg("--war") is string wr) { _sim.Enqueue(new DeclareWar(int.Parse(wr))); _sim.Step(); }
         if (Arg("--hours") is string hs) _sim.Run(Clock.TicksPerHour * int.Parse(hs));
+        if (Arg("--move") is string mvs)
+        {   // 撮影用: --move 隊,x,z で出撃させて移動(要員は人口を増やして満たす)
+            var a3 = mvs.Split(','); int sq = int.Parse(a3[0]); _sim.Factory.City!.Population = Math.Max(_sim.Factory.City.Population, 300); _sim.Factory.City.ConscriptionRate = 0.5; CitySim.Hour(_sim, _sim.Factory.City);
+            var hb = _sim.Factory.Get(_sim.Factory.Squads.First(q => q.Id == sq).HomeBuilding)!;
+            _sim.Enqueue(new Deploy(sq, hb.X + 14, hb.Y + 6)); _sim.Enqueue(new OrderSquad(sq, SquadOrder.Move, double.Parse(a3[1]), double.Parse(a3[2]))); _sim.Step();
+        }
         if (Arg("--defend") != null)
         {   // 撮影用: 自軍の隊を出撃させ、最寄りの敵の隊を攻撃
             foreach (var sq in _sim.Factory.Squads.Where(q => q.Faction == 1 && q.State == SquadState.InHangar).ToList())
@@ -76,6 +82,7 @@ public partial class CityScreen : Node3D
         _cam = new Camera3D { Fov = 40, Far = 3000 }; _cityRoot.AddChild(_cam); PlaceCamera();
         BuildHud();
         if (Arg("--select") is string sel) Select(int.Parse(sel));
+        if (Arg("--all") != null) _drawAll = true;
         if (Arg("--mode") is string md) { SetBuildMode(md == "place" ? BuildMode.Place : md == "road" ? BuildMode.Road : BuildMode.Demolish); if (md == "place") UpdateGhost(Arg("--ghost") is string gh ? _cam.UnprojectPosition(new Vector3(float.Parse(gh.Split(',')[0]), Y, float.Parse(gh.Split(',')[1]))) : GetViewport().GetVisibleRect().Size / 2); }
         if (Arg("--office") is string of) _pickOffice = of;
         if (Arg("--pick") is string pk) _pickPerson = int.Parse(pk);
@@ -162,7 +169,7 @@ public partial class CityScreen : Node3D
         {
             var e = ev[_seenEvents];
             var pw = _sim.Factory.Diplomacy?.Powers.FirstOrDefault(p => p.Id == e.Building);
-            string? s = e.Kind switch { "war_declared" => $"{pw?.Name} に宣戦した", "war_received" => $"{pw?.Name} が宣戦してきた", "raid" => $"{pw?.Name} の襲撃隊が来た", "offer" => $"{pw?.Name} から申し出(政治画面で回答)", "warning" => $"{pw?.Name} の兵力が増えている(侵攻の恐れ)", "treaty" => $"{pw?.Name} と条約を結んだ", "proposal_failed" => $"{pw?.Name} は提案を断った", "threat_ok" => $"{pw?.Name} が貢納を飲んだ(月 {e.Power})", "threat_failed" => $"{pw?.Name} は威圧に応じない", "peace" => $"{pw?.Name} と和平した", "peace_failed" => $"{pw?.Name} は和平を断った", "vassal" => $"{pw?.Name} の拠点が落ち属国になった(スクラップ {e.Power})", "raided" => $"建物 #{e.Building} が略奪された", "conquered" => "拠点が落ちた(征服)", "building_destroyed" => $"建物 #{e.Building} が落ちた", "victory" => e.Power == 1 ? "勝利: 大陸の制覇" : "勝利: 同盟網による支配", "faction" => $"派閥ができた(首領 #{e.Power})", "faction_end" => $"派閥が解消した(首領 #{e.Power})", "defect" => $"派閥が離反した(首領 #{e.Power}、{e.Destroyed} 人が去った)", "rebellion" => "反乱が起きた", "rebellion_end" => "反乱が鎮圧された", "built" => $"建物 #{e.Building} を建てた(費用 {e.Power:N0})", "demolished" => $"建物 #{e.Building} を撤去した(戻り {e.Power:N0})", "road_built" => $"街路を {e.Destroyed} セル敷いた(費用 {e.Power:N0})", "build_failed" => "建てられない(場所か国庫)", "ship_built" => $"戦艦 #{e.Building} を建造した(費用 {e.Power:N0})", "ship_arrived" => $"戦艦 #{e.Building} が ({e.X}, {e.Y}) に着いた", "ship_sunk" => $"戦艦 #{e.Building} が撃沈された(搭載 {e.Destroyed} 隊を失った)", "wall_built" => $"建物 #{e.Building} の防御壁を段階 {e.Power} に(費用 {e.Destroyed:N0})", "collected" => $"隊 #{e.Building} が部品 {e.Destroyed} 個を回収した", "repaired" => $"機体 #{e.Power} を修理(耐久 {e.Destroyed}%)", "no_ammo" => $"隊 #{e.Building} は弾薬が尽きて補給に戻る", "robot_cap" => "製造ロボットの導入率の上限を超えるため配置できない", "stage" => $"段階が {StageName(e.Power)} に進んだ", "defeat" => "支持率の低下により失脚(敗北)", "no_crew" => $"隊 #{e.Building} は要員不足で出撃できない", "mech" => $"機体が完成(第 {e.Power} 世代)", _ => null };
+            string? s = e.Kind switch { "war_declared" => $"{pw?.Name} に宣戦した", "war_received" => $"{pw?.Name} が宣戦してきた", "raid" => $"{pw?.Name} の襲撃隊が来た", "offer" => $"{pw?.Name} から申し出(政治画面で回答)", "warning" => $"{pw?.Name} の兵力が増えている(侵攻の恐れ)", "treaty" => $"{pw?.Name} と条約を結んだ", "proposal_failed" => $"{pw?.Name} は提案を断った", "threat_ok" => $"{pw?.Name} が貢納を飲んだ(月 {e.Power})", "threat_failed" => $"{pw?.Name} は威圧に応じない", "peace" => $"{pw?.Name} と和平した", "peace_failed" => $"{pw?.Name} は和平を断った", "vassal" => $"{pw?.Name} の拠点が落ち属国になった(スクラップ {e.Power})", "raided" => $"建物 #{e.Building} が略奪された", "conquered" => "拠点が落ちた(征服)", "building_destroyed" => $"建物 #{e.Building} が落ちた", "victory" => e.Power == 1 ? "勝利: 大陸の制覇" : "勝利: 同盟網による支配", "faction" => $"派閥ができた(首領 #{e.Power})", "faction_end" => $"派閥が解消した(首領 #{e.Power})", "defect" => $"派閥が離反した(首領 #{e.Power}、{e.Destroyed} 人が去った)", "rebellion" => "反乱が起きた", "rebellion_end" => "反乱が鎮圧された", "built" => $"建物 #{e.Building} を建てた(費用 {e.Power:N0})", "demolished" => $"建物 #{e.Building} を撤去した(戻り {e.Power:N0})", "road_built" => $"街路を {e.Destroyed} セル敷いた(費用 {e.Power:N0})", "build_failed" => "建てられない(場所か国庫)", "ship_built" => $"戦艦 #{e.Building} を建造した(費用 {e.Power:N0})", "ship_arrived" => $"戦艦 #{e.Building} が ({e.X}, {e.Y}) に着いた", "ship_sunk" => $"戦艦 #{e.Building} が撃沈された(搭載 {e.Destroyed} 隊を失った)", "building_repaired" => $"建物 #{e.Building} を修復した(費用 {e.Power:N0})", "wall_built" => $"建物 #{e.Building} の防御壁を段階 {e.Power} に(費用 {e.Destroyed:N0})", "collected" => $"隊 #{e.Building} が部品 {e.Destroyed} 個を回収した", "repaired" => $"機体 #{e.Power} を修理(耐久 {e.Destroyed}%)", "no_ammo" => $"隊 #{e.Building} は弾薬が尽きて補給に戻る", "robot_cap" => "製造ロボットの導入率の上限を超えるため配置できない", "stage" => $"段階が {StageName(e.Power)} に進んだ", "defeat" => "支持率の低下により失脚(敗北)", "no_crew" => $"隊 #{e.Building} は要員不足で出撃できない", "mech" => $"機体が完成(第 {e.Power} 世代)", _ => null };
             if (s != null) Notice(s);
         }
         var path = Arg("--screenshot"); if (path == null || _micro != null) return;
@@ -227,6 +234,12 @@ public partial class CityScreen : Node3D
         }
         else _side.AddChild(Lbl($"床面積 {w}x{d} m  {b.Floors.Count} 階  {(b.RoadConnected ? "街路に接続" : "街路に接していない")}", 13, b.RoadConnected ? Text : Warm));
         _side.AddChild(Lbl(b.Destroyed ? "陥落(動かない)" : $"耐久 {b.Hp:0} / {b.MaxHp:0}   防御壁 段階 {b.WallLevel}" + (b.Floors.Sum(f => f.Structures.OfType<Turret>().Count()) is int nt && nt > 0 ? $"   砲塔 {nt} 基" : ""), 13, b.Destroyed ? Red : b.Hp < b.MaxHp ? Warm : Text));
+        if (b.Hp < b.MaxHp)
+        {
+            long bc = b.IsShip ? (long)Math.Round(b.Floors[0].W * b.Floors[0].D * b.Floors.Count * Ships.Kinds[b.ShipKind].CostPerCell) : Construction.Cost(_sim, b.Use, b.Floors[0].W, b.Floors.Count);
+            long rc = (long)Math.Round((b.MaxHp - b.Hp) / b.MaxHp * bc * 0.5);
+            var rb = Btn($"{(b.Destroyed ? "復旧" : "修復")}(費用 {rc:N0})", () => { _sim.Enqueue(new RepairBuilding(bid)); _sim.Step(); _sideTick = -1; }, true); rb.CustomMinimumSize = new Vector2(0, 26); rb.Disabled = _sim.Factory.Treasury < rc; _side.AddChild(rb);
+        }
         if (b.WallLevel < _sim.Combat.WallMaxLevel)
         {
             long wc = (long)Math.Round(b.Perimeter * _sim.Combat.WallCostPerCell); int next = b.WallLevel + 1;

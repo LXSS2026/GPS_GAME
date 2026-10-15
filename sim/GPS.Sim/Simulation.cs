@@ -32,6 +32,7 @@ namespace GPS.Sim;
 [JsonDerivedType(typeof(SetMechProgram), "setMechProgram")]
 [JsonDerivedType(typeof(SetEnabled), "setEnabled")]
 [JsonDerivedType(typeof(SetLabel), "setLabel")]
+[JsonDerivedType(typeof(RepairBuilding), "repairBuilding")]
 [JsonDerivedType(typeof(MoveShip), "moveShip")]
 [JsonDerivedType(typeof(BuildShip), "buildShip")]
 [JsonDerivedType(typeof(BuildWall), "buildWall")]
@@ -106,6 +107,7 @@ public sealed class Simulation
     {
         foreach (var c in _pending) { c.Apply(this); Log.Add(new CommandEntry(Tick, c)); }
         _pending.Clear();
+        Factory.Owner = this;
         Factory.Tick(Data, Rng);
         GPS.Sim.Combat.Tick(Factory, Data, Combat, Rng, this);
         if (Tick % Clock.TicksPerHour == 0) { CitySim.RefreshRoads(this); GPS.Sim.Combat.RepairHour(Factory, Combat); }

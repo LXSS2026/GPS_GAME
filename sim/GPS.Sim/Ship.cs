@@ -55,6 +55,20 @@ public sealed record BuildShip(int Id, string Name, string Kind, double X, doubl
     }
 }
 
+/// <summary>建物・戦艦の修復(陥落からの復旧を含む)。費用 = 失った耐久の割合 × 建設費 × 0.5(国庫)。即時。</summary>
+public sealed record RepairBuilding(int Building) : ICommand
+{
+    public void Apply(Simulation s)
+    {
+        var f = s.Factory; var b = f.Get(Building); if (b == null || b.Floors.Count == 0 || b.Hp >= b.MaxHp) return;
+        long baseCost = b.IsShip ? (long)Math.Round(b.Floors[0].W * b.Floors[0].D * b.Floors.Count * Ships.Kinds[b.ShipKind].CostPerCell) : Construction.Cost(s, b.Use, b.Floors[0].W, b.Floors.Count);
+        long cost = f.Creative ? 0 : (long)Math.Round((b.MaxHp - b.Hp) / b.MaxHp * baseCost * 0.5);
+        if (f.Treasury < cost) { f.Events.Add(new FactoryEvent { Kind = "build_failed", Building = Building, Power = (int)cost }); return; }
+        f.Treasury -= cost; b.Hp = b.MaxHp; b.Destroyed = false;
+        f.Events.Add(new FactoryEvent { Kind = "building_repaired", Building = Building, Power = (int)cost });
+    }
+}
+
 /// <summary>戦艦を動かす(目標地点)。</summary>
 public sealed record MoveShip(int Building, double X, double Z) : ICommand
 {

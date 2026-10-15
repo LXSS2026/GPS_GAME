@@ -235,6 +235,11 @@ public sealed class Factory
     /// <summary>生産効率(%)。暴動で 70 に落ちる(G17 #18)。</summary>
     public int EfficiencyPct { get; set; } = 100;
     public long TickCount { get; set; }
+    [JsonIgnore] public Simulation? Owner { get; set; }
+    /// <summary>遮蔽の粗格子(建物が変わると作り直す。保存しない)。</summary>
+    [JsonIgnore] public bool[,]? CoverGrid { get; set; }
+    [JsonIgnore] public int CoverKey { get; set; } = -1;
+    [JsonIgnore] public int CoverCell { get; set; }
 
     public void Tick(GameData data, Rng rng)
     {
