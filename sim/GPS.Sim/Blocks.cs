@@ -33,4 +33,5 @@ public sealed class BlockRegistry
     public BlockDef this[byte id] => _defs[id] ?? throw new KeyNotFoundException($"unknown block id {id}");
     public IEnumerable<BlockDef> Solid => _defs.Where(d => d != null && d.Id != Air)!;
     public byte IdOf(string name) => Solid.First(d => d.Name == name).Id;
+    public bool Has(string name) => Solid.Any(d => d.Name == name);
 }

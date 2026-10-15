@@ -60,6 +60,8 @@ public sealed record AssignStaff(int Building, int Floor, int Id, Worker Worker)
     public void Apply(Simulation s)
     {
         if (s.Factory.Get(Building)?.Find(Floor, Id) is not Machine m) return;
+        var city = s.Factory.City;
+        if (city != null && !s.Factory.Creative && !Worker.IsRobot && CitySim.HumanStaff(s.Factory) + city.Conscripts >= city.Population * s.CityData.LaborRate) return;   // 労働人口を超えて雇えない(G17 #2・#7)
         m.Staff.RemoveAll(w => w.Id == Worker.Id);
         m.Staff.Add(Worker);
     }

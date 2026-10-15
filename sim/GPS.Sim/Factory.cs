@@ -78,6 +78,9 @@ public sealed class Building
     /// <summary>地図上の位置(戦場の座標。機体の帰還先)。</summary>
     public double X { get; set; }
     public double Y { get; set; }
+    /// <summary>用途(G17 #13): factory / residence / farm / well / market / school / clinic / police / park / sewage / waste。</summary>
+    public string Use { get; set; } = "factory";
+    public bool RoadConnected { get; set; } = true;
     [JsonIgnore] public Factory? Owner { get; set; }
     public List<Floor> Floors { get; set; } = new();
     /// <summary>設備のストック(撤去したものと支給されたもの)。</summary>
@@ -201,6 +204,9 @@ public sealed class Factory
     public List<Squad> Squads { get; set; } = new();
     public int NextSquadId { get; set; } = 1;
     public List<Loot> Loot { get; set; } = new();
+    public City? City { get; set; }
+    /// <summary>生産効率(%)。暴動で 70 に落ちる(G17 #18)。</summary>
+    public int EfficiencyPct { get; set; } = 100;
     public long TickCount { get; set; }
 
     public void Tick(GameData data, Rng rng)
@@ -385,7 +391,7 @@ public sealed class Factory
             return;
         }
         if (m.Outputs.Count >= 20) return;   // 出口が詰まっている
-        m.Progress += m.PowerPct;
+        m.Progress += m.PowerPct * EfficiencyPct / 100;
         if (m.Progress < r.Ticks * 100) return;
         m.Progress = -1;
         int skill = m.Staff.Count == 0 ? 0 : m.Staff.Max(w => w.Skill);

@@ -32,6 +32,11 @@ namespace GPS.Sim;
 [JsonDerivedType(typeof(SetMechProgram), "setMechProgram")]
 [JsonDerivedType(typeof(SetEnabled), "setEnabled")]
 [JsonDerivedType(typeof(SetLabel), "setLabel")]
+[JsonDerivedType(typeof(HireStaff), "hireStaff")]
+[JsonDerivedType(typeof(SetConscriptionRate), "setConscriptionRate")]
+[JsonDerivedType(typeof(SetTaxRate), "setTaxRate")]
+[JsonDerivedType(typeof(SetBuildingUse), "setBuildingUse")]
+[JsonDerivedType(typeof(FoundCity), "foundCity")]
 [JsonDerivedType(typeof(OrderSquad), "orderSquad")]
 [JsonDerivedType(typeof(Deploy), "deploy")]
 [JsonDerivedType(typeof(FormSquad), "formSquad")]
@@ -58,6 +63,7 @@ public sealed class Simulation
     public readonly BlockRegistry Blocks;
     public readonly GameData Data;
     public readonly CombatData Combat;
+    public readonly CityData CityData;
     public Factory Factory { get; private set; } = new();
     public Rng Rng { get; private set; }
     public ulong Seed { get; }
@@ -68,7 +74,7 @@ public sealed class Simulation
 
     public Simulation(BlockRegistry blocks, GameData data, ulong seed = 1, CombatData? combat = null)
     {
-        Blocks = blocks; Data = data; Seed = seed; Rng = new Rng(seed); Combat = combat ?? CombatData.Load(GameData.FindDataDir());
+        Blocks = blocks; Data = data; Seed = seed; Rng = new Rng(seed); Combat = combat ?? CombatData.Load(GameData.FindDataDir()); CityData = CityData.Load(GameData.FindDataDir());
     }
 
     public void Enqueue(ICommand c) => _pending.Add(c);
@@ -79,6 +85,8 @@ public sealed class Simulation
         _pending.Clear();
         Factory.Tick(Data, Rng);
         GPS.Sim.Combat.Tick(Factory, Data, Combat, Rng);
+        if (Tick % Clock.TicksPerHour == 0) CitySim.RefreshRoads(this);
+        CitySim.Tick(this);
         Tick++;
     }
 

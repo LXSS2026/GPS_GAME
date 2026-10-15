@@ -1,0 +1,50 @@
+{
+  "_comment": "都市(G17 確定 2026-10-15)。供給設備の要員は priority の小さい用途から順に埋める(井戸 → 畑 → 警察 → 診療所 → 下水 → 廃棄物 → 学校 → 市場)。人口は集計、計算は 1 時間ごと、増減と税は 1 日ごと、人物は 1 か月ごと。供給能力は 床面積(セル) × 階数(maxFloors まで) × perCell の人数分。数値はここで調整する。",
+  "laborRate": 0.6,
+  "foodPerPerson": 1.0,
+  "waterPerPerson": 1.0,
+  "kwPerPerson": 0.1,
+  "crewPerMech": 3,
+  "incomePerWorkerPerDay": 10,
+  "soldierPayPerDay": 2,
+  "upkeepPerCellPerDay": 0.2,
+  "upkeepFromStage": 3,
+  "defaultTaxRate": 0.1,
+  "defaultConscriptionRate": 0.05,
+  "maxTaxRate": 0.5,
+  "maxConscriptionRate": 0.5,
+  "birthRatePerDay": 0.001,
+  "inflowRatePerDay": 0.02,
+  "shortageOutflowPerDay": 0.1,
+  "uses": {
+    "factory":   { "name": "工場",       "supplies": {},                    "staffPerCell": 0,    "maxFloors": 0, "priority": 0 },
+    "residence": { "name": "住居",       "supplies": { "housing": 0.1 },    "staffPerCell": 0,    "maxFloors": 0, "priority": 0 },
+    "farm":      { "name": "畑",         "supplies": { "food": 0.2 },       "staffPerCell": 0.02, "maxFloors": 1, "priority": 2 },
+    "well":      { "name": "井戸",       "supplies": { "water": 1.0 },      "staffPerCell": 0.01, "maxFloors": 1, "priority": 1 },
+    "market":    { "name": "市場",       "supplies": {},                    "staffPerCell": 0.05, "maxFloors": 0, "priority": 8 },
+    "school":    { "name": "学校",       "supplies": { "education": 1.0 },  "staffPerCell": 0.05, "maxFloors": 0, "priority": 7 },
+    "clinic":    { "name": "診療所",     "supplies": { "medical": 1.0 },    "staffPerCell": 0.05, "maxFloors": 0, "priority": 4 },
+    "police":    { "name": "警察",       "supplies": { "security": 2.0 },   "staffPerCell": 0.05, "maxFloors": 0, "priority": 3 },
+    "park":      { "name": "公園",       "supplies": { "park": 0.5 },       "staffPerCell": 0,    "maxFloors": 1, "priority": 9 },
+    "sewage":    { "name": "下水処理",   "supplies": { "sewage": 2.0 },     "staffPerCell": 0.01, "maxFloors": 1, "priority": 5 },
+    "waste":     { "name": "廃棄物処理", "supplies": { "waste": 2.0 },      "staffPerCell": 0.01, "maxFloors": 1, "priority": 6 }
+  },
+  "roadReach": 6,
+  "housingPrerequisites": [ "water", "power", "sewage", "road" ],
+  "support": {
+    "base": 50, "food": 30, "water": 30, "unemployment": 40, "tax": 80, "conscription": 60, "security": 10, "park": 10, "waste": 10,
+    "pollutionPerMachine": 0.002, "pollutionCap": 15, "treasuryNegative": 10, "approachPerHour": 0.0104
+  },
+  "bands": {
+    "high":    { "min": 70, "inflowMul": 1.5, "outflowPerDay": 0,    "conscriptionMul": 1.0, "resignPerDay": 0,    "taxMul": 1.0, "loyaltyPerMonth": 0,  "candidateLoyalty": 2, "securityDemandMul": 1 },
+    "normal":  { "min": 50, "inflowMul": 1.0, "outflowPerDay": 0,    "conscriptionMul": 1.0, "resignPerDay": 0,    "taxMul": 1.0, "loyaltyPerMonth": 0,  "candidateLoyalty": 0, "securityDemandMul": 1 },
+    "low":     { "min": 30, "inflowMul": 0,   "outflowPerDay": 0.005, "conscriptionMul": 0.7, "resignPerDay": 0.01, "taxMul": 0.8, "loyaltyPerMonth": -1, "candidateLoyalty": 0, "securityDemandMul": 1 },
+    "danger":  { "min": 10, "inflowMul": 0,   "outflowPerDay": 0.02, "conscriptionMul": 0.3, "resignPerDay": 0.05, "taxMul": 0.5, "loyaltyPerMonth": -2, "candidateLoyalty": 0, "securityDemandMul": 2 },
+    "collapse":{ "min": 0,  "inflowMul": 0,   "outflowPerDay": 0.02, "conscriptionMul": 0.3, "resignPerDay": 0.05, "taxMul": 0.5, "loyaltyPerMonth": -2, "candidateLoyalty": 0, "securityDemandMul": 2 }
+  },
+  "riotEfficiencyPct": 70,
+  "collapseDays": 30,
+  "stages": { "populationMin": [ 100, 1000, 10000 ], "supportMin": 60, "days": 30 },
+  "persons": { "perMonthMin": 1, "perMonthMax": 3, "abilityBase": 5, "abilityByEducation": 5 },
+  "names": [ "アカネ", "ミナト", "ユウ", "コウタ", "サクラ", "ハルト", "リン", "ソラ", "カイ", "ミオ", "レン", "ヒナ", "タクミ", "アオイ", "ユイ", "ショウ", "ナナ", "ケイ", "マコト", "ツバサ" ]
+}

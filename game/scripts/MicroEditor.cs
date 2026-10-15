@@ -8,7 +8,12 @@ using GPS.Sim;
 /// 入力は全て命令(ICommand)にして投入し、描画は状態を写すだけ。見た目は G8 のデザイン言語。</summary>
 public partial class MicroEditor : Node3D
 {
-    const int W = 100, D = 100;
+    int W = 100, D = 100;             // 階の床面積(外部の建物を開いたときはその階の大きさ)
+    int _bid = 1;                     // 編集中の建物
+    /// <summary>都市の画面から開くとき: 共有する sim と建物・階、戻るときの処理。null なら単体起動(見本)。</summary>
+    public static Simulation? ExternalSim;
+    public static int ExternalBuilding = 1, ExternalFloor;
+    public static Action? OnBack;
     const float GroundY = 3f;
     int _floor;                       // 編集中の階(0 始まり)
     float FloorY => GroundY + _floor * 3f;   // 編集中の階の床の高さ(階高 3 m)
@@ -53,7 +58,8 @@ public partial class MicroEditor : Node3D
     {
         Engine.PhysicsTicksPerSecond = Clock.TicksPerSecond;
         _data = GameData.Load(ProjectSettings.GlobalizePath("res://data"));
-        _sim = new Simulation(BlockRegistry.FromJson(FileAccess.GetFileAsString("res://data/blocks.json")), _data, 1);
+        if (ExternalSim != null) { _sim = ExternalSim; _bid = ExternalBuilding; var f0 = _sim.Factory.Get(_bid)!.Floors[0]; W = f0.W; D = f0.D; _pivot = new Vector3(W / 2f, GroundY, D / 2f); _dist = Mathf.Max(20, W * 0.9f); }
+        else _sim = new Simulation(BlockRegistry.FromJson(FileAccess.GetFileAsString("res://data/blocks.json")), _data, 1);
         _kb = new KitBash(11); _fm = new FloorModules(_kb, 9); _eq = new Equipment(_fm);
 
         // 地面: 平地ブロックはコンクリート、周囲は広場、街路
@@ -81,7 +87,8 @@ public partial class MicroEditor : Node3D
         _sim.Step();
         BuildUi();
         SetFloor(0);
-        if (Arg("--demo") != null) Demo();
+        if (ExternalSim != null) { SetFloor(ExternalFloor); _cam.MakeCurrent(); }
+        else if (Arg("--demo") != null) Demo();
     }
 
     // ---------- 計算 ----------
@@ -101,7 +108,7 @@ public partial class MicroEditor : Node3D
         Screenshot();
     }
 
-    Building Building => _sim.Factory.Get(1)!;
+    Building Building => _sim.Factory.Get(_bid)!;
     Floor Floor => Building.Floors[_floor];
 
     void Apply(ICommand cmd, ICommand? undo)
@@ -166,14 +173,14 @@ public partial class MicroEditor : Node3D
         if (place && _mode == Mode.Paste && _blueprint >= 0)
         {
             int before = Building.NextStructureId;
-            _sim.Enqueue(new PasteBlueprint(1, _floor, x, z, _blueprint)); _sim.Step(); _structureVersion++;
+            _sim.Enqueue(new PasteBlueprint(_bid, _floor, x, z, _blueprint)); _sim.Step(); _structureVersion++;
             _undo.Clear(); _redo.Clear();   // 複数設置の取り消しは未対応
             _status.Text = $"貼り付け  {Building.NextStructureId - before} 台";
             return;
         }
         if (place && _mode == Mode.Move && _region is var (x0, z0, x1, z1))
         {
-            _sim.Enqueue(new MoveRegion(1, _moveFromFloor, x0, z0, x1, z1, 1, _floor, x, z)); _sim.Step(); _structureVersion++; _undo.Clear(); _redo.Clear();
+            _sim.Enqueue(new MoveRegion(_bid, _moveFromFloor, x0, z0, x1, z1, _bid, _floor, x, z)); _sim.Step(); _structureVersion++; _undo.Clear(); _redo.Clear();
             _region = null; ShowRegion(); SetMode(Mode.Normal); return;
         }
         if (place && _mode == Mode.Link && _linkFrom is var (lf, lid))
@@ -183,7 +190,7 @@ public partial class MicroEditor : Node3D
         }
         if (!place)
         {
-            if (hit != null) Apply(new RemoveStructure(1, _floor, hit.Id), new PlaceStructure(1, _floor, hit.DefId, hit.X, hit.Y, hit.Z, hit.Dir));
+            if (hit != null) Apply(new RemoveStructure(_bid, _floor, hit.Id), new PlaceStructure(_bid, _floor, hit.DefId, hit.X, hit.Y, hit.Z, hit.Dir));
             if (_selected == hit?.Id) _selected = -1;
             return;
         }
@@ -192,7 +199,7 @@ public partial class MicroEditor : Node3D
             var def = _data.Structures[_palette];
             if (!Floor.Fits(def, x, z, 0) || Building.Inventory.GetValueOrDefault(_palette) <= 0) return;
             int id = Building.NextStructureId;
-            Apply(new PlaceStructure(1, _floor, _palette, x, z, 0, _dir), new RemoveStructure(1, _floor, id));
+            Apply(new PlaceStructure(_bid, _floor, _palette, x, z, 0, _dir), new RemoveStructure(_bid, _floor, id));
             _selected = id;
             return;
         }
@@ -240,7 +247,7 @@ public partial class MicroEditor : Node3D
     void RemoveSelected()
     {
         var s = Building.Find(_floor, _selected); if (s == null) return;
-        Apply(new RemoveStructure(1, _floor, s.Id), new PlaceStructure(1, _floor, s.DefId, s.X, s.Y, s.Z, s.Dir));
+        Apply(new RemoveStructure(_bid, _floor, s.Id), new PlaceStructure(_bid, _floor, s.DefId, s.X, s.Y, s.Z, s.Dir));
         _selected = -1;
     }
 
@@ -416,7 +423,7 @@ public partial class MicroEditor : Node3D
         // ----- 上の帯 -----
         var top = new HBoxContainer(); top.AddThemeConstantOverride("separation", 20);
         var tb = new VBoxContainer(); tb.AddThemeConstantOverride("separation", 0);
-        tb.AddChild(Lbl("平地ブロック", 11, Cyan)); _title = Lbl(Building.Name, 17); tb.AddChild(_title); top.AddChild(tb);
+        tb.AddChild(Lbl(Building.Floors.Count > 1 ? "建物" : "平地ブロック", 11, Cyan)); _title = Lbl(Building.Name, 17); tb.AddChild(_title); top.AddChild(tb);
         top.AddChild(new VSeparator());
         var cb = new VBoxContainer(); cb.AddThemeConstantOverride("separation", 0);
         _clock = Lbl("", 11, Cyan); _clockBig = Lbl("", 17); cb.AddChild(_clock); cb.AddChild(_clockBig); top.AddChild(cb);
@@ -427,7 +434,7 @@ public partial class MicroEditor : Node3D
         _powerBar = new ProgressBar { MinValue = 0, MaxValue = 100, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 8) }; pb.AddChild(_powerBar);
         _power = Lbl("", 11, Cyan); pb.AddChild(_power); top.AddChild(pb);
         _policy = new OptionButton(); foreach (var n in new[] { "不足時: 比例", "不足時: 優先順位", "不足時: 全停止" }) _policy.AddItem(n);
-        _policy.ItemSelected += i => { _sim.Enqueue(new SetPolicy(1, (PowerPolicy)(int)i)); _sim.Step(); };
+        _policy.ItemSelected += i => { _sim.Enqueue(new SetPolicy(_bid, (PowerPolicy)(int)i)); _sim.Step(); };
         top.AddChild(_policy);
         top.AddChild(new VSeparator());
         foreach (var (n, v) in new[] { ("停止", 0), ("1x", 1), ("2x", 2), ("4x", 4) }) { var b = Btn(n, () => SetSpeed(v)); b.CustomMinimumSize = new Vector2(48, 34); _speedButtons.Add(b); top.AddChild(b); }
@@ -435,6 +442,7 @@ public partial class MicroEditor : Node3D
         top.AddChild(Btn("取り消し", Undo)); top.AddChild(Btn("やり直し", Redo));
         top.AddChild(new VSeparator()); top.AddChild(Lbl("階", 11, Cyan));
         for (int f = 0; f < Building.Floors.Count; f++) { int ff = f; var b = Btn($"{f + 1}", () => SetFloor(ff)); b.CustomMinimumSize = new Vector2(36, 34); _floorButtons[f] = b; top.AddChild(b); }
+        if (OnBack != null) { top.AddChild(new VSeparator()); top.AddChild(Btn("都市へ戻る", () => OnBack?.Invoke(), true)); }
         var topPanel = Panel(top); topPanel.Position = new Vector2(16, 16); root.AddChild(topPanel);
         SetSpeed(1);
 
@@ -475,7 +483,7 @@ public partial class MicroEditor : Node3D
         // ----- 範囲の操作(左の板の下) -----
         var ops = new HBoxContainer(); ops.AddThemeConstantOverride("separation", 6);
         ops.AddChild(Btn("範囲選択", () => SetMode(Mode.Region)));
-        ops.AddChild(Btn("コピー", () => { if (_region is var (x0, z0, x1, z1)) { _blueprint = _sim.Factory.NextBlueprintId; _sim.Enqueue(new CopyRegion(1, _floor, x0, z0, x1, z1, _blueprint, $"範囲 {x1 - x0 + 1}x{z1 - z0 + 1}")); _sim.Step(); _status.Text = $"コピー  設計図 #{_blueprint}"; } }));
+        ops.AddChild(Btn("コピー", () => { if (_region is var (x0, z0, x1, z1)) { _blueprint = _sim.Factory.NextBlueprintId; _sim.Enqueue(new CopyRegion(_bid, _floor, x0, z0, x1, z1, _blueprint, $"範囲 {x1 - x0 + 1}x{z1 - z0 + 1}")); _sim.Step(); _status.Text = $"コピー  設計図 #{_blueprint}"; } }));
         ops.AddChild(Btn("貼り付け", () => { if (_blueprint >= 0) SetMode(Mode.Paste); }));
         ops.AddChild(Btn("引っ越し", () => { if (_region != null) SetMode(Mode.Move); }));
         var opsPanel = Panel(ops); opsPanel.AnchorTop = 1; opsPanel.AnchorBottom = 1; opsPanel.OffsetTop = -96; opsPanel.OffsetBottom = -60; opsPanel.OffsetLeft = 16; root.AddChild(opsPanel);
@@ -554,8 +562,8 @@ public partial class MicroEditor : Node3D
         _side.AddChild(head);
         var lr = new HBoxContainer(); lr.AddThemeConstantOverride("separation", 8); lr.AddChild(Lbl("名札", 11, Cyan));
         var le = new LineEdit { Text = s.Label, PlaceholderText = "例: 炉心 A", CustomMinimumSize = new Vector2(160, 30), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        int lid = s.Id; le.TextSubmitted += t => { _sim.Enqueue(new SetLabel(1, _floor, lid, t)); _sim.Step(); _structureVersion++; _sideTick = -1; };
-        lr.AddChild(le); lr.AddChild(Btn("付ける", () => { _sim.Enqueue(new SetLabel(1, _floor, lid, le.Text)); _sim.Step(); _structureVersion++; _sideTick = -1; })); _side.AddChild(lr);
+        int lid = s.Id; le.TextSubmitted += t => { _sim.Enqueue(new SetLabel(_bid, _floor, lid, t)); _sim.Step(); _structureVersion++; _sideTick = -1; };
+        lr.AddChild(le); lr.AddChild(Btn("付ける", () => { _sim.Enqueue(new SetLabel(_bid, _floor, lid, le.Text)); _sim.Step(); _structureVersion++; _sideTick = -1; })); _side.AddChild(lr);
         _side.AddChild(Sep());
         var g = new GridContainer { Columns = 3 }; g.AddThemeConstantOverride("h_separation", 14);
         void Stat(string k, string v, Color? c = null) { var vb = new VBoxContainer(); vb.AddThemeConstantOverride("separation", 0); vb.AddChild(Lbl(k, 10, Cyan)); vb.AddChild(Lbl(v, 15, c)); g.AddChild(vb); }
@@ -569,14 +577,14 @@ public partial class MicroEditor : Node3D
                 var opt = new OptionButton(); opt.AddThemeConstantOverride("icon_max_width", 24);
                 var recipes = _data.Recipes.Values.Where(r => r.Machine == def.Kind).OrderBy(r => r.TechLevel).ThenBy(r => r.Id).ToList();
                 opt.AddItem("レシピなし"); for (int i = 0; i < recipes.Count; i++) { opt.AddIconItem(Icon(recipes[i].Outputs.Count > 0 ? recipes[i].Outputs[0].Item : "mech_torso"), $"L{recipes[i].TechLevel}  {recipes[i].Name}"); if (recipes[i].Id == m.Recipe) opt.Selected = i + 1; }
-                int sid = s.Id; opt.ItemSelected += i => { _sim.Enqueue(new SetRecipe(1, _floor, sid, i == 0 ? null : recipes[(int)i - 1].Id)); _sim.Step(); _sideTick = -1; };
+                int sid = s.Id; opt.ItemSelected += i => { _sim.Enqueue(new SetRecipe(_bid, _floor, sid, i == 0 ? null : recipes[(int)i - 1].Id)); _sim.Step(); _sideTick = -1; };
                 _side.AddChild(opt);
                 if (def.Kind == "mech_assembler")
                 {
                     var ar2 = new HBoxContainer(); ar2.AddThemeConstantOverride("separation", 8); ar2.AddChild(Lbl("系統", 11, Cyan));
                     var ao = new OptionButton(); var archs = new[] { ("heavy", "重装"), ("fast", "高速"), ("general", "汎用") };
                     for (int i = 0; i < archs.Length; i++) { ao.AddItem(archs[i].Item2); if (archs[i].Item1 == m.Archetype) ao.Selected = i; }
-                    ao.ItemSelected += i => { _sim.Enqueue(new SetArchetype(1, _floor, sid, archs[(int)i].Item1)); _sim.Step(); _sideTick = -1; };
+                    ao.ItemSelected += i => { _sim.Enqueue(new SetArchetype(_bid, _floor, sid, archs[(int)i].Item1)); _sim.Step(); _sideTick = -1; };
                     ar2.AddChild(ao); _side.AddChild(ar2);
                 }
                 if (m.Recipe != null)
@@ -611,7 +619,7 @@ public partial class MicroEditor : Node3D
                     foreach (var w in m.Staff)
                     {
                         var chip = Chip(w.IsRobot ? "factory_robot" : "mech_head", $"{w.Name}  技能 {w.Skill}", w.IsRobot ? Accent : Line40);
-                        int wid = w.Id; var x = Btn("外す", () => { _sim.Enqueue(new RemoveStaff(1, _floor, sid, wid, NearestChest(m)?.Id ?? -1)); _sim.Step(); _sideTick = -1; }); x.CustomMinimumSize = new Vector2(0, 26);
+                        int wid = w.Id; var x = Btn("外す", () => { _sim.Enqueue(new RemoveStaff(_bid, _floor, sid, wid, NearestChest(m)?.Id ?? -1)); _sim.Step(); _sideTick = -1; }); x.CustomMinimumSize = new Vector2(0, 26);
                         chip.AddChild(x); sr.AddChild(chip);
                     }
                     _side.AddChild(sr);
@@ -619,10 +627,10 @@ public partial class MicroEditor : Node3D
                 var ar = new HBoxContainer(); ar.AddThemeConstantOverride("separation", 8);
                 var skill = new SpinBox { MinValue = 0, MaxValue = 10, Value = 3, CustomMinimumSize = new Vector2(90, 34) };
                 ar.AddChild(Lbl("技能", 11, Cyan)); ar.AddChild(skill);
-                ar.AddChild(Btn("要員を割り当て", () => { _sim.Enqueue(new AssignStaff(1, _floor, sid, new Worker(m.Staff.Count + 1, $"作業員 {m.Staff.Count + 1}", (int)skill.Value))); _sim.Step(); _sideTick = -1; }, true));
+                ar.AddChild(Btn("要員を割り当て", () => { _sim.Enqueue(new AssignStaff(_bid, _floor, sid, new Worker(m.Staff.Count + 1, $"作業員 {m.Staff.Count + 1}", (int)skill.Value))); _sim.Step(); _sideTick = -1; }, true));
                 _side.AddChild(ar);
                 var robotChest = Floor.Structures.OfType<Chest>().Where(c => c.Items.Any(i => i.Item == "factory_robot")).OrderBy(c => Math.Abs(c.X - m.X) + Math.Abs(c.Y - m.Y)).FirstOrDefault();
-                if (robotChest != null) _side.AddChild(Btn($"製造ロボットを割り当て(箱 ({robotChest.X}, {robotChest.Y}) から)", () => { _sim.Enqueue(new AssignRobot(1, _floor, sid, robotChest.Id)); _sim.Step(); _sideTick = -1; }, true, "factory_robot"));
+                if (robotChest != null) _side.AddChild(Btn($"製造ロボットを割り当て(箱 ({robotChest.X}, {robotChest.Y}) から)", () => { _sim.Enqueue(new AssignRobot(_bid, _floor, sid, robotChest.Id)); _sim.Step(); _sideTick = -1; }, true, "factory_robot"));
                 break;
             }
             case Reactor r:
@@ -639,7 +647,7 @@ public partial class MicroEditor : Node3D
                 orow.AddChild(Lbl("出力設定", 11, Cyan));
                 var slider = new HSlider { MinValue = 0, MaxValue = _data.OverloadMax, Step = 5, Value = r.OutputPct, CustomMinimumSize = new Vector2(150, 24), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
                 var pctLbl = Lbl($"{r.OutputPct}%", 15, r.OutputPct > 100 ? Warm : null);
-                int rid = s.Id; slider.ValueChanged += v => { pctLbl.Text = $"{(int)v}%"; _sim.Enqueue(new SetReactorOutput(1, _floor, rid, (int)v)); _sim.Step(); _sideTick = -1; };
+                int rid = s.Id; slider.ValueChanged += v => { pctLbl.Text = $"{(int)v}%"; _sim.Enqueue(new SetReactorOutput(_bid, _floor, rid, (int)v)); _sim.Step(); _sideTick = -1; };
                 orow.AddChild(slider); orow.AddChild(pctLbl); _side.AddChild(orow);
                 var lp = new ProgressBar { MinValue = 0, MaxValue = _data.OverloadLimit, Value = r.Load, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 8) };
                 lp.AddThemeStyleboxOverride("fill", Box(new Color(1f, 0.3f, 0.2f), Color.Color8(0, 0, 0, 0), 0, 0)); _side.AddChild(lp);
@@ -689,7 +697,7 @@ public partial class MicroEditor : Node3D
                 var pr = new ProgressBar { MinValue = 0, MaxValue = bd.Capacity, Value = bt.Stored, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 10) }; _side.AddChild(pr);
                 _side.AddChild(Lbl("方式", 10, Cyan));
                 var mode = new OptionButton(); foreach (var n in new[] { "ピーク用(不足時に放電)", "非常用(リアクター停止時だけ)", "停止" }) mode.AddItem(n); mode.Selected = (int)bt.Mode;
-                int bid = s.Id; mode.ItemSelected += i => { _sim.Enqueue(new SetBatteryMode(1, _floor, bid, (BatteryMode)(int)i)); _sim.Step(); _sideTick = -1; };
+                int bid = s.Id; mode.ItemSelected += i => { _sim.Enqueue(new SetBatteryMode(_bid, _floor, bid, (BatteryMode)(int)i)); _sim.Step(); _sideTick = -1; };
                 _side.AddChild(mode);
                 break;
             }
@@ -704,7 +712,7 @@ public partial class MicroEditor : Node3D
                 var opt = new OptionButton(); opt.AddThemeConstantOverride("icon_max_width", 24);
                 var its = _data.Items.Values.Where(i => !i.Fluid).OrderBy(i => i.TechLevel).ThenBy(i => i.Id).ToList();
                 opt.AddItem("輸出のみ"); for (int i = 0; i < its.Count; i++) { opt.AddIconItem(Icon(its[i].Id), $"{its[i].Name}  {its[i].Price * _data.ImportMul / 100}"); if (its[i].Id == td.Import) opt.Selected = i + 1; }
-                int tid = s.Id; opt.ItemSelected += i => { _sim.Enqueue(new SetImport(1, _floor, tid, i == 0 ? null : its[(int)i - 1].Id)); _sim.Step(); _sideTick = -1; };
+                int tid = s.Id; opt.ItemSelected += i => { _sim.Enqueue(new SetImport(_bid, _floor, tid, i == 0 ? null : its[(int)i - 1].Id)); _sim.Step(); _sideTick = -1; };
                 _side.AddChild(opt);
                 if (td.Outbox.Count > 0) _side.AddChild(Chip(td.Outbox[0].Item, $"出口に {td.Outbox.Count} 個", Accent));
                 break;
@@ -714,7 +722,7 @@ public partial class MicroEditor : Node3D
                 _side.AddChild(Sep());
                 _side.AddChild(Lbl($"プログラム  {(mc.Program.Name == "" ? "(無題)" : mc.Program.Name)}   ノード {mc.Program.Nodes.Count}  線 {mc.Program.Links.Count}  間隔 {mc.Program.Interval}", 12));
                 _side.AddChild(Lbl($"評価 {mc.Evaluations:N0} 回   {(Building.LastSupply > 0 ? "動作中" : "電気なし")}", 12, Building.LastSupply > 0 ? Green : Warm));
-                var en = new CheckButton { Text = "稼働", ButtonPressed = mc.Enabled }; int mid = s.Id; en.Toggled += v => { _sim.Enqueue(new SetEnabled(1, _floor, mid, v)); _sim.Step(); }; _side.AddChild(en);
+                var en = new CheckButton { Text = "稼働", ButtonPressed = mc.Enabled }; int mid = s.Id; en.Toggled += v => { _sim.Enqueue(new SetEnabled(_bid, _floor, mid, v)); _sim.Step(); }; _side.AddChild(en);
                 _side.AddChild(Btn("プログラムを編集(図式)", () => OpenMcu(mid), true));
                 break;
             }
@@ -738,36 +746,36 @@ public partial class MicroEditor : Node3D
     {
         var cmds = new List<ICommand>();
         int y0 = D - 21;   // 鉱脈のすぐ南
-        for (int x = 0; x < 12; x++) { cmds.Add(new PlaceStructure(1, _floor, "miner", x, D - 20, 0, Direction.South)); cmds.Add(new PlaceStructure(1, _floor, "inserter", x, y0, 0, Direction.South)); cmds.Add(new PlaceStructure(1, _floor, "belt", x, y0 - 1, 0, Direction.East)); }
-        for (int x = 12; x < 20; x++) cmds.Add(new PlaceStructure(1, _floor, "belt", x, y0 - 1, 0, Direction.East));
+        for (int x = 0; x < 12; x++) { cmds.Add(new PlaceStructure(_bid, _floor, "miner", x, D - 20, 0, Direction.South)); cmds.Add(new PlaceStructure(_bid, _floor, "inserter", x, y0, 0, Direction.South)); cmds.Add(new PlaceStructure(_bid, _floor, "belt", x, y0 - 1, 0, Direction.East)); }
+        for (int x = 12; x < 20; x++) cmds.Add(new PlaceStructure(_bid, _floor, "belt", x, y0 - 1, 0, Direction.East));
         for (int x = 2; x < 20; x += 3)
         {
-            cmds.Add(new PlaceStructure(1, _floor, "inserter", x, y0 - 2, 0, Direction.South));
-            cmds.Add(new PlaceStructure(1, _floor, "furnace", x, y0 - 3, 0, Direction.South));
-            cmds.Add(new PlaceStructure(1, _floor, "inserter", x, y0 - 4, 0, Direction.South));
-            cmds.Add(new PlaceStructure(1, _floor, "chest", x, y0 - 5, 0, Direction.South));
+            cmds.Add(new PlaceStructure(_bid, _floor, "inserter", x, y0 - 2, 0, Direction.South));
+            cmds.Add(new PlaceStructure(_bid, _floor, "furnace", x, y0 - 3, 0, Direction.South));
+            cmds.Add(new PlaceStructure(_bid, _floor, "inserter", x, y0 - 4, 0, Direction.South));
+            cmds.Add(new PlaceStructure(_bid, _floor, "chest", x, y0 - 5, 0, Direction.South));
         }
-        cmds.Add(new PlaceStructure(1, _floor, "reactor_g2", 22, y0 - 3, 0, Direction.East)); cmds.Add(new PlaceStructure(1, _floor, "reactor_g2", 24, y0 - 3, 0, Direction.East)); cmds.Add(new PlaceStructure(1, _floor, "battery_g2", 22, y0 - 7, 0, Direction.East)); cmds.Add(new PlaceStructure(1, _floor, "trade", 26, y0 - 5, 0, Direction.East)); cmds.Add(new AddTreasury(5000));
+        cmds.Add(new PlaceStructure(_bid, _floor, "reactor_g2", 22, y0 - 3, 0, Direction.East)); cmds.Add(new PlaceStructure(_bid, _floor, "reactor_g2", 24, y0 - 3, 0, Direction.East)); cmds.Add(new PlaceStructure(_bid, _floor, "battery_g2", 22, y0 - 7, 0, Direction.East)); cmds.Add(new PlaceStructure(_bid, _floor, "trade", 26, y0 - 5, 0, Direction.East)); cmds.Add(new AddTreasury(5000));
         // 昇降機の口: 上り(2 階へ)と下り(地下は無いので 2 階側から見た下り = 1 階の口を 2 階から結ぶ)。1 階に上り 1 つ、未接続 1 つ、2 階と 3 階にも置いて 3 階→1 階を下りとして示す
-        cmds.Add(new PlaceStructure(1, _floor, "port_lift", 30, y0 - 3, 0, Direction.South)); cmds.Add(new PlaceStructure(1, 1, "port_lift", 30, y0 - 3, 0, Direction.South));
-        cmds.Add(new PlaceStructure(1, _floor, "port_lift", 32, y0 - 3, 0, Direction.South));
-        cmds.Add(new PlaceStructure(1, _floor, "port_lift", 34, y0 - 3, 0, Direction.South));
+        cmds.Add(new PlaceStructure(_bid, _floor, "port_lift", 30, y0 - 3, 0, Direction.South)); cmds.Add(new PlaceStructure(1, 1, "port_lift", 30, y0 - 3, 0, Direction.South));
+        cmds.Add(new PlaceStructure(_bid, _floor, "port_lift", 32, y0 - 3, 0, Direction.South));
+        cmds.Add(new PlaceStructure(_bid, _floor, "port_lift", 34, y0 - 3, 0, Direction.South));
         foreach (var c in cmds) _sim.Enqueue(c);
         _sim.Step();
         var lifts = Floor.Structures.OfType<Port>().OrderBy(p => p.X).ToList(); var up1 = Building.Floors[1].Structures.OfType<Port>().First();
         _sim.Enqueue(new LinkPorts(1, 0, lifts[0].Id, 1, 1, up1.Id));   // (30): 2 階へ = 上り
         _sim.Enqueue(new SetLiftDown(lifts[2].Id));                      // (34): 下り(見本用に接続先を -1 階相当として印だけ)
         int wid = 1;
-        foreach (var m in Floor.Structures.OfType<Machine>()) { _sim.Enqueue(new SetRecipe(1, _floor, m.Id, "iron_plate")); _sim.Enqueue(new AssignStaff(1, _floor, m.Id, new Worker(wid, $"作業員 {wid}", 4))); wid++; }
+        foreach (var m in Floor.Structures.OfType<Machine>()) { _sim.Enqueue(new SetRecipe(_bid, _floor, m.Id, "iron_plate")); _sim.Enqueue(new AssignStaff(_bid, _floor, m.Id, new Worker(wid, $"作業員 {wid}", 4))); wid++; }
         _sim.Step();
-        var rc = Floor.Structures.OfType<Chest>().First(); _sim.Enqueue(new AddItems(1, _floor, rc.Id, "factory_robot", 85, 2)); _sim.Step();
+        var rc = Floor.Structures.OfType<Chest>().First(); _sim.Enqueue(new AddItems(_bid, _floor, rc.Id, "factory_robot", 85, 2)); _sim.Step();
         // 機体組立機(4x4)と部品の箱
         int mx = 40, my = y0 - 8;
-        _sim.Enqueue(new PlaceStructure(1, _floor, "mech_assembler", mx, my, 0, Direction.South)); _sim.Enqueue(new PlaceStructure(1, _floor, "inserter", mx + 4, my + 1, 0, Direction.West)); _sim.Enqueue(new PlaceStructure(1, _floor, "chest", mx + 5, my + 1, 0, Direction.West)); _sim.Step();
+        _sim.Enqueue(new PlaceStructure(_bid, _floor, "mech_assembler", mx, my, 0, Direction.South)); _sim.Enqueue(new PlaceStructure(_bid, _floor, "inserter", mx + 4, my + 1, 0, Direction.West)); _sim.Enqueue(new PlaceStructure(_bid, _floor, "chest", mx + 5, my + 1, 0, Direction.West)); _sim.Step();
         var ma = Floor.Structures.OfType<Machine>().First(x => _data.Structures[x.DefId].Kind == "mech_assembler"); var pc = (Chest)Floor.At(mx + 5, my + 1, 0)!;
-        _sim.Enqueue(new SetRecipe(1, _floor, ma.Id, "mech_g2_reactor")); _sim.Enqueue(new SetArchetype(1, _floor, ma.Id, "heavy"));
-        for (int i = 1; i <= 4; i++) _sim.Enqueue(new AssignStaff(1, _floor, ma.Id, new Worker(i, $"技師 {i}", 6)));
-        foreach (var (it, n) in new[] { ("mech_head", 2), ("mech_torso", 2), ("mech_arm", 4), ("mech_leg", 4), ("mech_back", 2), ("mech_weapon", 2), ("reactor_core", 2) }) _sim.Enqueue(new AddItems(1, _floor, pc.Id, it, 72, n));
+        _sim.Enqueue(new SetRecipe(_bid, _floor, ma.Id, "mech_g2_reactor")); _sim.Enqueue(new SetArchetype(_bid, _floor, ma.Id, "heavy"));
+        for (int i = 1; i <= 4; i++) _sim.Enqueue(new AssignStaff(_bid, _floor, ma.Id, new Worker(i, $"技師 {i}", 6)));
+        foreach (var (it, n) in new[] { ("mech_head", 2), ("mech_torso", 2), ("mech_arm", 4), ("mech_leg", 4), ("mech_back", 2), ("mech_weapon", 2), ("reactor_core", 2) }) _sim.Enqueue(new AddItems(_bid, _floor, pc.Id, it, 72, n));
         _sim.Step();
         // 制御室: リアクターの過負荷を見張り、50% 超で出力設定 80%、未満で 150%(見本)
         _sim.Enqueue(new PlaceStructure(1, 0, "control_room", 28, y0 - 8, 0, Direction.South)); _sim.Step();
@@ -806,6 +814,6 @@ public partial class MicroEditor : Node3D
     void Screenshot()
     {
         var path = Arg("--screenshot"); if (path == null) return;
-        if (++_frame == 40) { GetViewport().GetTexture().GetImage().SavePng(path); GetTree().Quit(); }
+        if (++_frame == (ExternalSim != null ? 60 : 40)) { GetViewport().GetTexture().GetImage().SavePng(path); GetTree().Quit(); }   // 都市から開いたときは都市側の撮影より後に
     }
 }

@@ -372,6 +372,7 @@ public sealed record Deploy(int SquadId, double X, double Y) : ICommand
     public void Apply(Simulation s)
     {
         var sq = s.Factory.Squads.FirstOrDefault(x => x.Id == SquadId); if (sq == null) return;
+        if (!CitySim.CanDeploy(s.Factory, sq, s.CityData)) { s.Factory.Events.Add(new FactoryEvent { Kind = "no_crew", Building = SquadId }); return; }   // G17 #8・#18
         sq.State = SquadState.Field; int i = 0;
         foreach (var u in sq.Members.Where(u => u.Alive)) { u.X = X + (i % 4) * 3; u.Y = Y + (i / 4) * 3; i++; }
         sq.Order = SquadOrder.Hold; sq.OrderX = X; sq.OrderY = Y;

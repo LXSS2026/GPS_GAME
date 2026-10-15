@@ -8,7 +8,7 @@ public sealed class GameData
     public readonly IReadOnlyDictionary<string, ItemDef> Items;
     public readonly IReadOnlyDictionary<string, StructureDef> Structures;
     public readonly IReadOnlyDictionary<string, RecipeDef> Recipes;
-    public readonly IReadOnlyList<string> Infrastructure;
+    public readonly IReadOnlyDictionary<string, int> Infrastructure;   // id → 解放される段階(techLevel)
     public readonly int ReactorPrecisionMin;        // 品質 0 のときの出力(%)
     public readonly int DefectReductionPerSkill;    // 担当者の技能 1 につき失敗率を下げる割合(%)
     public readonly int BatteryChargeEfficiency;     // 充電効率(%)
@@ -22,7 +22,7 @@ public sealed class GameData
 
     static readonly JsonSerializerOptions Opt = new() { PropertyNameCaseInsensitive = true };
 
-    GameData(Dictionary<string, ItemDef> items, Dictionary<string, StructureDef> structures, Dictionary<string, RecipeDef> recipes, List<string> infra, int precisionMin, int defectRed, int chargeEff)
+    GameData(Dictionary<string, ItemDef> items, Dictionary<string, StructureDef> structures, Dictionary<string, RecipeDef> recipes, Dictionary<string, int> infra, int precisionMin, int defectRed, int chargeEff)
     { Items = items; Structures = structures; Recipes = recipes; Infrastructure = infra; ReactorPrecisionMin = precisionMin; DefectReductionPerSkill = defectRed; BatteryChargeEfficiency = chargeEff; }
 
     public static GameData Load(string dir)
@@ -48,7 +48,7 @@ public sealed class GameData
             recipes[def.Id] = def;
         }
         using var idoc = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "infrastructure.json")));
-        var infra = idoc.RootElement.GetProperty("infrastructure").EnumerateArray().Select(e => e.GetProperty("id").GetString()!).ToList();
+        var infra = idoc.RootElement.GetProperty("infrastructure").EnumerateArray().ToDictionary(e => e.GetProperty("id").GetString()!, e => e.TryGetProperty("techLevel", out var tl) ? tl.GetInt32() : 1);
         var gd = new GameData(items, structures, recipes, infra, precisionMin, defectRed, chargeEff);
         if (sdoc.RootElement.TryGetProperty("trade", out var tr))
         {
