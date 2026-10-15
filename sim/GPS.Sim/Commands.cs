@@ -230,3 +230,9 @@ public sealed record SetReactorOutput(int Building, int Floor, int Id, int Pct) 
 {
     public void Apply(Simulation s) { if (s.Factory.Get(Building)?.Find(Floor, Id) is Reactor r) r.OutputPct = Math.Clamp(Pct, 0, s.Data.OverloadMax); }
 }
+
+/// <summary>機体組立機の系統(heavy / fast / general)。</summary>
+public sealed record SetArchetype(int Building, int Floor, int Id, string Archetype) : ICommand
+{
+    public void Apply(Simulation s) { if (s.Factory.Get(Building)?.Find(Floor, Id) is Machine m && Archetype is "heavy" or "fast" or "general") m.Archetype = Archetype; }
+}

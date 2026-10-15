@@ -130,4 +130,35 @@ public class Stage2Tests
         var ev = Assert.Single(s.Factory.Events); Assert.Equal("explosion", ev.Kind); Assert.Equal(255, ev.Power); Assert.Equal(2, ev.Destroyed);
         Assert.Equal(0, b.Inventory.GetValueOrDefault("reactor_g1"));                 // 在庫には戻らない
     }
+
+    static void Feed(Machine m, int q, string power = "reactor_core")
+    {
+        foreach (var (it, n) in new[] { ("mech_head", 1), ("mech_torso", 1), ("mech_arm", 2), ("mech_leg", 2), ("mech_back", 1), ("mech_weapon", 1), (power, 1) })
+            m.Inputs.Add(new ItemStack(it, q, n));
+    }
+
+    [Fact]
+    public void Mech_AssemblyByGeneration_TierGates_ArchetypeAndPower()
+    {
+        var s = NewSim(6);
+        Do(s, new CreateBuilding(1, "m", 8, 8, 1, false), new PlaceStructure(1, 0, "mech_assembler", 0, 0, 0, Direction.East), new PlaceStructure(1, 0, "reactor_g3", 6, 0, 0, Direction.East),
+              new SetRecipe(1, 0, 1, "mech_g2_reactor"), new SetArchetype(1, 0, 1, "heavy"));
+        var m = (Machine)s.Factory.Get(1)!.Find(0, 1)!;
+        for (int i = 1; i <= 4; i++) s.Enqueue(new AssignStaff(1, 0, 1, new Worker(i, "a", 5)));
+        s.Step();
+        Feed(m, 65); s.Run(4800 + 5);
+        var mech = Assert.Single(s.Factory.Mechs);
+        Assert.Equal(2, mech.Generation); Assert.Equal("heavy", mech.Archetype); Assert.Equal("reactor", mech.PowerSource); Assert.Equal(65, mech.Quality); Assert.Equal(9, mech.Parts.Count);
+        // 第 5 世代は高品質以上: 通常品質の部品では着手しない
+        Do(s, new SetRecipe(1, 0, 1, "mech_g5_battery")); Feed(m, 65, "battery_pack"); s.Run(600);
+        Assert.Single(s.Factory.Mechs); Assert.True(m.Progress < 0);
+        m.Inputs.Clear(); Feed(m, 92, "battery_pack"); s.Run(9000 + 5);
+        Assert.Equal(2, s.Factory.Mechs.Count); Assert.Equal("battery", s.Factory.Mechs[1].PowerSource); Assert.Equal(5, s.Factory.Mechs[1].Generation);
+        // 第 6 世代は最高品質のみ
+        Do(s, new SetRecipe(1, 0, 1, "mech_g6_reactor")); m.Inputs.Clear(); Feed(m, 95); s.Run(600);
+        Assert.Equal(2, s.Factory.Mechs.Count);
+        m.Inputs.Clear(); Feed(m, 99); s.Run(14400 + 5);
+        Assert.Equal(3, s.Factory.Mechs.Count); Assert.Equal(6, s.Factory.Mechs[2].Generation);
+        Assert.Contains(s.Factory.Events, e => e.Kind == "mech");
+    }
 }

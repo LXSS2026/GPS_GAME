@@ -87,7 +87,7 @@ public partial class MicroEditor : Node3D
         RebuildItems();
         RefreshTop();
         RefreshSide();
-        if (_sim.Factory.Events.Count > _seenEvents) { _seenEvents = _sim.Factory.Events.Count; _structureVersion++; var ev = _sim.Factory.Events[^1]; _lastEvent = $"爆発  ({ev.X}, {ev.Y})  {ev.Power} kW  半径 {ev.Radius:F1}  消失 {ev.Destroyed} 台"; _selected = -1; }
+        if (_sim.Factory.Events.Count > _seenEvents) { _seenEvents = _sim.Factory.Events.Count; _structureVersion++; var ev = _sim.Factory.Events[^1]; _lastEvent = ev.Kind == "mech" ? $"機体 完成  第 {ev.Power} 世代  品質 {ev.Destroyed}  ({ev.X}, {ev.Y})" : $"爆発  ({ev.X}, {ev.Y})  {ev.Power} kW  半径 {ev.Radius:F1}  消失 {ev.Destroyed} 台"; _selected = -1; }
         Screenshot();
     }
 
@@ -357,7 +357,7 @@ public partial class MicroEditor : Node3D
         // ----- 左: 設備のパレット(種別ごとの格子) -----
         var pal = new VBoxContainer(); pal.AddThemeConstantOverride("separation", 8);
         pal.AddChild(Lbl("設備", 11, Cyan));
-        var groups = new (string name, string[] kinds)[] { ("生産", new[] { "miner", "furnace", "assembler" }), ("物流", new[] { "belt", "inserter", "chest", "port", "trade" }), ("流体", new[] { "pump", "pipe", "tank" }), ("動力", new[] { "reactor", "battery" }) };
+        var groups = new (string name, string[] kinds)[] { ("生産", new[] { "miner", "furnace", "assembler", "mech_assembler" }), ("物流", new[] { "belt", "inserter", "chest", "port", "trade" }), ("流体", new[] { "pump", "pipe", "tank" }), ("動力", new[] { "reactor", "battery" }) };
         foreach (var (gname, kinds) in groups)
         {
             pal.AddChild(Lbl(gname, 11, Line40));
@@ -427,7 +427,7 @@ public partial class MicroEditor : Node3D
         foreach (var (id, l) in _stockLabels) l.Text = b.Inventory.GetValueOrDefault(id).ToString();
         var made = Floor.Structures.OfType<Machine>().Sum(m => m.Made); var failed = Floor.Structures.OfType<Machine>().Sum(m => m.Failed);
         long stored = Floor.Structures.OfType<Battery>().Sum(x => x.Stored);
-        _status.Text = $"国庫 {_sim.Factory.Treasury:N0}   設備 {Floor.Structures.Count} 台   在庫 {b.Inventory.Values.Sum()} 台   製造 {made}   不良 {failed}   蓄電 {stored / 216000.0:F2} kWh   {(_palette == null ? "" : _data.Structures[_palette].Name + " を設置中  " + DirName(_dir))}   {_lastEvent}";
+        _status.Text = $"国庫 {_sim.Factory.Treasury:N0}   機体 {_sim.Factory.Mechs.Count} 機   設備 {Floor.Structures.Count} 台   在庫 {b.Inventory.Values.Sum()} 台   製造 {made}   不良 {failed}   蓄電 {stored / 216000.0:F2} kWh   {(_palette == null ? "" : _data.Structures[_palette].Name + " を設置中  " + DirName(_dir))}   {_lastEvent}";
     }
 
     int _seenEvents; string _lastEvent = "";
@@ -438,7 +438,23 @@ public partial class MicroEditor : Node3D
         _sideTick = _sim.Tick; _sideFor = _selected;
         foreach (var c in _side.GetChildren()) c.QueueFree();
         var s = Building.Find(0, _selected);
-        if (s == null) { _side.AddChild(Lbl("選択なし", 11, Cyan)); return; }
+        if (s == null)
+        {
+            _side.AddChild(Lbl("選択なし", 11, Cyan));
+            if (_sim.Factory.Mechs.Count > 0)
+            {
+                _side.AddChild(Sep()); _side.AddChild(Lbl($"製造した機体  {_sim.Factory.Mechs.Count} 機", 10, Cyan));
+                foreach (var mech in _sim.Factory.Mechs.OrderByDescending(x => x.Id).Take(8))
+                {
+                    var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 8);
+                    var arch = mech.Archetype switch { "heavy" => "重装", "fast" => "高速", _ => "汎用" };
+                    row.AddChild(Chip("mech_torso", $"#{mech.Id}  第 {mech.Generation} 世代  {arch}", ReactorColor(mech.Generation)));
+                    row.AddChild(Lbl($"品質 {mech.Quality}  {(mech.PowerSource == "reactor" ? "リアクター" : "バッテリー")}", 12, TierColor(Quality.TierOf(mech.Quality))));
+                    _side.AddChild(row);
+                }
+            }
+            return;
+        }
         var def = _data.Structures[s.DefId];
         var head = new HBoxContainer(); head.AddThemeConstantOverride("separation", 10);
         head.AddChild(new TextureRect { Texture = Icon(def.Id), CustomMinimumSize = new Vector2(48, 48), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered });
@@ -455,16 +471,25 @@ public partial class MicroEditor : Node3D
                 _side.AddChild(Sep()); _side.AddChild(Lbl("レシピ", 10, Cyan));
                 var opt = new OptionButton(); opt.AddThemeConstantOverride("icon_max_width", 24);
                 var recipes = _data.Recipes.Values.Where(r => r.Machine == def.Kind).OrderBy(r => r.TechLevel).ThenBy(r => r.Id).ToList();
-                opt.AddItem("レシピなし"); for (int i = 0; i < recipes.Count; i++) { opt.AddIconItem(Icon(recipes[i].Outputs[0].Item), $"L{recipes[i].TechLevel}  {recipes[i].Name}"); if (recipes[i].Id == m.Recipe) opt.Selected = i + 1; }
+                opt.AddItem("レシピなし"); for (int i = 0; i < recipes.Count; i++) { opt.AddIconItem(Icon(recipes[i].Outputs.Count > 0 ? recipes[i].Outputs[0].Item : "mech_torso"), $"L{recipes[i].TechLevel}  {recipes[i].Name}"); if (recipes[i].Id == m.Recipe) opt.Selected = i + 1; }
                 int sid = s.Id; opt.ItemSelected += i => { _sim.Enqueue(new SetRecipe(1, 0, sid, i == 0 ? null : recipes[(int)i - 1].Id)); _sim.Step(); _sideTick = -1; };
                 _side.AddChild(opt);
+                if (def.Kind == "mech_assembler")
+                {
+                    var ar2 = new HBoxContainer(); ar2.AddThemeConstantOverride("separation", 8); ar2.AddChild(Lbl("系統", 11, Cyan));
+                    var ao = new OptionButton(); var archs = new[] { ("heavy", "重装"), ("fast", "高速"), ("general", "汎用") };
+                    for (int i = 0; i < archs.Length; i++) { ao.AddItem(archs[i].Item2); if (archs[i].Item1 == m.Archetype) ao.Selected = i; }
+                    ao.ItemSelected += i => { _sim.Enqueue(new SetArchetype(1, 0, sid, archs[(int)i].Item1)); _sim.Step(); _sideTick = -1; };
+                    ar2.AddChild(ao); _side.AddChild(ar2);
+                }
                 if (m.Recipe != null)
                 {
                     var r = _data.Recipes[m.Recipe];
-                    var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 6);
+                    var row = new HFlowContainer(); row.AddThemeConstantOverride("h_separation", 6); row.AddThemeConstantOverride("v_separation", 6);
                     foreach (var i in r.Inputs) row.AddChild(Chip(i.Item, $"{_data.Items[i.Item].Name} ×{i.Count}", TierColor(i.MinTier), $"品質 {TierName(i.MinTier)} 以上"));
                     row.AddChild(Lbl("→", 14, Cyan));
                     foreach (var o in r.Outputs) row.AddChild(Chip(o.Item, $"{_data.Items[o.Item].Name} ×{o.Count}", Accent));
+                    if (r.MechGeneration > 0) row.AddChild(Chip("mech_torso", $"機体 第 {r.MechGeneration} 世代", ReactorColor(r.MechGeneration)));
                     _side.AddChild(row);
                     _side.AddChild(Lbl($"所要 {r.Ticks} ティック ({r.Ticks / 60.0:F1} 秒)   失敗時の回収 {r.ScrapRate / 100}%", 11, Cyan));
                     var prog = new ProgressBar { MinValue = 0, MaxValue = r.Ticks * 100, Value = Math.Max(0, m.Progress), ShowPercentage = false, CustomMinimumSize = new Vector2(0, 10) };
@@ -628,9 +653,17 @@ public partial class MicroEditor : Node3D
         foreach (var m in Floor.Structures.OfType<Machine>()) { _sim.Enqueue(new SetRecipe(1, 0, m.Id, "iron_plate")); _sim.Enqueue(new AssignStaff(1, 0, m.Id, new Worker(wid, $"作業員 {wid}", 4))); wid++; }
         _sim.Step();
         var rc = Floor.Structures.OfType<Chest>().First(); _sim.Enqueue(new AddItems(1, 0, rc.Id, "factory_robot", 85, 2)); _sim.Step();
-        _sim.Run(3600);
+        // 機体組立機(4x4)と部品の箱
+        int mx = 40, my = y0 - 8;
+        _sim.Enqueue(new PlaceStructure(1, 0, "mech_assembler", mx, my, 0, Direction.South)); _sim.Enqueue(new PlaceStructure(1, 0, "inserter", mx + 4, my + 1, 0, Direction.West)); _sim.Enqueue(new PlaceStructure(1, 0, "chest", mx + 5, my + 1, 0, Direction.West)); _sim.Step();
+        var ma = Floor.Structures.OfType<Machine>().First(x => _data.Structures[x.DefId].Kind == "mech_assembler"); var pc = (Chest)Floor.At(mx + 5, my + 1, 0)!;
+        _sim.Enqueue(new SetRecipe(1, 0, ma.Id, "mech_g2_reactor")); _sim.Enqueue(new SetArchetype(1, 0, ma.Id, "heavy"));
+        for (int i = 1; i <= 4; i++) _sim.Enqueue(new AssignStaff(1, 0, ma.Id, new Worker(i, $"技師 {i}", 6)));
+        foreach (var (it, n) in new[] { ("mech_head", 2), ("mech_torso", 2), ("mech_arm", 4), ("mech_leg", 4), ("mech_back", 2), ("mech_weapon", 2), ("reactor_core", 2) }) _sim.Enqueue(new AddItems(1, 0, pc.Id, it, 72, n));
+        _sim.Step();
+        _sim.Run(Arg("--select") == "mech" ? 60 * 9 + 4800 + 600 : 3600);   // 機体: 部品の搬入 + 組立 4,800 ティック
         _structureVersion++;
-        _selected = Arg("--select") == "reactor" ? Floor.Structures.First(s => s is Reactor).Id : Floor.Structures.First(s => s is Machine).Id;
+        _selected = Arg("--select") switch { "reactor" => Floor.Structures.First(s => s is Reactor).Id, "mech" => ma.Id, "none" => -1, _ => Floor.Structures.First(s => s is Machine).Id };
         _pivot = new Vector3(10, FloorY, y0 - 2); _dist = 28; _yaw = 0.5f; _elev = 0.7f;
         if (Arg("--pivot") is string pv) { var p = pv.Split(','); _pivot = new Vector3(float.Parse(p[0]), float.Parse(p[1]), float.Parse(p[2])); }
         if (Arg("--dist") is string ds) _dist = float.Parse(ds);

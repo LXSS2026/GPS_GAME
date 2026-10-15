@@ -35,7 +35,7 @@ public sealed class Equipment
     /// <summary>設備の定義 → 部品の割り当て。部品が無い種類は近い部品で代用する。</summary>
     public static string Model(StructureDef def) => def.Kind switch
     {
-        "furnace" => "furnace", "assembler" => "assembler", "miner" => "miner", "belt" => "belt", "inserter" => "inserter", "chest" => "chest",
+        "furnace" => "furnace", "assembler" => "assembler", "mech_assembler" => "assembler", "miner" => "miner", "belt" => "belt", "inserter" => "inserter", "chest" => "chest",
         "tank" => "tank", "reactor" => "tank", "port" => "chest", "pump" => "miner", "battery" => "tank", "trade" => "chest", _ => "pole",
     };
 
@@ -61,6 +61,12 @@ public sealed class Equipment
             var col = ReactorColor(def.Generation);
             var mat = new StandardMaterial3D { AlbedoColor = col, EmissionEnabled = true, Emission = col, EmissionEnergyMultiplier = 1.5f };
             for (int k = 0; k < 3; k++) kb.Box(root, new Vector3(x + 0.5f, y + 0.6f + k * 0.5f, z + 0.5f), new Vector3(0.9f, 0.06f, 0.9f), mat);
+        }
+        else if (def.Kind == "mech_assembler")
+        {   // 機体組立機: 4x4 の組立機の上に門形のクレーンと橙の帯(専用部品は未作成)
+            kb.Box(root, new Vector3(x + 0.3f, y + 1.9f, z + 2f), new Vector3(0.25f, 3.8f, 0.25f), kb.Steel); kb.Box(root, new Vector3(x + 3.7f, y + 1.9f, z + 2f), new Vector3(0.25f, 3.8f, 0.25f), kb.Steel);
+            kb.Box(root, new Vector3(x + 2f, y + 3.8f, z + 2f), new Vector3(3.8f, 0.3f, 0.5f), kb.Hazard);
+            kb.Strip(root, new Vector3(x + 2f, y + 2.05f, z + 0.05f), new Vector3(3.6f, 0.06f, 0.06f), kb.GlowOrange);
         }
         else if (def.Kind == "trade")
         {   // 交易所: 箱 2x2 の上に屋根と橙の看板(専用部品は未作成)

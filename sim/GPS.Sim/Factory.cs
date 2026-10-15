@@ -190,6 +190,9 @@ public sealed class Factory
 
     /// <summary>爆発などの出来事(描画・通知用)。</summary>
     public List<FactoryEvent> Events { get; set; } = new();
+    /// <summary>製造した機体(手順 3)。軍の Unit へ渡すのは手順 4。</summary>
+    public List<Mech> Mechs { get; set; } = new();
+    public int NextMechId { get; set; } = 1;
 
     public void Tick(GameData data, Rng rng)
     {
@@ -285,6 +288,8 @@ public sealed class Factory
         Events.Add(new FactoryEvent { Kind = "explosion", Building = b.Id, Floor = floorIndex, X = r.X, Y = r.Y, Power = output, Radius = radius, Destroyed = gone.Count });
     }
 
+    int BuildingOf(Structure s) => Buildings.FirstOrDefault(b => b.Floors.Any(fl => fl.Structures.Contains(s)))?.Id ?? -1;
+
     public static long Price(ItemStack it, GameData data) => (long)data.Items[it.Item].Price * data.TierPriceMul[(int)it.Tier] / 100 * it.Count;
 
     void StepTrade(Trade td, Floor fl, GameData data)
@@ -374,6 +379,15 @@ public sealed class Factory
         int staffMul = Math.Max(0, 100 - skill * data.DefectReductionPerSkill);
         int bias = m.Staff.Any(w => w.IsRobot) ? data.RobotNormalBias : 0;   // 製造ロボットは通常品質に偏る(成功も失敗もしにくい)
         int q = Quality.Roll(rng, def.QualityTopMul * r.QualityTopMul / 100, def.QualityHighMul * r.QualityHighMul / 100, def.QualityDefectMul * r.QualityDefectMul / 100 * staffMul / 100, bias);
+        if (r.MechGeneration > 0)
+        {   // 機体: 失敗なし(部品の品質が規定を満たしていれば必ず組み上がる)。品質は部品の平均。世代はレシピ
+            var mech = new Mech { Id = NextMechId++, Generation = r.MechGeneration, Archetype = m.Archetype, PowerSource = r.PowerSource ?? "reactor", Building = BuildingOf(m), MadeTick = 0 };
+            foreach (var c in m.Consumed) for (int i = 0; i < c.Count; i++) mech.Parts.Add(new MechPart { Item = c.Item, Quality = c.Quality });   // 1 個ずつ(腕 2・脚 2)
+            mech.Quality = (int)Math.Round(mech.Parts.Average(x => x.Quality));
+            Mechs.Add(mech); m.Made++;
+            Events.Add(new FactoryEvent { Kind = "mech", Building = mech.Building, Floor = 0, X = m.X, Y = m.Y, Power = mech.Generation, Destroyed = mech.Quality });
+            return;
+        }
         if (Quality.TierOf(q) == QualityTier.Defect)
         {
             m.Failed++;
@@ -501,3 +515,17 @@ public sealed class Blueprint
 public sealed class BlueprintEntry { public string Def { get; set; } = ""; public int X { get; set; } public int Y { get; set; } public int Z { get; set; } public Direction Dir { get; set; } public string? Recipe { get; set; } public BatteryMode? BatteryMode { get; set; } public string? Import { get; set; } }
 
 public sealed class FactoryEvent { public string Kind { get; set; } = ""; public int Building { get; set; } public int Floor { get; set; } public int X { get; set; } public int Y { get; set; } public int Power { get; set; } public double Radius { get; set; } public int Destroyed { get; set; } }
+
+/// <summary>機体(手順 3)。世代はレシピ、系統は組立機の設定、動力源はレシピ、品質は部品の平均。</summary>
+public sealed class Mech
+{
+    public int Id { get; set; }
+    public int Generation { get; set; }
+    public string Archetype { get; set; } = "general";
+    public string PowerSource { get; set; } = "reactor";
+    public int Quality { get; set; }
+    public int Building { get; set; }
+    public long MadeTick { get; set; }
+    public List<MechPart> Parts { get; set; } = new();
+}
+public sealed class MechPart { public string Item { get; set; } = ""; public int Quality { get; set; } }

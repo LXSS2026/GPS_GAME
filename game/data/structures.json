@@ -8,6 +8,7 @@
     { "id": "furnace",   "name": "炉",           "kind": "furnace",   "w": 1, "d": 1, "h": 2, "power": 50,  "workers": 1, "priority": 2, "techLevel": 1, "qualityTopMul": 100, "qualityHighMul": 100, "qualityDefectMul": 100 },
     { "id": "assembler", "name": "組立機",       "kind": "assembler", "w": 1, "d": 1, "h": 2, "power": 40,  "workers": 1, "priority": 2, "techLevel": 2, "qualityTopMul": 100, "qualityHighMul": 100, "qualityDefectMul": 100 },
     { "id": "assembler_l3", "name": "組立機(第 3 世代)", "kind": "assembler", "w": 2, "d": 2, "h": 2, "power": 120, "workers": 2, "priority": 2, "techLevel": 3, "qualityTopMul": 200, "qualityHighMul": 150, "qualityDefectMul": 70 },
+    { "id": "mech_assembler", "name": "機体組立機", "kind": "mech_assembler", "w": 4, "d": 4, "h": 2, "power": 300, "workers": 4, "priority": 1, "techLevel": 3, "qualityTopMul": 100, "qualityHighMul": 100, "qualityDefectMul": 100 },
     { "id": "tank",      "name": "タンク",       "kind": "tank",      "w": 1, "d": 1, "h": 2, "power": 0,   "workers": 0, "priority": 9, "techLevel": 1, "capacity": 1000 },
     { "id": "pipe",      "name": "配管",         "kind": "pipe",      "w": 1, "d": 1, "h": 1, "power": 0,   "workers": 0, "priority": 9, "techLevel": 1 },
     { "id": "pump",      "name": "揚水機",       "kind": "pump",      "w": 1, "d": 1, "h": 1, "power": 10,  "workers": 0, "priority": 1, "techLevel": 1, "ticks": 60, "fluid": "water", "amount": 10 },

@@ -56,7 +56,7 @@ public abstract class Structure
     public static Structure Create(StructureDef def) => def.Kind switch
     {
         "belt" => new Belt(), "inserter" => new Inserter(), "miner" => new Miner(), "chest" => new Chest(),
-        "furnace" or "assembler" => new Machine(), "reactor" => new Reactor(), "battery" => new Battery(), "trade" => new Trade(), "tank" => new Tank(), "pipe" => new Pipe(), "pump" => new Pump(), "port" => new Port(),
+        "furnace" or "assembler" or "mech_assembler" => new Machine(), "reactor" => new Reactor(), "battery" => new Battery(), "trade" => new Trade(), "tank" => new Tank(), "pipe" => new Pipe(), "pump" => new Pump(), "port" => new Port(),
         _ => throw new InvalidDataException($"unknown structure kind {def.Kind}"),
     };
 }
@@ -95,6 +95,8 @@ public sealed class Machine : Structure
     /// <summary>進捗(ティック × 100。動力 50% なら 1 ティックで 50 進む)。</summary>
     public int Progress { get; set; } = -1;   // -1 = 未着手
     public List<ItemStack> Consumed { get; set; } = new();   // 着手時に消費した入力(失敗時のスクラップ計算用)
+    /// <summary>機体組立機の系統(heavy / fast / general)。</summary>
+    public string Archetype { get; set; } = "general";
     public long Made { get; set; }
     public long Failed { get; set; }
 }

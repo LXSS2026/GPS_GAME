@@ -27,6 +27,7 @@ namespace GPS.Sim;
 [JsonDerivedType(typeof(PasteBlueprint), "pasteBlueprint")]
 [JsonDerivedType(typeof(MoveRegion), "moveRegion")]
 [JsonDerivedType(typeof(SetReactorOutput), "setReactorOutput")]
+[JsonDerivedType(typeof(SetArchetype), "setArchetype")]
 public interface ICommand { void Apply(Simulation sim); }
 
 public sealed record PlaceBlock(BlockPos Pos, byte Id) : ICommand

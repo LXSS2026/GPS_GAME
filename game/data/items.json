@@ -1,5 +1,5 @@
 [
-  {
+ {
   "id": "iron_ore",
   "name": "鉄鉱石",
   "fluid": false,
@@ -7,7 +7,7 @@
   "techLevel": 1,
   "price": 2
  },
-  {
+ {
   "id": "copper_ore",
   "name": "銅鉱石",
   "fluid": false,
@@ -15,7 +15,7 @@
   "techLevel": 1,
   "price": 3
  },
-  {
+ {
   "id": "stone",
   "name": "石",
   "fluid": false,
@@ -23,7 +23,7 @@
   "techLevel": 1,
   "price": 1
  },
-  {
+ {
   "id": "wood",
   "name": "木",
   "fluid": false,
@@ -31,7 +31,7 @@
   "techLevel": 1,
   "price": 1
  },
-  {
+ {
   "id": "coal",
   "name": "石炭",
   "fluid": false,
@@ -39,7 +39,7 @@
   "techLevel": 2,
   "price": 2
  },
-  {
+ {
   "id": "water",
   "name": "水",
   "fluid": true,
@@ -47,7 +47,7 @@
   "techLevel": 1,
   "price": 0
  },
-  {
+ {
   "id": "iron_plate",
   "name": "鉄板",
   "fluid": false,
@@ -55,7 +55,7 @@
   "techLevel": 1,
   "price": 5
  },
-  {
+ {
   "id": "copper_plate",
   "name": "銅板",
   "fluid": false,
@@ -63,7 +63,7 @@
   "techLevel": 1,
   "price": 7
  },
-  {
+ {
   "id": "concrete",
   "name": "コンクリート",
   "fluid": false,
@@ -71,7 +71,7 @@
   "techLevel": 1,
   "price": 4
  },
-  {
+ {
   "id": "plank",
   "name": "板",
   "fluid": false,
@@ -79,7 +79,7 @@
   "techLevel": 1,
   "price": 2
  },
-  {
+ {
   "id": "gear",
   "name": "歯車",
   "fluid": false,
@@ -87,7 +87,7 @@
   "techLevel": 1,
   "price": 12
  },
-  {
+ {
   "id": "copper_wire",
   "name": "銅線",
   "fluid": false,
@@ -95,7 +95,7 @@
   "techLevel": 1,
   "price": 4
  },
-  {
+ {
   "id": "steel",
   "name": "鋼",
   "fluid": false,
@@ -103,7 +103,7 @@
   "techLevel": 2,
   "price": 15
  },
-  {
+ {
   "id": "circuit",
   "name": "回路",
   "fluid": false,
@@ -111,7 +111,7 @@
   "techLevel": 2,
   "price": 25
  },
-  {
+ {
   "id": "motor",
   "name": "モーター",
   "fluid": false,
@@ -119,7 +119,7 @@
   "techLevel": 2,
   "price": 60
  },
-  {
+ {
   "id": "reactor_core",
   "name": "リアクター核",
   "fluid": false,
@@ -127,7 +127,7 @@
   "techLevel": 2,
   "price": 150
  },
-  {
+ {
   "id": "armor_plate",
   "name": "装甲板",
   "fluid": false,
@@ -135,7 +135,7 @@
   "techLevel": 3,
   "price": 60
  },
-  {
+ {
   "id": "sensor",
   "name": "センサー",
   "fluid": false,
@@ -143,7 +143,7 @@
   "techLevel": 3,
   "price": 80
  },
-  {
+ {
   "id": "mech_head",
   "name": "機体の頭",
   "fluid": false,
@@ -151,7 +151,7 @@
   "techLevel": 3,
   "price": 400
  },
-  {
+ {
   "id": "mech_torso",
   "name": "機体の胴",
   "fluid": false,
@@ -159,7 +159,7 @@
   "techLevel": 3,
   "price": 900
  },
-  {
+ {
   "id": "mech_arm",
   "name": "機体の腕",
   "fluid": false,
@@ -167,7 +167,7 @@
   "techLevel": 3,
   "price": 500
  },
-  {
+ {
   "id": "mech_leg",
   "name": "機体の脚",
   "fluid": false,
@@ -175,7 +175,7 @@
   "techLevel": 3,
   "price": 600
  },
-  {
+ {
   "id": "mech_back",
   "name": "機体の背部",
   "fluid": false,
@@ -183,7 +183,7 @@
   "techLevel": 3,
   "price": 500
  },
-  {
+ {
   "id": "mech_weapon",
   "name": "機体の武装",
   "fluid": false,
@@ -191,7 +191,7 @@
   "techLevel": 3,
   "price": 350
  },
-  {
+ {
   "id": "alloy",
   "name": "高級合金",
   "fluid": false,
@@ -199,7 +199,7 @@
   "techLevel": 4,
   "price": 80
  },
-  {
+ {
   "id": "beam_emitter",
   "name": "ビーム発振器",
   "fluid": false,
@@ -207,12 +207,20 @@
   "techLevel": 4,
   "price": 600
  },
-  {
+ {
   "id": "factory_robot",
   "name": "製造ロボット",
   "fluid": false,
   "recyclable": true,
   "techLevel": 3,
   "price": 700
+ },
+ {
+  "id": "battery_pack",
+  "name": "バッテリーパック",
+  "fluid": false,
+  "recyclable": true,
+  "techLevel": 2,
+  "price": 120
  }
 ]

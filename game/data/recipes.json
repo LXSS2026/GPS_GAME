@@ -1,5 +1,5 @@
 {
- "_comment": "レシピ。鉱石(品質 30〜70)は不良階級でも製錬できるよう minTier 0。machine は設備の kind。inputs の minTier は 0 製造不良 / 1 通常 / 2 高品質 / 3 最高品質。ticks は所要ティック。scrapRate は失敗時に回収する原材料の割合(1/10,000)。品質の倍率はパーセント。",
+ "_comment": "レシピ。鉱石(品質 30〜70)は不良階級でも製錬できるよう minTier 0。machine は設備の kind。inputs の minTier は 0 製造不良 / 1 通常 / 2 高品質 / 3 最高品質。ticks は所要ティック。scrapRate は失敗時に回収する原材料の割合(1/10,000)。品質の倍率はパーセント。 mechGeneration を持つレシピは機体組立機用で、出力はアイテムでなく機体(Factory.Mechs)。第 1〜4 世代は通常以上、第 5 は高品質以上、第 6 は最高品質のみ(2026-10-15 確定)。",
  "recipes": [
   {
    "id": "iron_plate",
@@ -580,6 +580,613 @@
     }
    ],
    "ticks": 2400,
+   "scrapRate": 7000
+  },
+  {
+   "id": "battery_pack",
+   "name": "バッテリーパック",
+   "machine": "assembler",
+   "techLevel": 2,
+   "inputs": [
+    {
+     "item": "steel",
+     "count": 2,
+     "minTier": 1
+    },
+    {
+     "item": "circuit",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "copper_wire",
+     "count": 4,
+     "minTier": 1
+    }
+   ],
+   "outputs": [
+    {
+     "item": "battery_pack",
+     "count": 1
+    }
+   ],
+   "ticks": 600,
+   "scrapRate": 7000
+  },
+  {
+   "id": "mech_g1_reactor",
+   "name": "機体 第 1 世代(リアクター)",
+   "machine": "mech_assembler",
+   "techLevel": 3,
+   "mechGeneration": 1,
+   "powerSource": "reactor",
+   "inputs": [
+    {
+     "item": "mech_head",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_torso",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_arm",
+     "count": 2,
+     "minTier": 1
+    },
+    {
+     "item": "mech_leg",
+     "count": 2,
+     "minTier": 1
+    },
+    {
+     "item": "mech_back",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_weapon",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "reactor_core",
+     "count": 1,
+     "minTier": 1
+    }
+   ],
+   "outputs": [],
+   "ticks": 3600,
+   "scrapRate": 7000
+  },
+  {
+   "id": "mech_g1_battery",
+   "name": "機体 第 1 世代(バッテリー)",
+   "machine": "mech_assembler",
+   "techLevel": 3,
+   "mechGeneration": 1,
+   "powerSource": "battery",
+   "inputs": [
+    {
+     "item": "mech_head",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_torso",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_arm",
+     "count": 2,
+     "minTier": 1
+    },
+    {
+     "item": "mech_leg",
+     "count": 2,
+     "minTier": 1
+    },
+    {
+     "item": "mech_back",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_weapon",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "battery_pack",
+     "count": 1,
+     "minTier": 1
+    }
+   ],
+   "outputs": [],
+   "ticks": 3600,
+   "scrapRate": 7000
+  },
+  {
+   "id": "mech_g2_reactor",
+   "name": "機体 第 2 世代(リアクター)",
+   "machine": "mech_assembler",
+   "techLevel": 3,
+   "mechGeneration": 2,
+   "powerSource": "reactor",
+   "inputs": [
+    {
+     "item": "mech_head",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_torso",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_arm",
+     "count": 2,
+     "minTier": 1
+    },
+    {
+     "item": "mech_leg",
+     "count": 2,
+     "minTier": 1
+    },
+    {
+     "item": "mech_back",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_weapon",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "reactor_core",
+     "count": 1,
+     "minTier": 1
+    }
+   ],
+   "outputs": [],
+   "ticks": 4800,
+   "scrapRate": 7000
+  },
+  {
+   "id": "mech_g2_battery",
+   "name": "機体 第 2 世代(バッテリー)",
+   "machine": "mech_assembler",
+   "techLevel": 3,
+   "mechGeneration": 2,
+   "powerSource": "battery",
+   "inputs": [
+    {
+     "item": "mech_head",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_torso",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_arm",
+     "count": 2,
+     "minTier": 1
+    },
+    {
+     "item": "mech_leg",
+     "count": 2,
+     "minTier": 1
+    },
+    {
+     "item": "mech_back",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_weapon",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "battery_pack",
+     "count": 1,
+     "minTier": 1
+    }
+   ],
+   "outputs": [],
+   "ticks": 4800,
+   "scrapRate": 7000
+  },
+  {
+   "id": "mech_g3_reactor",
+   "name": "機体 第 3 世代(リアクター)",
+   "machine": "mech_assembler",
+   "techLevel": 3,
+   "mechGeneration": 3,
+   "powerSource": "reactor",
+   "inputs": [
+    {
+     "item": "mech_head",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_torso",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_arm",
+     "count": 2,
+     "minTier": 1
+    },
+    {
+     "item": "mech_leg",
+     "count": 2,
+     "minTier": 1
+    },
+    {
+     "item": "mech_back",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_weapon",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "reactor_core",
+     "count": 1,
+     "minTier": 1
+    }
+   ],
+   "outputs": [],
+   "ticks": 6000,
+   "scrapRate": 7000
+  },
+  {
+   "id": "mech_g3_battery",
+   "name": "機体 第 3 世代(バッテリー)",
+   "machine": "mech_assembler",
+   "techLevel": 3,
+   "mechGeneration": 3,
+   "powerSource": "battery",
+   "inputs": [
+    {
+     "item": "mech_head",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_torso",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_arm",
+     "count": 2,
+     "minTier": 1
+    },
+    {
+     "item": "mech_leg",
+     "count": 2,
+     "minTier": 1
+    },
+    {
+     "item": "mech_back",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_weapon",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "battery_pack",
+     "count": 1,
+     "minTier": 1
+    }
+   ],
+   "outputs": [],
+   "ticks": 6000,
+   "scrapRate": 7000
+  },
+  {
+   "id": "mech_g4_reactor",
+   "name": "機体 第 4 世代(リアクター)",
+   "machine": "mech_assembler",
+   "techLevel": 3,
+   "mechGeneration": 4,
+   "powerSource": "reactor",
+   "inputs": [
+    {
+     "item": "mech_head",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_torso",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_arm",
+     "count": 2,
+     "minTier": 1
+    },
+    {
+     "item": "mech_leg",
+     "count": 2,
+     "minTier": 1
+    },
+    {
+     "item": "mech_back",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_weapon",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "reactor_core",
+     "count": 1,
+     "minTier": 1
+    }
+   ],
+   "outputs": [],
+   "ticks": 7200,
+   "scrapRate": 7000
+  },
+  {
+   "id": "mech_g4_battery",
+   "name": "機体 第 4 世代(バッテリー)",
+   "machine": "mech_assembler",
+   "techLevel": 3,
+   "mechGeneration": 4,
+   "powerSource": "battery",
+   "inputs": [
+    {
+     "item": "mech_head",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_torso",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_arm",
+     "count": 2,
+     "minTier": 1
+    },
+    {
+     "item": "mech_leg",
+     "count": 2,
+     "minTier": 1
+    },
+    {
+     "item": "mech_back",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "mech_weapon",
+     "count": 1,
+     "minTier": 1
+    },
+    {
+     "item": "battery_pack",
+     "count": 1,
+     "minTier": 1
+    }
+   ],
+   "outputs": [],
+   "ticks": 7200,
+   "scrapRate": 7000
+  },
+  {
+   "id": "mech_g5_reactor",
+   "name": "機体 第 5 世代(リアクター)",
+   "machine": "mech_assembler",
+   "techLevel": 4,
+   "mechGeneration": 5,
+   "powerSource": "reactor",
+   "inputs": [
+    {
+     "item": "mech_head",
+     "count": 1,
+     "minTier": 2
+    },
+    {
+     "item": "mech_torso",
+     "count": 1,
+     "minTier": 2
+    },
+    {
+     "item": "mech_arm",
+     "count": 2,
+     "minTier": 2
+    },
+    {
+     "item": "mech_leg",
+     "count": 2,
+     "minTier": 2
+    },
+    {
+     "item": "mech_back",
+     "count": 1,
+     "minTier": 2
+    },
+    {
+     "item": "mech_weapon",
+     "count": 1,
+     "minTier": 2
+    },
+    {
+     "item": "reactor_core",
+     "count": 1,
+     "minTier": 2
+    }
+   ],
+   "outputs": [],
+   "ticks": 9000,
+   "scrapRate": 7000
+  },
+  {
+   "id": "mech_g5_battery",
+   "name": "機体 第 5 世代(バッテリー)",
+   "machine": "mech_assembler",
+   "techLevel": 4,
+   "mechGeneration": 5,
+   "powerSource": "battery",
+   "inputs": [
+    {
+     "item": "mech_head",
+     "count": 1,
+     "minTier": 2
+    },
+    {
+     "item": "mech_torso",
+     "count": 1,
+     "minTier": 2
+    },
+    {
+     "item": "mech_arm",
+     "count": 2,
+     "minTier": 2
+    },
+    {
+     "item": "mech_leg",
+     "count": 2,
+     "minTier": 2
+    },
+    {
+     "item": "mech_back",
+     "count": 1,
+     "minTier": 2
+    },
+    {
+     "item": "mech_weapon",
+     "count": 1,
+     "minTier": 2
+    },
+    {
+     "item": "battery_pack",
+     "count": 1,
+     "minTier": 2
+    }
+   ],
+   "outputs": [],
+   "ticks": 9000,
+   "scrapRate": 7000
+  },
+  {
+   "id": "mech_g6_reactor",
+   "name": "機体 第 6 世代(リアクター)",
+   "machine": "mech_assembler",
+   "techLevel": 4,
+   "mechGeneration": 6,
+   "powerSource": "reactor",
+   "inputs": [
+    {
+     "item": "mech_head",
+     "count": 1,
+     "minTier": 3
+    },
+    {
+     "item": "mech_torso",
+     "count": 1,
+     "minTier": 3
+    },
+    {
+     "item": "mech_arm",
+     "count": 2,
+     "minTier": 3
+    },
+    {
+     "item": "mech_leg",
+     "count": 2,
+     "minTier": 3
+    },
+    {
+     "item": "mech_back",
+     "count": 1,
+     "minTier": 3
+    },
+    {
+     "item": "mech_weapon",
+     "count": 1,
+     "minTier": 3
+    },
+    {
+     "item": "reactor_core",
+     "count": 1,
+     "minTier": 3
+    }
+   ],
+   "outputs": [],
+   "ticks": 14400,
+   "scrapRate": 7000
+  },
+  {
+   "id": "mech_g6_battery",
+   "name": "機体 第 6 世代(バッテリー)",
+   "machine": "mech_assembler",
+   "techLevel": 4,
+   "mechGeneration": 6,
+   "powerSource": "battery",
+   "inputs": [
+    {
+     "item": "mech_head",
+     "count": 1,
+     "minTier": 3
+    },
+    {
+     "item": "mech_torso",
+     "count": 1,
+     "minTier": 3
+    },
+    {
+     "item": "mech_arm",
+     "count": 2,
+     "minTier": 3
+    },
+    {
+     "item": "mech_leg",
+     "count": 2,
+     "minTier": 3
+    },
+    {
+     "item": "mech_back",
+     "count": 1,
+     "minTier": 3
+    },
+    {
+     "item": "mech_weapon",
+     "count": 1,
+     "minTier": 3
+    },
+    {
+     "item": "battery_pack",
+     "count": 1,
+     "minTier": 3
+    }
+   ],
+   "outputs": [],
+   "ticks": 14400,
    "scrapRate": 7000
   }
  ]
