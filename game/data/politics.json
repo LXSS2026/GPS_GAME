@@ -1,0 +1,47 @@
+{
+  "_comment": "登用と政治(G19 確定 2026-10-15)。役職の効果は (能力 − 5) × perPoint、空席は能力 0 扱い。数値はここで調整する。",
+  "offices": [
+    { "kind": "head",      "ability": "govern",    "names": [ "村長", "町長", "市長", "内務大臣" ],   "fromStage": 1 },
+    { "kind": "factory",   "ability": "produce",   "names": [ "工場長", "工場長", "工場長", "産業大臣" ], "fromStage": 1 },
+    { "kind": "military",  "ability": "command",   "names": [ "自警団長", "隊長", "将軍", "軍務大臣" ], "fromStage": 1 },
+    { "kind": "negotiate", "ability": "negotiate", "names": [ "交渉役", "交渉役", "外交官", "外務大臣" ], "fromStage": 1 },
+    { "kind": "engineer",  "ability": "produce",   "names": [ "ロボット技師", "ロボット技師", "ロボット技師", "ロボット技師" ], "fromStage": 1, "requiresMech": true },
+    { "kind": "marshal",   "ability": "command",   "names": [ "", "", "", "元帥" ], "fromStage": 4 },
+    { "kind": "district",  "ability": "govern",    "names": [ "", "区長", "区長", "区長" ], "fromStage": 2, "perResidences": 10 },
+    { "kind": "captain",   "ability": "command",   "names": [ "", "隊長", "隊長", "隊長" ], "fromStage": 2, "perSquads": 3 }
+  ],
+  "effects": {
+    "head":      { "supportPerPoint": 2.0, "taxPerPoint": 0.03 },
+    "factory":   { "failurePerPoint": 0.03, "speedPerPoint": 0.02 },
+    "military":  { "hitPerPoint": 0.02, "retreatPerPoint": 0.02, "conscriptionPerPoint": 0.05 },
+    "negotiate": { "pricePerPoint": 0.02 },
+    "engineer":  { "highQualityPerPoint": 0.1 },
+    "marshal":   { "hitPerPoint": 0.01 },
+    "district":  { "supportPerSlot": 0.5 },
+    "captain":   { "hitPerSlot": 0.01 }
+  },
+  "jobs": { "farmer": "農民", "worker": "工場労働者", "militia": "自警団員", "artisan": "職人", "merchant": "商人" },
+  "strata": {
+    "farmer":     { "name": "農民",       "foodWaterMul": 2.0 },
+    "worker":     { "name": "工場労働者", "foodWaterMul": 1.0, "robotShare": 20 },
+    "military":   { "name": "軍の要員",   "foodWaterMul": 1.0, "conscriptionExtra": 60 },
+    "unemployed": { "name": "失業",       "foodWaterMul": 1.0, "unemployedExtra": 40 },
+    "other":      { "name": "その他",     "foodWaterMul": 1.0 }
+  },
+  "discontent": { "lowPerDay": 0.1, "dangerPerDay": 0.3, "dismiss": 3, "ambitiousIdlePerDay": 0.1, "ambitiousMin": 7, "officeCalmPerDay": 0.1, "loyaltyDropAt": 8 },
+  "faction": {
+    "loyaltyMax": 3, "ambitionMin": 7, "discontentMin": 6, "max": 3, "supporterShare": 0.5,
+    "supportPenaltyMul": 20, "resolveDays": 7, "securityDays": 30, "defectDays": 60, "defectShare": 0.3,
+    "demands": { "robot": "ロボット導入の制限", "tax": "減税", "conscription": "徴兵の緩和", "foodwater": "食料と水", "security": "治安" },
+    "demandMet": { "robotCapMax": 30, "taxMax": 0.1, "conscriptionMax": 0.05 }
+  },
+  "rebellion": { "supportersShare": 0.3, "efficiencyPct": 50, "outflowPerDay": 0.05, "securityDemandMul": 3, "calmDays": 15, "cooldownDays": 30 },
+  "budget": { "infraDefault": 100, "militaryDefault": 50, "infraSupplyMin": 0.5, "militaryConscriptionMin": 0.5, "ammoResupplyMin": 50 },
+  "robotCapDefault": 50,
+  "decrees": {
+    "ration":   { "name": "配給",       "days": 30, "costPerPersonPerDay": 5 },
+    "taxcut":   { "name": "減税の布告", "days": 30, "supportBonus": 5 },
+    "festival": { "name": "祭り",       "days": 30, "supportBonus": 5, "costPerPerson": 20, "instant": true }
+  },
+  "candidateExpireDays": 360
+}

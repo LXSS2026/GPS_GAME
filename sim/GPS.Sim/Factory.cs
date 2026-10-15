@@ -205,6 +205,15 @@ public sealed class Factory
     public int NextSquadId { get; set; } = 1;
     public List<Loot> Loot { get; set; } = new();
     public City? City { get; set; }
+    public Politics? Politics { get; set; }
+    /// <summary>役職の効果(G19 #2)。失敗率の倍率(%)・加工速度(%)・命中率(%)・既定の退却閾値・売値(%)・機体の高品質率(%)・弾薬補給の可否。</summary>
+    public int FailureMulPct { get; set; } = 100;
+    public int SpeedMulPct { get; set; } = 100;
+    public int HitMulPct { get; set; } = 100;
+    public double RetreatHp { get; set; } = 0.25;
+    public int PriceMulPct { get; set; } = 100;
+    public int HighQualityMulPct { get; set; } = 100;
+    public bool AmmoResupply { get; set; } = true;
     /// <summary>生産効率(%)。暴動で 70 に落ちる(G17 #18)。</summary>
     public int EfficiencyPct { get; set; } = 100;
     public long TickCount { get; set; }
@@ -243,7 +252,7 @@ public sealed class Factory
             case Chest c: if (c.Items.Count >= def.Capacity) return false; c.Items.Add(it); return true;
             case Port p: if (p.Buffer.Count >= 8) return false; p.Buffer.Add(it); return true;
             case Trade td:   // 輸出: 入った瞬間に売る
-                Treasury += Price(it, data); td.Sold += it.Count; return true;
+                Treasury += Price(it, data) * PriceMulPct / 100; td.Sold += it.Count; return true;   // 交渉役の効果
             case Machine m:
             {
                 if (m.Recipe == null) return false;
@@ -395,9 +404,10 @@ public sealed class Factory
         if (m.Progress < r.Ticks * 100) return;
         m.Progress = -1;
         int skill = m.Staff.Count == 0 ? 0 : m.Staff.Max(w => w.Skill);
-        int staffMul = Math.Max(0, 100 - skill * data.DefectReductionPerSkill);
+        int staffMul = Math.Max(0, 100 - skill * data.DefectReductionPerSkill) * FailureMulPct / 100;   // 工場長の効果(G19)
         int bias = m.Staff.Any(w => w.IsRobot) ? data.RobotNormalBias : 0;   // 製造ロボットは通常品質に偏る(成功も失敗もしにくい)
-        int q = Quality.Roll(rng, def.QualityTopMul * r.QualityTopMul / 100, def.QualityHighMul * r.QualityHighMul / 100, def.QualityDefectMul * r.QualityDefectMul / 100 * staffMul / 100, bias);
+        int highMul = def.QualityHighMul * r.QualityHighMul / 100 * (r.MechGeneration > 0 ? HighQualityMulPct : 100) / 100;   // ロボット技師は機体の部品だけ
+        int q = Quality.Roll(rng, def.QualityTopMul * r.QualityTopMul / 100, highMul, def.QualityDefectMul * r.QualityDefectMul / 100 * staffMul / 100, bias);
         if (r.MechGeneration > 0)
         {   // 機体: 失敗なし(部品の品質が規定を満たしていれば必ず組み上がる)。品質は部品の平均。世代はレシピ
             var mech = new Mech { Id = NextMechId++, Generation = r.MechGeneration, Archetype = m.Archetype, PowerSource = r.PowerSource ?? "reactor", Building = BuildingOf(m), MadeTick = 0 };

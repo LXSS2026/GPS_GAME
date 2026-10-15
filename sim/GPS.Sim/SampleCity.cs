@@ -68,5 +68,10 @@ public static class SampleCity
         foreach (var m in s.Factory.Get(21)!.Floors[0].Structures.OfType<Machine>()) { s.Enqueue(new SetRecipe(21, 0, m.Id, "iron_plate")); s.Enqueue(new HireStaff(21, 0, m.Id)); }
         s.Step();
         s.Factory.Creative = false;
+        // 登用候補(人物は本来 30 日ごとに現れる。見本では最初から 6 人)
+        var city = s.Factory.City!;
+        foreach (var (name, g, p, c, n, loy, amb, job) in new[] { ("ハルカ", 6, 3, 2, 5, 7, 3, "farmer"), ("コウタ", 3, 7, 2, 3, 6, 4, "artisan"), ("タケル", 3, 2, 8, 4, 6, 7, "militia"), ("ミオ", 5, 3, 6, 5, 9, 2, "farmer"), ("ゲン", 2, 6, 5, 2, 7, 3, "artisan"), ("サクラ", 4, 4, 3, 8, 5, 6, "merchant") })
+        { city.Persons.Add(new Person { Id = city.NextPersonId, Name = $"{name} #{city.NextPersonId}", Govern = g, Produce = p, Command = c, Negotiate = n, Loyalty = loy, Ambition = amb, Job = job, Age = 25 + city.NextPersonId * 3 }); city.NextPersonId++; }
+        s.Enqueue(new Appoint("head", 1)); s.Enqueue(new Appoint("factory", 2)); s.Step();   // 村長 ハルカ、工場長 コウタ。自警団長と交渉役は空席
     }
 }

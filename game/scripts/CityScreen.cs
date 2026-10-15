@@ -59,6 +59,9 @@ public partial class CityScreen : Node3D
         _cam = new Camera3D { Fov = 40, Far = 3000 }; _cityRoot.AddChild(_cam); PlaceCamera();
         BuildHud();
         if (Arg("--select") is string sel) Select(int.Parse(sel));
+        if (Arg("--office") is string of) _pickOffice = of;
+        if (Arg("--pick") is string pk) _pickPerson = int.Parse(pk);
+        if (Arg("--screen") is string sc) OpenOverlay(sc);
         if (Arg("--open") is string op) { Select(int.Parse(op)); CallDeferred(nameof(OpenMicroDeferred), int.Parse(op)); }
     }
 
@@ -106,12 +109,12 @@ public partial class CityScreen : Node3D
 
     public override void _Process(double delta)
     {
-        if (_micro == null) { RefreshTop(); RefreshCity(); RefreshSide(); RefreshMarks(); }
+        if (_micro == null) { RefreshTop(); RefreshCity(); RefreshSide(); RefreshMarks(); RefreshOverlay(); }
         var ev = _sim.Factory.Events;
         for (; _seenEvents < ev.Count; _seenEvents++)
         {
             var e = ev[_seenEvents];
-            string? s = e.Kind switch { "stage" => $"段階が {StageName(e.Power)} に進んだ", "defeat" => "支持率の低下により失脚(敗北)", "no_crew" => $"隊 #{e.Building} は要員不足で出撃できない", "mech" => $"機体が完成(第 {e.Power} 世代)", _ => null };
+            string? s = e.Kind switch { "faction" => $"派閥ができた(首領 #{e.Power})", "faction_end" => $"派閥が解消した(首領 #{e.Power})", "defect" => $"派閥が離反した(首領 #{e.Power}、{e.Destroyed} 人が去った)", "rebellion" => "反乱が起きた", "rebellion_end" => "反乱が鎮圧された", "robot_cap" => "製造ロボットの導入率の上限を超えるため配置できない", "stage" => $"段階が {StageName(e.Power)} に進んだ", "defeat" => "支持率の低下により失脚(敗北)", "no_crew" => $"隊 #{e.Building} は要員不足で出撃できない", "mech" => $"機体が完成(第 {e.Power} 世代)", _ => null };
             if (s != null) Notice(s);
         }
         var path = Arg("--screenshot"); if (path == null || _micro != null) return;
@@ -241,6 +244,8 @@ public partial class CityScreen : Node3D
         var top = new HBoxContainer(); top.AddThemeConstantOverride("separation", 16);
         _top = Lbl("", 14); top.AddChild(_top);
         foreach (var (t, sp) in new[] { ("停止", 0), ("1x", 1), ("2x", 2), ("4x", 4) }) { int s = sp; var bt = Btn(t, () => _speed = s); bt.CustomMinimumSize = new Vector2(0, 28); top.AddChild(bt); }
+        top.AddChild(new VSeparator());
+        foreach (var (t, k) in new[] { ("登用", "recruit"), ("政治", "politics") }) { string kk = k; var bt = Btn(t, () => { if (_overlayKind == kk) CloseOverlay(); else OpenOverlay(kk); }); bt.CustomMinimumSize = new Vector2(0, 28); top.AddChild(bt); }
         var topPanel = Panel(top); topPanel.Position = new Vector2(16, 16); root.AddChild(topPanel);
         // 左: 都市の板
         var left = new VBoxContainer(); left.AddThemeConstantOverride("separation", 6);

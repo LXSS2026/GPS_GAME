@@ -65,6 +65,11 @@ public sealed class Person
     public int Loyalty { get; set; }
     public int Ambition { get; set; }
     public int AppearedDay { get; set; }
+    /// <summary>元の職(farmer / worker / militia / artisan / merchant)。</summary>
+    public string Job { get; set; } = "farmer";
+    public double Discontent { get; set; }
+    public string? Office { get; set; }
+    public int Age { get; set; } = 30;   // 死亡と年齢は未実装(前提として欄だけ)
 }
 
 /// <summary>インフラ 1 種の 1 時間の集計(供給・需要・充足率)。</summary>
@@ -132,11 +137,12 @@ public static class CitySim
     {
         var f = sim.Factory; var cd = sim.CityData; var data = sim.Data;
         var band = cd.BandOf(city.Support); city.Band = band.Id;
+        PoliticsSim.Hour(sim); var pol = PoliticsSim.Of(f); var pd = sim.PoliticsData;
         // 雇用: 設備の要員 → 軍の要員(徴兵) → 都市の供給設備の要員 の順に労働人口を使う
         city.Labor = city.Population * cd.LaborRate;
         city.MachineStaff = HumanStaff(f);
         city.CrewNeed = f.Squads.Sum(s => s.Alive) * cd.CrewPerMech;
-        city.Conscripts = Math.Min(city.CrewNeed, Math.Max(0, city.Labor - city.MachineStaff) * city.ConscriptionRate * band.ConscriptionMul);
+        city.Conscripts = Math.Min(city.CrewNeed, Math.Max(0, city.Labor - city.MachineStaff) * city.ConscriptionRate * band.ConscriptionMul * pol.ConscriptionMul);   // 軍の長と軍事費の係数(G19)
         // 都市の供給設備の要員は用途の優先順(井戸 → 畑 → 警察 …)に埋める。余った人が失業
         double left = Math.Max(0, city.Labor - city.MachineStaff - city.Conscripts), useJobs = 0, useFilled = 0;
         var fillOf = new Dictionary<string, double>();
@@ -152,36 +158,48 @@ public static class CitySim
         // 供給と需要
         var sup = new SortedDictionary<string, Supply>(StringComparer.Ordinal);
         Supply S(string k) { if (!sup.TryGetValue(k, out var s)) sup[k] = s = new Supply(); return s; }
-        double riotMul = city.Riot ? cd.RiotEfficiencyPct / 100.0 : 1;
+        double riotMul = (city.Riot ? cd.RiotEfficiencyPct / 100.0 : 1) * (pol.Rebellion ? pd.Rebellion["efficiencyPct"] / 100.0 : 1) * (pd.Budget["infraSupplyMin"] + (1 - pd.Budget["infraSupplyMin"]) * pol.InfraInvest / 100.0);   // 暴動・反乱・インフラ投資
         int residences = 0, connected = 0;
         foreach (var b in f.Buildings)
         {
             var u = cd.Uses.GetValueOrDefault(b.Use); if (u == null) continue;
-            foreach (var (k, per) in u.Supplies) S(k).Have += Cells(b, u) * per * (u.StaffPerCell > 0 ? fillOf[b.Use] : 1) * (k == "housing" ? 1 : riotMul);
+            foreach (var (k, per) in u.Supplies) S(k).Have += Cells(b, u) * per * (u.StaffPerCell > 0 ? fillOf[b.Use] : 1) * (k is "housing" or "security" ? 1 : riotMul);   // 暴動・反乱は治安(警察)の能力を落とさない
             if (b.Use == "residence") { residences++; if (b.RoadConnected) connected++; }
         }
         S("food").Need = city.Population * cd.FoodPerPerson; S("water").Need = city.Population * cd.WaterPerPerson;
         foreach (var k in new[] { "sewage", "waste", "medical", "education", "park" }) S(k).Need = city.Population;
-        S("security").Need = city.Population * band.SecurityDemandMul;
+        S("security").Need = city.Population * Math.Max(band.SecurityDemandMul, pol.Rebellion ? pd.Rebellion["securityDemandMul"] : 1) + pol.Factions.Sum(x => x.Supporters);   // 反乱中は 3 倍(帯の 2 倍と重ねない)+ 派閥の支持者
         S("power").Have = f.Buildings.Sum(b => Math.Max(0, b.LastSupply - b.LastDemand)); S("power").Need = city.Population * cd.KwPerPerson;
         S("road").Have = connected; S("road").Need = residences;
         S("housing").Need = city.Population;
         foreach (var (k, s) in sup) { s.Ratio = !Unlocked(k, city, data) ? 1 : s.Need <= 0 ? 1 : Math.Min(1, s.Have / s.Need); s.Surplus = s.Need <= 0 ? 1 : Math.Min(1.5, s.Have / s.Need); }
+        if (pol.HasDecree("ration")) foreach (var k in new[] { "food", "water" }) { sup[k].Ratio = 1; sup[k].Surplus = Math.Max(1, sup[k].Surplus); }   // 配給の布告
         city.Supplies = sup;
         double prereq = cd.HousingPrerequisites.Min(k => city.Ratio(k));
         city.PopulationCap = S("housing").Have * prereq;
         city.Pollution = Math.Min(cd.Support["pollutionCap"], f.Buildings.Sum(b => b.Floors.Sum(fl => fl.Structures.OfType<Machine>().Count())) * cd.Support["pollutionPerMachine"]);
         // 暴動: 危険の帯で治安が足りないと生産効率が落ちる
         city.Riot = band.SecurityDemandMul > 1 && city.Ratio("security") < 1;
-        f.EfficiencyPct = city.Riot ? cd.RiotEfficiencyPct : 100;
+        f.EfficiencyPct = (int)Math.Round((city.Riot ? cd.RiotEfficiencyPct : 100) * (pol.Rebellion ? pd.Rebellion["efficiencyPct"] / 100.0 : 1) * pol.SpeedMul);   // 暴動・反乱・工場長
         // 支持率の目標と接近
         var w = cd.Support;
-        double target = w["base"] + w["food"] * (sup["food"].Surplus - 1) + w["water"] * (sup["water"].Surplus - 1) - w["unemployment"] * city.Unemployment   // 食料・水は余剰(1.5 倍まで)で加点、不足で減点
-                        - w["tax"] * city.TaxRate - w["conscription"] * city.ConscriptionRate + w["security"] * (city.Ratio("security") - 1) + w["park"] * city.Ratio("park")
-                        - w["waste"] * (1 - city.Ratio("waste")) - city.Pollution - (f.Treasury < 0 ? w["treasuryNegative"] : 0);
+        // 共通項 + 層ごとの項(G19 #7)。食料・水は余剰(1.5 倍まで)で加点、不足で減点
+        double common = CommonTarget(sim, city, pol, city.TaxRate, city.Ratio("security"), city.Ratio("park"), city.Ratio("waste"));
+        double target = PoliticsSim.StrataTarget(sim, city, common, w["food"] * (sup["food"].Surplus - 1), w["water"] * (sup["water"].Surplus - 1), city.Unemployment, city.ConscriptionRate);
         city.SupportTarget = Math.Clamp(target, 0, 100);
         city.Support = Math.Clamp(city.Support + (city.SupportTarget - city.Support) * w["approachPerHour"], 0, 100);
     }
+
+    /// <summary>支持率の目標の全層共通の項(基準・失業・税率・徴兵率・治安・公園・廃棄物・公害・国庫・首長の効果・派閥・布告)。</summary>
+    public static double CommonTarget(Simulation sim, City city, Politics pol, double taxRate, double security, double park, double waste)
+    {
+        var w = sim.CityData.Support; var f = sim.Factory;
+        double decree = pol.Decrees.Where(d => !sim.PoliticsData.Decrees[d.Kind].Instant).Sum(d => sim.PoliticsData.Decrees[d.Kind].SupportBonus);
+        if (pol.HasDecree("taxcut")) taxRate = 0;
+        return w["base"] - w["unemployment"] * city.Unemployment - w["tax"] * taxRate - w["conscription"] * city.ConscriptionRate + w["security"] * (security - 1) + w["park"] * park
+               - w["waste"] * (1 - waste) - city.Pollution - (f.Treasury < 0 ? w["treasuryNegative"] : 0) + pol.SupportBonus - pol.FactionPenalty + decree;
+    }
+    public static double CellsOf(Building b, CityData.Use u) => Cells(b, u);
 
     static double Cells(Building b, CityData.Use u)
     {
@@ -203,9 +221,10 @@ public static class CitySim
         city.LastOutflow = Math.Min(pop, outflow);
         city.Population = Math.Max(0, pop + city.LastBirths + city.LastInflow - city.LastOutflow);
         // 税と支出
-        city.LastTax = city.Employed * cd.IncomePerWorkerPerDay * city.TaxRate * band.TaxMul;
-        city.LastUpkeep = city.Stage >= cd.UpkeepFromStage ? f.Buildings.Sum(b => cd.Uses.TryGetValue(b.Use, out var u) && b.Use != "factory" ? Cells(b, u) * cd.UpkeepPerCellPerDay : 0) : 0;
-        city.LastPay = city.Conscripts * cd.SoldierPayPerDay;
+        var pol = PoliticsSim.Of(f); var pd = sim.PoliticsData;
+        city.LastTax = pol.Rebellion ? 0 : city.Employed * cd.IncomePerWorkerPerDay * (pol.HasDecree("taxcut") ? 0 : city.TaxRate) * band.TaxMul * pol.TaxMul;   // 反乱中は税収 0、減税の布告、首長の係数
+        city.LastUpkeep = city.Stage >= cd.UpkeepFromStage ? f.Buildings.Sum(b => cd.Uses.TryGetValue(b.Use, out var u) && b.Use != "factory" ? Cells(b, u) * cd.UpkeepPerCellPerDay : 0) * pol.InfraInvest / 100.0 : 0;   // インフラ投資の係数
+        city.LastPay = city.Conscripts * cd.SoldierPayPerDay * pol.Military / 50.0;   // 軍事費の係数
         f.Treasury += (long)Math.Round(city.LastTax - city.LastUpkeep - city.LastPay);
         // 離職: 低い帯では設備の要員が外れる
         if (band.ResignPerDay > 0)
@@ -224,16 +243,19 @@ public static class CitySim
         if (city.Days % 30 == 0)
         {
             foreach (var p in city.Persons) p.Loyalty = Math.Clamp(p.Loyalty + band.LoyaltyPerMonth, 1, 10);
+            PoliticsSim.Month(sim, city);
             int n = cd.PersonsPerMonthMin + rng.Next(cd.PersonsPerMonthMax - cd.PersonsPerMonthMin + 1);
             int cap = cd.AbilityBase + (int)Math.Round(cd.AbilityByEducation * city.Ratio("education"));
             for (int i = 0; i < n; i++)
             {
                 int A() => 1 + rng.Next(Math.Max(1, cap));
                 city.Persons.Add(new Person { Id = city.NextPersonId, Name = $"{cd.Names[rng.Next(cd.Names.Count)]} #{city.NextPersonId}", Govern = A(), Produce = A(), Command = A(), Negotiate = A(),
-                    Loyalty = Math.Clamp(1 + rng.Next(10) + band.CandidateLoyalty, 1, 10), Ambition = 1 + rng.Next(10), AppearedDay = city.Days });
+                    Loyalty = Math.Clamp(1 + rng.Next(10) + band.CandidateLoyalty, 1, 10), Ambition = 1 + rng.Next(10), AppearedDay = city.Days,
+                    Job = sim.PoliticsData.Jobs.Keys.ElementAt(rng.Next(sim.PoliticsData.Jobs.Count)), Age = 20 + rng.Next(31) });
                 city.NextPersonId++;
             }
         }
+        PoliticsSim.Day(sim, city, band);
     }
 
     /// <summary>隊の要員が徴兵で埋まっているか(Id の順に充てる)。都市が無ければ常に可。</summary>

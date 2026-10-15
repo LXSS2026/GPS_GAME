@@ -144,6 +144,12 @@ public sealed record AssignRobot(int Building, int Floor, int MachineId, int Che
         if (b.Find(Floor, MachineId) is not Machine m || b.Find(Floor, ChestId) is not Chest c) return;
         int idx = c.Items.FindLastIndex(it => it.Item == "factory_robot");
         if (idx < 0) return;
+        if (s.Factory.City != null)
+        {   // 製造ロボットの導入率(G19 #9): 全設備の要員のうちロボットの割合が上限を超えるなら拒否
+            int robots = 0, humans = 0;
+            foreach (var bb in s.Factory.Buildings) foreach (var fl in bb.Floors) foreach (var mm in fl.Structures.OfType<Machine>()) { robots += mm.Staff.Count(w => w.IsRobot); humans += mm.Staff.Count(w => !w.IsRobot); }
+            if ((robots + 1) * 100 > (robots + humans + 1) * PoliticsSim.Of(s.Factory).RobotCap) { s.Factory.Events.Add(new FactoryEvent { Kind = "robot_cap", Building = Building }); return; }
+        }
         var robot = c.Items[idx]; c.Items.RemoveAt(idx);
         int wid = m.Staff.Count == 0 ? 1 : m.Staff.Max(x => x.Id) + 1;
         m.Staff.Add(new Worker(wid, "製造ロボット", robot.Quality / 10, true, robot.Quality));

@@ -146,7 +146,7 @@ public static class Combat
                 var me = mechs[u.MechId];
                 Sense(s, u, me, field, mechs, data, c);
                 if (me.Program != null && ++u.McuTimer >= Math.Max(1, me.Program.Interval)) { u.McuTimer = 0; RunBoard(s, u, me, f, data); }
-                else if (me.Program == null) { u.Retreat = u.Hp < u.MaxHp * c.DefaultRetreatHp ? 1 : 0; u.Engage = 1; }
+                else if (me.Program == null) { u.Retreat = u.Hp < u.MaxHp * f.RetreatHp ? 1 : 0; u.Engage = 1; }
             }
         // 移動
         foreach (var s in field)
@@ -172,7 +172,7 @@ public static class Combat
             // 退却して帰還先に着いたら格納庫へ
             var home = f.Get(s.HomeBuilding);
             if (home != null && s.Alive > 0 && (s.Order == SquadOrder.Retreat || s.Members.Where(u => u.Alive).All(u => u.Retreat != 0)) && s.Members.Where(u => u.Alive).All(u => Math.Abs(u.X - home.X) + Math.Abs(u.Y - home.Y) < 3))
-            { s.State = SquadState.InHangar; s.Order = SquadOrder.Hold; foreach (var u in s.Members) { u.Retreat = 0; u.Ammo = c.AmmoCapacity; } }
+            { s.State = SquadState.InHangar; s.Order = SquadOrder.Hold; foreach (var u in s.Members) { u.Retreat = 0; if (f.AmmoResupply) u.Ammo = c.AmmoCapacity; } }   // 軍事費が低いと補給されない
         }
         // 射撃・近接・自爆
         foreach (var s in field)
@@ -190,7 +190,7 @@ public static class Combat
                 u.Cooldown = w.Cooldown;
                 if (w.Kind == "beam") u.Energy -= w.EnergyPerShot; else u.Ammo -= w.AmmoPerShot;
                 var tm = mechs[t.MechId];
-                double hit = w.Accuracy * (dist <= w.Range ? 1 : 1 - (dist - w.Range) / (w.Range * (c.FarMul - 1)) * (1 - c.FarHit)) * Math.Max(c.MinHit, 1 - MechStats.Speed(tm, c) / c.SpeedRef);
+                double hit = w.Accuracy * (dist <= w.Range ? 1 : 1 - (dist - w.Range) / (w.Range * (c.FarMul - 1)) * (1 - c.FarHit)) * Math.Max(c.MinHit, 1 - MechStats.Speed(tm, c) / c.SpeedRef) * f.HitMulPct / 100.0;   // 軍の長の効果(G19)
                 if (w.Missile && tm.Generation >= 5)
                 {   // 誘導弾はステルスに当たらない(弾幕か偶然を除く)
                     int inbound = s.Members.Count(x => x.Alive && x.TargetMech == t.MechId && c.Weapons[WeaponId(x, mechs[x.MechId], c)].Missile);

@@ -32,6 +32,11 @@ namespace GPS.Sim;
 [JsonDerivedType(typeof(SetMechProgram), "setMechProgram")]
 [JsonDerivedType(typeof(SetEnabled), "setEnabled")]
 [JsonDerivedType(typeof(SetLabel), "setLabel")]
+[JsonDerivedType(typeof(Decree), "decree")]
+[JsonDerivedType(typeof(SetRobotCap), "setRobotCap")]
+[JsonDerivedType(typeof(SetBudget), "setBudget")]
+[JsonDerivedType(typeof(Dismiss), "dismiss")]
+[JsonDerivedType(typeof(Appoint), "appoint")]
 [JsonDerivedType(typeof(HireStaff), "hireStaff")]
 [JsonDerivedType(typeof(SetConscriptionRate), "setConscriptionRate")]
 [JsonDerivedType(typeof(SetTaxRate), "setTaxRate")]
@@ -64,6 +69,7 @@ public sealed class Simulation
     public readonly GameData Data;
     public readonly CombatData Combat;
     public readonly CityData CityData;
+    public readonly PoliticsData PoliticsData;
     public Factory Factory { get; private set; } = new();
     public Rng Rng { get; private set; }
     public ulong Seed { get; }
@@ -74,7 +80,7 @@ public sealed class Simulation
 
     public Simulation(BlockRegistry blocks, GameData data, ulong seed = 1, CombatData? combat = null)
     {
-        Blocks = blocks; Data = data; Seed = seed; Rng = new Rng(seed); Combat = combat ?? CombatData.Load(GameData.FindDataDir()); CityData = CityData.Load(GameData.FindDataDir());
+        Blocks = blocks; Data = data; Seed = seed; Rng = new Rng(seed); Combat = combat ?? CombatData.Load(GameData.FindDataDir()); CityData = CityData.Load(GameData.FindDataDir()); PoliticsData = PoliticsData.Load(GameData.FindDataDir());
     }
 
     public void Enqueue(ICommand c) => _pending.Add(c);

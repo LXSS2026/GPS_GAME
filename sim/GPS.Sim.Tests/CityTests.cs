@@ -96,10 +96,10 @@ public class CityTests
     {
         var s = Village(6); var c = s.Factory.City!;
         c.Support = 20; Hours(s, 1);
-        Assert.True(c.Riot); Assert.Equal(70, s.Factory.EfficiencyPct);
+        Assert.True(c.Riot); Assert.Equal(63, s.Factory.EfficiencyPct);   // 暴動 70% × 工場長の空席 0.9(G19 #2)
         Do(s, new CreateBuilding(9, "警察", 10, 10, 2, false), new SetBuildingPosition(9, 60, 0), new SetBuildingUse(9, "police"));   // 200 × 2 = 400 人分 > 需要 30 × 2
         Hours(s, 1);
-        Assert.False(c.Riot); Assert.Equal(100, s.Factory.EfficiencyPct);
+        Assert.False(c.Riot); Assert.Equal(90, s.Factory.EfficiencyPct);
     }
 
     [Fact]
@@ -112,8 +112,9 @@ public class CityTests
         foreach (var (id, name, w, fl, use, x) in new[] { (42, "警察", 10, 2, "police", 60), (43, "市場", 30, 1, "market", 80), (44, "学校", 20, 2, "school", 120), (45, "公園", 20, 1, "park", 150) })
         { s.Enqueue(new CreateBuilding(id, name, w, w, fl, false)); s.Enqueue(new SetBuildingPosition(id, x, 40)); s.Enqueue(new SetBuildingUse(id, use)); }
         s.Enqueue(new SetTaxRate(0.05)); s.Enqueue(new SetConscriptionRate(0));
-        s.Enqueue(new CreateBuilding(40, "畑 2", 30, 30, 1, false)); s.Enqueue(new SetBuildingPosition(40, 0, 40)); s.Enqueue(new SetBuildingUse(40, "farm"));
-        s.Enqueue(new CreateBuilding(41, "井戸 2", 10, 10, 1, false)); s.Enqueue(new SetBuildingPosition(41, 40, 40)); s.Enqueue(new SetBuildingUse(41, "well"));
+        s.Enqueue(new CreateBuilding(40, "畑 2", 40, 40, 1, false)); s.Enqueue(new SetBuildingPosition(40, 0, 40)); s.Enqueue(new SetBuildingUse(40, "farm"));
+        s.Enqueue(new CreateBuilding(41, "井戸 2", 20, 20, 1, false)); s.Enqueue(new SetBuildingPosition(41, 44, 40)); s.Enqueue(new SetBuildingUse(41, "well"));
+        c.Persons.Add(new Person { Id = 900, Name = "村長候補", Govern = 10, Loyalty = 8, Ambition = 3 }); c.NextPersonId = 901; s.Enqueue(new Appoint("head", 900));   // 村長の空席(−10)を埋める(G19 #2)
         byte road = s.Blocks.IdOf("RoadX"); for (int x = -2; x < 200; x++) { s.World.Set(x, 0, -1, road); s.World.Set(x, 0, 39, road); }
         s.Step();
         Days(s, 1);
@@ -134,7 +135,9 @@ public class CityTests
         Assert.Equal(6, c.CrewNeed); Assert.True(c.Conscripts < 6, $"conscripts {c.Conscripts}");   // 12 × 5% = 0.6 人
         Do(s, new Deploy(1, 70, 0));
         Assert.Equal(SquadState.InHangar, s.Factory.Squads[0].State); Assert.Contains(s.Factory.Events, e => e.Kind == "no_crew");
-        Do(s, new SetConscriptionRate(0.5)); Hours(s, 1);   // 12 × 50% = 6 人
+        Do(s, new SetConscriptionRate(0.5)); Hours(s, 1);   // 12 × 50% = 6 人 × 0.75(自警団長が空席 = 能力 0 扱い、G19 #2)
+        Assert.Equal(4.5, c.Conscripts, 6);
+        s.Factory.City!.Persons.Add(new Person { Id = 1, Name = "a", Command = 5, Loyalty = 5, Ambition = 5 }); Do(s, new Appoint("military", 1)); Hours(s, 1);
         Assert.Equal(6, c.Conscripts, 6);
         Do(s, new Deploy(1, 70, 0)); Assert.Equal(SquadState.Field, s.Factory.Squads[0].State);
         // 要員の引き当て: 労働人口の残り(12 − 6 = 6 人)まで
