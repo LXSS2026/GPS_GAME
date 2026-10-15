@@ -270,7 +270,7 @@ public partial class MicroEditor : Node3D
     static StyleBoxFlat PanelStyle(bool accent = false) => new()
     {
         BgColor = Navy, BorderColor = accent ? Accent : Cyan, BorderWidthLeft = 1, BorderWidthTop = 1, BorderWidthRight = 1, BorderWidthBottom = 1,
-        ContentMarginLeft = 12, ContentMarginRight = 12, ContentMarginTop = 8, ContentMarginBottom = 8, Skew = new Vector2(0.08f, 0),
+        ContentMarginLeft = 12, ContentMarginRight = 12, ContentMarginTop = 8, ContentMarginBottom = 8,   // 斜めの要素は使わない(2026-10-15 指示)
     };
     static Font JpFont() => new SystemFont { FontNames = new[] { "Yu Gothic UI", "Meiryo", "sans-serif" } };
     Label Lbl(string text, int size = 14, Color? color = null) { var l = new Label { Text = text }; l.AddThemeFontOverride("font", JpFont()); l.AddThemeFontSizeOverride("font_size", size); l.AddThemeColorOverride("font_color", color ?? Text); return l; }
