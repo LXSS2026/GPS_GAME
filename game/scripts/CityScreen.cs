@@ -74,6 +74,7 @@ public partial class CityScreen : Node3D
         var tr = new TerrainRenderer(); _cityRoot.AddChild(tr); tr.Init(_sim.World, _sim.Blocks); tr.BuildAll(); _terrain = tr;
         _cityRoot.AddChild(SceneSetup.Lighting());
         BuildBuildings();
+        foreach (var st in _sim.Factory.City?.Settlements ?? new()) AddSettlementMark(st);
         _kb.Flush(_cityRoot);
         if (Arg("--pivot") is string pv) { var p = pv.Split(','); _pivot = new Vector3(float.Parse(p[0]), float.Parse(p[1]), float.Parse(p[2])); }
         if (Arg("--dist") is string ds) _dist = float.Parse(ds);
@@ -169,7 +170,7 @@ public partial class CityScreen : Node3D
         {
             var e = ev[_seenEvents];
             var pw = _sim.Factory.Diplomacy?.Powers.FirstOrDefault(p => p.Id == e.Building);
-            string? s = e.Kind switch { "war_declared" => $"{pw?.Name} に宣戦した", "war_received" => $"{pw?.Name} が宣戦してきた", "raid" => $"{pw?.Name} の襲撃隊が来た", "offer" => $"{pw?.Name} から申し出(政治画面で回答)", "warning" => $"{pw?.Name} の兵力が増えている(侵攻の恐れ)", "treaty" => $"{pw?.Name} と条約を結んだ", "proposal_failed" => $"{pw?.Name} は提案を断った", "threat_ok" => $"{pw?.Name} が貢納を飲んだ(月 {e.Power})", "threat_failed" => $"{pw?.Name} は威圧に応じない", "peace" => $"{pw?.Name} と和平した", "peace_failed" => $"{pw?.Name} は和平を断った", "vassal" => $"{pw?.Name} の拠点が落ち属国になった(スクラップ {e.Power})", "raided" => $"建物 #{e.Building} が略奪された", "conquered" => "拠点が落ちた(征服)", "building_destroyed" => $"建物 #{e.Building} が落ちた", "victory" => e.Power == 1 ? "勝利: 大陸の制覇" : "勝利: 同盟網による支配", "faction" => $"派閥ができた(首領 #{e.Power})", "faction_end" => $"派閥が解消した(首領 #{e.Power})", "defect" => $"派閥が離反した(首領 #{e.Power}、{e.Destroyed} 人が去った)", "rebellion" => "反乱が起きた", "rebellion_end" => "反乱が鎮圧された", "built" => $"建物 #{e.Building} を建てた(費用 {e.Power:N0})", "demolished" => $"建物 #{e.Building} を撤去した(戻り {e.Power:N0})", "road_built" => $"街路を {e.Destroyed} セル敷いた(費用 {e.Power:N0})", "build_failed" => "建てられない(場所か国庫)", "ship_built" => $"戦艦 #{e.Building} を建造した(費用 {e.Power:N0})", "ship_arrived" => $"戦艦 #{e.Building} が ({e.X}, {e.Y}) に着いた", "ship_sunk" => $"戦艦 #{e.Building} が撃沈された(搭載 {e.Destroyed} 隊を失った)", "building_repaired" => $"建物 #{e.Building} を修復した(費用 {e.Power:N0})", "wall_built" => $"建物 #{e.Building} の防御壁を段階 {e.Power} に(費用 {e.Destroyed:N0})", "collected" => $"隊 #{e.Building} が部品 {e.Destroyed} 個を回収した", "repaired" => $"機体 #{e.Power} を修理(耐久 {e.Destroyed}%)", "no_ammo" => $"隊 #{e.Building} は弾薬が尽きて補給に戻る", "robot_cap" => "製造ロボットの導入率の上限を超えるため配置できない", "stage" => $"段階が {StageName(e.Power)} に進んだ", "defeat" => "支持率の低下により失脚(敗北)", "no_crew" => $"隊 #{e.Building} は要員不足で出撃できない", "mech" => $"機体が完成(第 {e.Power} 世代)", _ => null };
+            string? s = e.Kind switch { "war_declared" => $"{pw?.Name} に宣戦した", "war_received" => $"{pw?.Name} が宣戦してきた", "raid" => $"{pw?.Name} の襲撃隊が来た", "offer" => $"{pw?.Name} から申し出(政治画面で回答)", "warning" => $"{pw?.Name} の兵力が増えている(侵攻の恐れ)", "treaty" => $"{pw?.Name} と条約を結んだ", "proposal_failed" => $"{pw?.Name} は提案を断った", "threat_ok" => $"{pw?.Name} が貢納を飲んだ(月 {e.Power})", "threat_failed" => $"{pw?.Name} は威圧に応じない", "peace" => $"{pw?.Name} と和平した", "peace_failed" => $"{pw?.Name} は和平を断った", "vassal" => $"{pw?.Name} の拠点が落ち属国になった(スクラップ {e.Power})", "raided" => $"建物 #{e.Building} が略奪された", "conquered" => "拠点が落ちた(征服)", "building_destroyed" => $"建物 #{e.Building} が落ちた", "victory" => e.Power == 1 ? "勝利: 大陸の制覇" : "勝利: 同盟網による支配", "faction" => $"派閥ができた(首領 #{e.Power})", "faction_end" => $"派閥が解消した(首領 #{e.Power})", "defect" => $"派閥が離反した(首領 #{e.Power}、{e.Destroyed} 人が去った)", "rebellion" => "反乱が起きた", "rebellion_end" => "反乱が鎮圧された", "built" => $"建物 #{e.Building} を建てた(費用 {e.Power:N0})", "demolished" => $"建物 #{e.Building} を撤去した(戻り {e.Power:N0})", "road_built" => $"街路を {e.Destroyed} セル敷いた(費用 {e.Power:N0})", "build_failed" => "建てられない(場所か国庫)", "settlement" => $"都市 #{e.Building} を置いた ({e.X}, {e.Y})", "ceded" => $"{pw?.Name} から人口 {e.Destroyed} の割譲地を得た", "ship_built" => $"戦艦 #{e.Building} を建造した(費用 {e.Power:N0})", "ship_arrived" => $"戦艦 #{e.Building} が ({e.X}, {e.Y}) に着いた", "ship_sunk" => $"戦艦 #{e.Building} が撃沈された(搭載 {e.Destroyed} 隊を失った)", "building_repaired" => $"建物 #{e.Building} を修復した(費用 {e.Power:N0})", "wall_built" => $"建物 #{e.Building} の防御壁を段階 {e.Power} に(費用 {e.Destroyed:N0})", "collected" => $"隊 #{e.Building} が部品 {e.Destroyed} 個を回収した", "repaired" => $"機体 #{e.Power} を修理(耐久 {e.Destroyed}%)", "no_ammo" => $"隊 #{e.Building} は弾薬が尽きて補給に戻る", "robot_cap" => "製造ロボットの導入率の上限を超えるため配置できない", "stage" => $"段階が {StageName(e.Power)} に進んだ", "defeat" => "支持率の低下により失脚(敗北)", "no_crew" => $"隊 #{e.Building} は要員不足で出撃できない", "mech" => $"機体が完成(第 {e.Power} 世代)", _ => null };
             if (s != null) Notice(s);
         }
         var path = Arg("--screenshot"); if (path == null || _micro != null) return;
@@ -197,6 +198,11 @@ public partial class CityScreen : Node3D
         sb.AppendLine($"設備の要員 {c.MachineStaff:0}  軍の要員 {c.Conscripts:0} / {c.CrewNeed:0}  住居の上限 {c.PopulationCap:0}" + (c.Riot ? "  暴動(生産効率 70%)" : ""));
         sb.AppendLine($"支持率 {c.Support:0.0}% → 目標 {c.SupportTarget:0.0}%   公害 −{c.Pollution:0.0}");
         sb.AppendLine($"税収 {c.LastTax:0} / 日  維持費 {c.LastUpkeep:0}  給与 {c.LastPay:0}   出生 {c.LastBirths:0.0}  流入 {c.LastInflow:0.0}  流出 {c.LastOutflow:0.0}");
+        if (c.Settlements.Count > 1 || c.Stage >= 3)
+        {
+            sb.AppendLine($"都市 {c.Settlements.Count}" + (c.Stage >= 4 ? "(食料・水・電力を国全体で融通)" : "(住居・食料・水は都市ごと)"));
+            foreach (var st in c.Settlements) sb.AppendLine($"  {st.Name}  人口 {st.Population:0} / 上限 {st.PopulationCap:0}  食料 {st.Food * 100:0}%  水 {st.Water * 100:0}%  建物 {st.BuildingCount}");
+        }
         sb.AppendLine("インフラの充足");
         foreach (var k in new[] { "food", "water", "power", "road", "sewage", "security", "medical", "education", "park", "waste" })
         {

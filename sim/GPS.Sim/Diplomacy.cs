@@ -137,6 +137,14 @@ public static class DiplomacySim
     {
         var f = sim.Factory; var d = sim.DiplomacyData;
         p.AtWar = false; p.TributeFromThem = tributeFromThem; p.TributeToMe = tributeToThem; if (tributeFromThem > 0 || tributeToThem > 0) p.TributeMonths = (int)d.Threat["tributeMonths"];
+        if (tributeFromThem > 0 && f.City != null && p.Population >= 50)
+        {   // 割譲(2026-10-16): 優勢な和平では相手の人口の 3 割が、相手の拠点の隣に置く新しい都市としてこちらに付く。相手の蓄えの 3 割も荷下ろし場へ
+            var home = f.Get(p.HomeBuilding); double ceded = Math.Round(p.Population * 0.3); p.Population -= ceded;
+            var st = new Settlement { Id = f.City.NextSettlementId++, Name = $"{p.Name} からの割譲地", X = (home?.X ?? 0) + 40, Y = (home?.Y ?? 0), Population = ceded };
+            f.City.Settlements.Add(st);
+            var cap = f.Get(f.City.Capital); if (cap != null) { var items = d.ScrapItems.GetValueOrDefault(Math.Clamp(p.Tech, 1, 4)) ?? d.ScrapItems[1]; int n = (int)Math.Round(p.Scrap * 0.3); p.Scrap -= n; foreach (var it in items) cap.Cargo.Add(new ItemStack(it, 60, Math.Max(1, n / items.Length))); }
+            f.Events.Add(new FactoryEvent { Kind = "ceded", Building = p.Id, Power = st.Id, Destroyed = (int)ceded });
+        }
         foreach (var s in f.Squads.Where(s => s.Faction == p.Faction && s.State == SquadState.Field)) { s.Order = SquadOrder.Retreat; }
         foreach (var s in f.Squads.Where(s => s.Faction == 1 && s.TargetBuilding == p.HomeBuilding)) { s.TargetBuilding = -1; s.Order = SquadOrder.Hold; }
         Notice(f, "peace", p);

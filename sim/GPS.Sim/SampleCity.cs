@@ -51,7 +51,7 @@ public static class SampleCity
         s.World.Dirty.Clear();
 
         s.Factory.Creative = true; s.Factory.Treasury = 5_000;   // 建設の費用に
-        var cmds = new List<ICommand> { new FoundCity("アカネ", 48, 62) };
+        var cmds = new List<ICommand> { new FoundCity("アカネ", 48, 62, 96, 142) };   // 中心は拠点(格納庫)の位置
         foreach (var l in Lots) { cmds.Add(new CreateBuilding(l.Id, l.Name, l.W, l.W, l.Floors, l.Use == "factory")); cmds.Add(new SetBuildingPosition(l.Id, l.X, l.Z)); cmds.Add(new SetBuildingUse(l.Id, l.Use)); }
         // 井戸にリアクター(村の電力)
         cmds.Add(new PlaceStructure(11, 0, "reactor_g0", 4, 4, 0, Direction.East));

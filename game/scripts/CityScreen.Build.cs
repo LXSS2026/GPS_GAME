@@ -7,7 +7,7 @@ using System.Linq;
 /// <summary>都市の画面の建設: 用途・床面積・階数を選んで地面をクリックで建てる、街路を 2 点で敷く、撤去。計算は GPS.Sim の Construction。</summary>
 public partial class CityScreen
 {
-    enum BuildMode { None, Place, Road, RemoveRoad, Demolish, ShipMove, ShipPlace, SquadMove }
+    enum BuildMode { None, Place, Road, RemoveRoad, Demolish, ShipMove, ShipPlace, SquadMove, SettlementPlace }
     int _shipMoving = -1, _squadMoving = -1; string _shipKind = "small";
     BuildMode _buildMode;
     string _buildUse = "residence";
@@ -30,7 +30,7 @@ public partial class CityScreen
         _sizeSel.ItemSelected += idx => { _buildSize = (int)_sizeSel.GetItemId((int)idx); RefreshBuildInfo(); }; _floorSel.ItemSelected += idx => { _buildFloors = (int)_floorSel.GetItemId((int)idx); RefreshBuildInfo(); };
         row.AddChild(Lbl("床面積")); row.AddChild(_sizeSel); row.AddChild(Lbl("階数")); row.AddChild(_floorSel); box.AddChild(row);
         var ops = new HBoxContainer(); ops.AddThemeConstantOverride("separation", 8);
-        foreach (var (t, m) in new[] { ("建てる", BuildMode.Place), ("街路を敷く", BuildMode.Road), ("街路を外す", BuildMode.RemoveRoad), ("撤去", BuildMode.Demolish), ("戦艦を建造(小)", BuildMode.ShipPlace) })
+        foreach (var (t, m) in new[] { ("建てる", BuildMode.Place), ("街路を敷く", BuildMode.Road), ("街路を外す", BuildMode.RemoveRoad), ("撤去", BuildMode.Demolish), ("戦艦を建造(小)", BuildMode.ShipPlace), ("都市を置く", BuildMode.SettlementPlace) })
         { var mm = m; var b = Btn(t, () => SetBuildMode(_buildMode == mm ? BuildMode.None : mm)); b.CustomMinimumSize = new Vector2(0, 28); ops.AddChild(b); }
         box.AddChild(ops);
         _buildInfo = Lbl("", 12, Line40); box.AddChild(_buildInfo); RefreshBuildInfo();
@@ -47,7 +47,7 @@ public partial class CityScreen
     void RefreshBuildInfo()
     {
         long cost = Construction.Cost(_sim, _buildUse, _buildSize, _buildFloors);
-        string mode = _buildMode switch { BuildMode.SquadMove => "隊の移動先をクリック(右クリックでやめる)", BuildMode.ShipPlace => $"戦艦を置く位置をクリック(費用 {18 * 102 * 2 * 8:N0}、国家の段階から)", BuildMode.ShipMove => "戦艦の移動先をクリック", BuildMode.Place => "地面をクリックで建てる(右クリックでやめる)", BuildMode.Road => _roadStart == null ? "街路の始点をクリック" : "街路の終点をクリック(幅 4 m)", BuildMode.RemoveRoad => "外す街路の始点と終点をクリック", BuildMode.Demolish => "撤去する建物をクリック", _ => "" };
+        string mode = _buildMode switch { BuildMode.SettlementPlace => "新しい都市の中心をクリック(都市の段階から。住居・食料・水は都市ごとに数える)", BuildMode.SquadMove => "隊の移動先をクリック(右クリックでやめる)", BuildMode.ShipPlace => $"戦艦を置く位置をクリック(費用 {18 * 102 * 2 * 8:N0}、国家の段階から)", BuildMode.ShipMove => "戦艦の移動先をクリック", BuildMode.Place => "地面をクリックで建てる(右クリックでやめる)", BuildMode.Road => _roadStart == null ? "街路の始点をクリック" : "街路の終点をクリック(幅 4 m)", BuildMode.RemoveRoad => "外す街路の始点と終点をクリック", BuildMode.Demolish => "撤去する建物をクリック", _ => "" };
         _buildInfo.Text = $"{UseName(_sim.CityData, _buildUse)} {_buildSize}x{_buildSize} m {_buildFloors} 階  費用 {cost:N0}(国庫 {_sim.Factory.Treasury:N0})   上限 {Construction.MaxSize(_sim)} m 角 {Construction.MaxFloors(_sim)} 階(段階 {StageName(_sim.Factory.City!.Stage)})   {mode}";
     }
     void SetBuildMode(BuildMode m) { _buildMode = m; _roadStart = null; if (_ghost != null) { _ghost.QueueFree(); _ghost = null; } RefreshBuildInfo(); }
@@ -84,6 +84,13 @@ public partial class CityScreen
                 _sim.Enqueue(new MoveShip(_shipMoving, gx, gz)); _sim.Step(); SetBuildMode(BuildMode.None); _sideTick = -1; return true;
             case BuildMode.SquadMove:
                 _sim.Enqueue(new OrderSquad(_squadMoving, SquadOrder.Move, gx, gz)); _sim.Step(); SetBuildMode(BuildMode.None); Notice($"隊 #{_squadMoving} を ({gx}, {gz}) へ"); return true;
+            case BuildMode.SettlementPlace:
+            {
+                int before = _sim.Factory.City!.Settlements.Count;
+                _sim.Enqueue(new FoundSettlement($"都市 {before + 1}", gx, gz)); _sim.Step();
+                if (_sim.Factory.City.Settlements.Count > before) { Notice($"都市 {before + 1} を ({gx}, {gz}) に置いた"); AddSettlementMark(_sim.Factory.City.Settlements[^1]); SetBuildMode(BuildMode.None); } else Notice("都市を置けない(都市の段階から)");
+                return true;
+            }
             case BuildMode.ShipPlace:
             {
                 int before = _sim.Factory.Buildings.Count;
@@ -125,6 +132,13 @@ public partial class CityScreen
         var from = _cam.ProjectRayOrigin(screen); var dir = _cam.ProjectRayNormal(screen); int best = -1; float bestT = float.MaxValue;
         foreach (var (box, id) in _hit) if (RayHit(box, from, dir, out float t) && t < bestT) { bestT = t; best = id; }
         return best;
+    }
+
+    /// <summary>都市の中心の印(名札と細い柱)。</summary>
+    void AddSettlementMark(Settlement st)
+    {
+        var pole = new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0.3f, BottomRadius = 0.3f, Height = 30 }, Position = new Vector3((float)st.X, Y + 15, (float)st.Y), MaterialOverride = new StandardMaterial3D { AlbedoColor = Accent, EmissionEnabled = true, Emission = Accent, EmissionEnergyMultiplier = 1.5f, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded } };
+        var tag = new Label3D { Text = st.Name, FontSize = 48, PixelSize = 0.05f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, NoDepthTest = true, OutlineSize = 12, Modulate = Accent, Position = new Vector3(0, 18, 0) }; pole.AddChild(tag); _cityRoot.AddChild(pole);
     }
 
     void RemoveBuildingVisual(int id)

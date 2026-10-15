@@ -82,11 +82,39 @@ public sealed class Person
 public sealed class Supply { public double Have { get; set; } public double Need { get; set; } public double Ratio { get; set; } = 1; /// <summary>余剰込みの充足(上限 1.5)。食料・水の支持率の加点に使う。</summary>
     public double Surplus { get; set; } = 1; }
 
-/// <summary>都市の台帳(G17)。人口は集計で持ち、個人として持つのは人物だけ。</summary>
+/// <summary>都市(複数都市の 1 つ。G4 段階 3「複数の都市」、2026-10-16)。人口と住居・食料・水の充足は都市ごと、国庫・段階・政策・人物・外交は国(City)で共有。</summary>
+public sealed class Settlement
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
+    public double X { get; set; }
+    public double Y { get; set; }
+    public double Population { get; set; }
+    public double PopulationCap { get; set; }
+    public double Food { get; set; } = 1;
+    public double Water { get; set; } = 1;
+    public double Housing { get; set; }
+    public int BuildingCount { get; set; }
+    public double LastBirths { get; set; }
+    public double LastInflow { get; set; }
+    public double LastOutflow { get; set; }
+}
+
+/// <summary>国の台帳(G17。複数都市化前は「都市」と呼んでいた)。人口は都市(Settlement)の合計で、個人として持つのは人物だけ。</summary>
 public sealed class City
 {
     public string Name { get; set; } = "";
-    public double Population { get; set; }
+    public List<Settlement> Settlements { get; set; } = new();
+    public int NextSettlementId { get; set; } = 1;
+    double _population;
+    /// <summary>人口 = 都市の合計。代入は都市の人口に比例配分(都市が無ければそのまま持つ)。</summary>
+    public double Population
+    {
+        get => Settlements.Count == 0 ? _population : Settlements.Sum(s => s.Population);
+        set { if (Settlements.Count == 0) { _population = value; return; } double sum = Settlements.Sum(s => s.Population); foreach (var s in Settlements) s.Population = sum > 0 ? value * s.Population / sum : (s == Settlements[0] ? value : 0); }
+    }
+    /// <summary>建物が属する都市(最寄りの中心)。</summary>
+    public Settlement? SettlementOf(Building b) => Settlements.Count == 0 ? null : Settlements.MinBy(s => (s.X - b.X) * (s.X - b.X) + (s.Y - b.Y) * (s.Y - b.Y));
     public double Support { get; set; } = 50;
     public double SupportTarget { get; set; } = 50;
     public int Stage { get; set; } = 1;
@@ -183,8 +211,32 @@ public static class CitySim
         foreach (var (k, s) in sup) { s.Ratio = !Unlocked(k, city, data) ? 1 : s.Need <= 0 ? 1 : Math.Min(1, s.Have / s.Need); s.Surplus = s.Need <= 0 ? 1 : Math.Min(1.5, s.Have / s.Need); }
         if (pol.HasDecree("ration")) foreach (var k in new[] { "food", "water" }) { sup[k].Ratio = 1; sup[k].Surplus = Math.Max(1, sup[k].Surplus); }   // 配給の布告
         city.Supplies = sup;
+        // 都市ごとの住居・食料・水・道路(G4: 国家になると食料・水・電力を国全体で融通する。それまでは都市ごと)
+        bool pool = city.Stage >= 4; double capSum = 0, foodW = 0, waterW = 0;
+        foreach (var st in city.Settlements)
+        {
+            double housing = 0, food = 0, water = 0; int res = 0, con = 0, n = 0;
+            foreach (var b in f.Buildings)
+            {
+                var u = cd.Uses.GetValueOrDefault(b.Use); if (u == null || city.SettlementOf(b) != st) continue; n++;
+                foreach (var (k, per) in u.Supplies) { double v = Cells(b, u) * per * (u.StaffPerCell > 0 ? fillOf[b.Use] : 1); if (k == "housing") housing += v; else if (k == "food") food += v * riotMul; else if (k == "water") water += v * riotMul; }
+                if (b.Use == "residence") { res++; if (b.RoadConnected) con++; }
+            }
+            st.BuildingCount = n; st.Housing = housing;
+            st.Food = pool ? city.Ratio("food") : st.Population <= 0 ? 1 : Math.Min(1, food / (st.Population * cd.FoodPerPerson));
+            st.Water = pool ? city.Ratio("water") : st.Population <= 0 ? 1 : Math.Min(1, water / (st.Population * cd.WaterPerPerson));
+            if (pol.HasDecree("ration")) { st.Food = 1; st.Water = 1; }
+            double road = res == 0 ? 1 : (double)con / res;
+            double prereqLocal = Math.Min(Math.Min(st.Water, city.Ratio("power")), Math.Min(city.Ratio("sewage"), road));
+            st.PopulationCap = housing * prereqLocal; capSum += st.PopulationCap;
+            foodW += st.Food * st.Population; waterW += st.Water * st.Population;
+        }
+        if (!pool && city.Population > 0 && city.Settlements.Count > 0)
+        {   // 融通しないときの国の充足は、都市の充足の人口加重平均(支持率に効く)
+            sup["food"].Ratio = Math.Min(sup["food"].Ratio, foodW / city.Population); sup["water"].Ratio = Math.Min(sup["water"].Ratio, waterW / city.Population);
+        }
         double prereq = cd.HousingPrerequisites.Min(k => city.Ratio(k));
-        city.PopulationCap = S("housing").Have * prereq;
+        city.PopulationCap = city.Settlements.Count > 0 ? capSum : S("housing").Have * prereq;
         city.Pollution = Math.Min(cd.Support["pollutionCap"], f.Buildings.Sum(b => b.Floors.Sum(fl => fl.Structures.OfType<Machine>().Count())) * cd.Support["pollutionPerMachine"]);
         // 暴動: 危険の帯で治安が足りないと生産効率が落ちる
         city.Riot = band.SecurityDemandMul > 1 && city.Ratio("security") < 1;
@@ -222,12 +274,20 @@ public static class CitySim
         var band = cd.BandOf(city.Support); city.Days++;
         // 人口の増減(飢えと渇きは流出で表す)
         double pop = city.Population;
-        city.LastBirths = pop * cd.BirthRatePerDay * city.Ratio("medical");
-        double freeHousing = Math.Max(0, city.PopulationCap - pop), freeJobs = Math.Max(0, city.Jobs - city.Employed) / cd.LaborRate;
-        city.LastInflow = band.InflowMul > 0 ? Math.Min(Math.Max(1, pop * cd.InflowRatePerDay * band.InflowMul), Math.Min(freeHousing, freeJobs)) : 0;
-        double outflow = pop * band.OutflowPerDay + pop * (1 - city.Ratio("food")) * cd.ShortageOutflowPerDay + pop * (1 - city.Ratio("water")) * cd.ShortageOutflowPerDay + Math.Max(0, pop - city.PopulationCap);
-        city.LastOutflow = Math.Min(pop, outflow);
-        city.Population = Math.Max(0, pop + city.LastBirths + city.LastInflow - city.LastOutflow);
+        double freeJobs = Math.Max(0, city.Jobs - city.Employed) / cd.LaborRate;
+        city.LastBirths = 0; city.LastInflow = 0; city.LastOutflow = 0;
+        foreach (var st in city.Settlements)
+        {   // 都市ごと: 出生・流入(空き住居は都市、空き職場は国)・流出(帯・食料と水の不足・住居超過)
+            double p0 = st.Population;
+            st.LastBirths = p0 * cd.BirthRatePerDay * city.Ratio("medical");
+            double freeHousing = Math.Max(0, st.PopulationCap - p0);
+            st.LastInflow = band.InflowMul > 0 ? Math.Min(Math.Max(1, Math.Max(p0, 1) * cd.InflowRatePerDay * band.InflowMul), Math.Min(freeHousing, freeJobs)) : 0; freeJobs -= st.LastInflow;
+            double outflow = p0 * band.OutflowPerDay + p0 * (1 - st.Food) * cd.ShortageOutflowPerDay + p0 * (1 - st.Water) * cd.ShortageOutflowPerDay + Math.Max(0, p0 - st.PopulationCap);
+            st.LastOutflow = Math.Min(p0, outflow);
+            st.Population = Math.Max(0, p0 + st.LastBirths + st.LastInflow - st.LastOutflow);
+            city.LastBirths += st.LastBirths; city.LastInflow += st.LastInflow; city.LastOutflow += st.LastOutflow;
+        }
+        if (city.Settlements.Count == 0) city.Population = Math.Max(0, pop);
         // 税と支出
         var pol = PoliticsSim.Of(f); var pd = sim.PoliticsData;
         city.LastTax = pol.Rebellion ? 0 : city.Employed * cd.IncomePerWorkerPerDay * (pol.HasDecree("taxcut") ? 0 : city.TaxRate) * band.TaxMul * pol.TaxMul;   // 反乱中は税収 0、減税の布告、首長の係数
@@ -303,12 +363,26 @@ public static class CitySim
 
 // ---------- 命令 ----------
 /// <summary>都市を置く(開始時の村)。人口と初期の支持率。</summary>
-public sealed record FoundCity(string Name, int Population, double Support = 50) : ICommand
+public sealed record FoundCity(string Name, int Population, double Support = 50, double X = 0, double Y = 0) : ICommand
 {
     public void Apply(Simulation s)
     {
         if (s.Factory.City != null) return;
-        s.Factory.City = new City { Name = Name, Population = Population, Support = Support, SupportTarget = Support, TaxRate = s.CityData.DefaultTaxRate, ConscriptionRate = s.CityData.DefaultConscriptionRate };
+        var city = new City { Name = Name, Support = Support, SupportTarget = Support, TaxRate = s.CityData.DefaultTaxRate, ConscriptionRate = s.CityData.DefaultConscriptionRate };
+        city.Settlements.Add(new Settlement { Id = city.NextSettlementId++, Name = Name, X = X, Y = Y, Population = Population });
+        s.Factory.City = city;
+    }
+}
+
+/// <summary>新しい都市を置く(G4 段階 3 から。創造モードは制限なし)。人口は近くの都市から移さず 0 から(流入で増える)。</summary>
+public sealed record FoundSettlement(string Name, double X, double Y, int Population = 0) : ICommand
+{
+    public void Apply(Simulation s)
+    {
+        var city = s.Factory.City; if (city == null) return;
+        if (!s.Factory.Creative && city.Stage < 3) { s.Factory.Events.Add(new FactoryEvent { Kind = "build_failed", X = (int)X, Y = (int)Y }); return; }
+        city.Settlements.Add(new Settlement { Id = city.NextSettlementId++, Name = Name, X = X, Y = Y, Population = Population });
+        s.Factory.Events.Add(new FactoryEvent { Kind = "settlement", Building = city.NextSettlementId - 1, X = (int)X, Y = (int)Y });
     }
 }
 
