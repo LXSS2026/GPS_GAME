@@ -132,7 +132,15 @@ public sealed class FloorModules
             var n = Instantiate(def.Id);
             n.Position = new Vector3(0, cy, 0);
             root.AddChild(n);
-            if (f >= cutawayFrom && f < cutawayBelow && def.Kind != "roof")
+            bool cut = f >= cutawayFrom && f < cutawayBelow && def.Kind != "roof";
+            if (!cut && def.W >= 10)   // 大きな階モジュールは遠景を窓テクスチャの箱に切り替える(切り取り表示の階は常に描く)
+            {
+                KitBash.HideBeyond(n, KitBash.LodFar);
+                float fh = def.Kind == "roof" ? 1.0f : FloorHeight * def.Floors;
+                var win = def.Kind is "base" or "roof" or "hangar" ? (Material)_kb.PaintDark : def.Family switch { "res" => _kb.WinWarm, "concrete" => _kb.WinDark, _ => def.Kind == "mech" ? _kb.PaintDark : _kb.WinCool };
+                _kb.FarBoxFrom(root, new Vector3(0, cy + fh / 2, 0), new Vector3(def.W, fh, def.D), win, KitBash.LodFar);
+            }
+            if (cut)
             {
                 SetExteriorVisible(n, false);
                 if (f == cutawayBelow - 1) SetNamedVisible(n, "int_ceiling", false);   // 開いた最上階は天井も外す(上から見下ろすため)

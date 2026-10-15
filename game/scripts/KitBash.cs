@@ -507,6 +507,21 @@ public sealed partial class KitBash
         _bays.Remove(n);
     }
 
+    public const float LodFar = 220f;   // 階モジュール(GLB)はこれより遠いと窓テクスチャの箱に切り替える(1 棟 60 階で数十 MB の負荷対策)
+
+    /// <summary>階モジュールの遠景用: 窓テクスチャの箱を begin より遠くでだけ描く。</summary>
+    public void FarBoxFrom(Node3D n, Vector3 center, Vector3 size, Material win, float begin)
+    {
+        n.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = size }, MaterialOverride = win, Position = center, VisibilityRangeBegin = begin, VisibilityRangeBeginMargin = 10f, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self });
+    }
+
+    /// <summary>節の下の全メッシュを end より遠くで隠す。</summary>
+    public static void HideBeyond(Node node, float end)
+    {
+        foreach (var c in node.GetChildren()) HideBeyond(c, end);
+        if (node is GeometryInstance3D gi) { gi.VisibilityRangeEnd = end; gi.VisibilityRangeEndMargin = 10f; gi.VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self; }
+    }
+
     /// <summary>遠距離用: 窓テクスチャを貼った箱(近距離ではベイに置き換わる)。</summary>
     void FarBox(Node3D n, Vector3 center, Vector3 size, Material win)
     {
