@@ -114,6 +114,7 @@ public partial class MicroEditor : Node3D
     // ---------- 入力 ----------
     public override void _UnhandledInput(InputEvent e)
     {
+        if (_mcuEditor != null) return;
         switch (e)
         {
             case InputEventMouseButton { Pressed: true } mb:
@@ -197,6 +198,12 @@ public partial class MicroEditor : Node3D
         _selected = hit?.Id ?? -1;
     }
 
+    McuGraphEditor? _mcuEditor; CanvasLayer? _uiLayer;
+    void OpenMcu(int mcuId)
+    {
+        if (_mcuEditor != null) return;
+        _mcuEditor = McuGraphEditor.Open(_uiLayer!, _sim, _data, 1, _floor, mcuId, Icon, _uiLayer!.GetChild<Control>(0).Theme!, () => { _mcuEditor = null; _sideTick = -1; });
+    }
     int _moveFromFloor;
     void SetMode(Mode mode)
     {
@@ -392,7 +399,7 @@ public partial class MicroEditor : Node3D
 
     void BuildUi()
     {
-        var layer = new CanvasLayer(); AddChild(layer);
+        var layer = new CanvasLayer(); AddChild(layer); _uiLayer = layer;
         var root = new Control { Theme = MakeTheme(), MouseFilter = Control.MouseFilterEnum.Ignore }; root.SetAnchorsPreset(Control.LayoutPreset.FullRect); layer.AddChild(root);
 
         // ----- 上の帯 -----
@@ -423,7 +430,7 @@ public partial class MicroEditor : Node3D
         // ----- 左: 設備のパレット(種別ごとの格子) -----
         var pal = new VBoxContainer(); pal.AddThemeConstantOverride("separation", 8);
         pal.AddChild(Lbl("設備", 11, Cyan));
-        var groups = new (string name, string[] kinds)[] { ("生産", new[] { "miner", "furnace", "assembler", "mech_assembler" }), ("物流", new[] { "belt", "inserter", "chest", "port", "trade" }), ("流体", new[] { "pump", "pipe", "tank" }), ("動力", new[] { "reactor", "battery" }) };
+        var groups = new (string name, string[] kinds)[] { ("生産", new[] { "miner", "furnace", "assembler", "mech_assembler" }), ("物流", new[] { "belt", "inserter", "chest", "port", "trade" }), ("流体", new[] { "pump", "pipe", "tank" }), ("動力", new[] { "reactor", "battery" }), ("制御", new[] { "mcu" }) };
         foreach (var (gname, kinds) in groups)
         {
             pal.AddChild(Lbl(gname, 11, Line40));
@@ -685,6 +692,15 @@ public partial class MicroEditor : Node3D
                 if (td.Outbox.Count > 0) _side.AddChild(Chip(td.Outbox[0].Item, $"出口に {td.Outbox.Count} 個", Accent));
                 break;
             }
+            case Mcu mc:
+            {
+                _side.AddChild(Sep());
+                _side.AddChild(Lbl($"プログラム  {(mc.Program.Name == "" ? "(無題)" : mc.Program.Name)}   ノード {mc.Program.Nodes.Count}  線 {mc.Program.Links.Count}  間隔 {mc.Program.Interval}", 12));
+                _side.AddChild(Lbl($"評価 {mc.Evaluations:N0} 回   {(Building.LastSupply > 0 ? "動作中" : "電気なし")}", 12, Building.LastSupply > 0 ? Green : Warm));
+                var en = new CheckButton { Text = "稼働", ButtonPressed = mc.Enabled }; int mid = s.Id; en.Toggled += v => { _sim.Enqueue(new SetEnabled(1, _floor, mid, v)); _sim.Step(); }; _side.AddChild(en);
+                _side.AddChild(Btn("プログラムを編集(図式)", () => OpenMcu(mid), true));
+                break;
+            }
             case Port p:
                 _side.AddChild(Sep());
                 _side.AddChild(Btn(def.Id.Contains("lift") ? "接続先の口を選ぶ(別の階へ)" : "接続先の口を選ぶ", () => { _linkFrom = (_floor, p.Id); SetMode(Mode.Link); }, true));
@@ -736,11 +752,25 @@ public partial class MicroEditor : Node3D
         for (int i = 1; i <= 4; i++) _sim.Enqueue(new AssignStaff(1, _floor, ma.Id, new Worker(i, $"技師 {i}", 6)));
         foreach (var (it, n) in new[] { ("mech_head", 2), ("mech_torso", 2), ("mech_arm", 4), ("mech_leg", 4), ("mech_back", 2), ("mech_weapon", 2), ("reactor_core", 2) }) _sim.Enqueue(new AddItems(1, _floor, pc.Id, it, 72, n));
         _sim.Step();
+        // 制御室: リアクターの過負荷を見張り、50% 超で出力設定 80%、未満で 150%(見本)
+        _sim.Enqueue(new PlaceStructure(1, 0, "control_room", 28, y0 - 8, 0, Direction.South)); _sim.Step();
+        var mcu = Floor.Structures.OfType<Mcu>().First(); var react = Floor.Structures.OfType<Reactor>().First();
+        _sim.Enqueue(new SetReactorOutput(1, 0, react.Id, 150));
+        _sim.Enqueue(new SetProgram(1, 0, mcu.Id, new Program { Name = "過負荷の見張り", Interval = 6, Nodes = {
+            new McuNode { Id = 1, Type = "in.reactor.load", TargetBuilding = 1, TargetFloor = 0, TargetId = react.Id, X = 40, Y = 60 },
+            new McuNode { Id = 2, Type = "in.const", Params = { ["value"] = 50 }, X = 40, Y = 240 },
+            new McuNode { Id = 3, Type = "op.gt", X = 620, Y = 120 },
+            new McuNode { Id = 4, Type = "in.const", Params = { ["value"] = 80 }, X = 620, Y = 320 },
+            new McuNode { Id = 5, Type = "in.const", Params = { ["value"] = 150 }, X = 620, Y = 470 },
+            new McuNode { Id = 6, Type = "op.select", X = 900, Y = 220 },
+            new McuNode { Id = 7, Type = "out.reactor.setting", TargetBuilding = 1, TargetFloor = 0, TargetId = react.Id, X = 1180, Y = 220 } },
+            Links = { new(1, 0, 3, 0), new(2, 0, 3, 1), new(3, 0, 6, 0), new(4, 0, 6, 1), new(5, 0, 6, 2), new(6, 0, 7, 0) } }));
         _sim.Enqueue(new CopyRegion(1, 0, 2, y0 - 5, 8, y0 - 2, 99, "見本"));
         _sim.Enqueue(new PasteBlueprint(1, 1, 10, 10, 99)); _sim.Enqueue(new PasteBlueprint(1, 1, 20, 10, 99));   // 2 階に生産線の一部を貼り付け
         _sim.Run(Arg("--select") == "mech" ? 60 * 9 + 4800 + 600 : 3600);   // 機体: 部品の搬入 + 組立 4,800 ティック
         _structureVersion++;
-        _selected = Arg("--select") switch { "reactor" => Floor.Structures.First(s => s is Reactor).Id, "mech" => ma.Id, "none" => -1, _ => Floor.Structures.First(s => s is Machine).Id };
+        _selected = Arg("--select") switch { "reactor" => Floor.Structures.First(s => s is Reactor).Id, "mech" => ma.Id, "mcu" => mcu.Id, "none" => -1, _ => Floor.Structures.First(s => s is Machine).Id };
+        if (Arg("--select") == "mcu" && Arg("--open") != null) CallDeferred(nameof(OpenMcuDeferred), mcu.Id);
         _pivot = new Vector3(10, GroundY, y0 - 2); _dist = 28; _yaw = 0.5f; _elev = 0.7f;
         if (Arg("--floor") is string fs) SetFloor(int.Parse(fs) - 1);
         if (Arg("--pivot") is string pv) { var p = pv.Split(','); _pivot = new Vector3(float.Parse(p[0]), float.Parse(p[1]), float.Parse(p[2])); }
@@ -752,6 +782,8 @@ public partial class MicroEditor : Node3D
 
     /// <summary>見本専用: 下りの口を示すために接続先を仮に下の階にする(計算上は未接続のまま)。</summary>
     sealed record SetLiftDown(int Id) : ICommand { public void Apply(Simulation s) { if (s.Factory.Get(1)?.Find(0, Id) is Port p) { p.LinkBuilding = 1; p.LinkFloor = -1; p.LinkPort = -1; } } }
+
+    void OpenMcuDeferred(int id) => OpenMcu(id);
 
     void Screenshot()
     {

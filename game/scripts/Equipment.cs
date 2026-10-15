@@ -36,7 +36,7 @@ public sealed class Equipment
     public static string Model(StructureDef def) => def.Kind switch
     {
         "furnace" => "furnace", "assembler" => "assembler", "mech_assembler" => "assembler", "miner" => "miner", "belt" => "belt", "inserter" => "inserter", "chest" => "chest",
-        "tank" => "tank", "reactor" => "tank", "port" => "chest", "pump" => "miner", "battery" => "tank", "trade" => "chest", _ => "pole",
+        "tank" => "tank", "reactor" => "tank", "port" => "chest", "pump" => "miner", "battery" => "tank", "trade" => "chest", "mcu" => "chest", _ => "pole",
     };
 
     public static Color ReactorColor(int gen) => gen switch { 0 => new Color(1f, 0.2f, 0.15f), 1 => new Color(1f, 0.5f, 0.1f), 2 => new Color(1f, 0.9f, 0.2f), 3 => new Color(0.6f, 1f, 0.2f), 4 => new Color(0.2f, 1f, 0.4f), 5 => new Color(0.25f, 0.5f, 1f), _ => new Color(0.75f, 0.35f, 1f) };
@@ -67,6 +67,12 @@ public sealed class Equipment
             kb.Box(root, new Vector3(x + 0.3f, y + 1.9f, z + 2f), new Vector3(0.25f, 3.8f, 0.25f), kb.Steel); kb.Box(root, new Vector3(x + 3.7f, y + 1.9f, z + 2f), new Vector3(0.25f, 3.8f, 0.25f), kb.Steel);
             kb.Box(root, new Vector3(x + 2f, y + 3.8f, z + 2f), new Vector3(3.8f, 0.3f, 0.5f), kb.Hazard);
             kb.Strip(root, new Vector3(x + 2f, y + 2.05f, z + 0.05f), new Vector3(3.6f, 0.06f, 0.06f), kb.GlowOrange);
+        }
+        else if (def.Kind == "mcu")
+        {   // 制御室: 箱 2x2 の上に水色の表示板と細いアンテナ(専用部品は未作成)
+            kb.Box(root, new Vector3(x + 1f, y + 1.25f, z + 1f), new Vector3(1.8f, 0.5f, 1.8f), kb.PaintDark);
+            kb.Strip(root, new Vector3(x + 1f, y + 1.52f, z + 1f), new Vector3(1.4f, 0.04f, 1.0f), kb.GlowCyan);
+            kb.Box(root, new Vector3(x + 1.7f, y + 2.3f, z + 0.3f), new Vector3(0.06f, 1.6f, 0.06f), kb.Steel);
         }
         else if (def.Kind == "trade")
         {   // 交易所: 箱 2x2 の上に屋根と橙の看板(専用部品は未作成)
