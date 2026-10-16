@@ -246,6 +246,10 @@ public sealed class Factory
     [JsonIgnore] public Simulation? Owner { get; set; }
     /// <summary>遮蔽の粗格子(建物が変わると作り直す。保存しない)。</summary>
     [JsonIgnore] public bool[,]? CoverGrid { get; set; }
+    [JsonIgnore] public int[,]? PathGrid { get; set; }   // 経路探索の障害物格子(4 m、Pathing。値は建物の番号、0 は空き)
+    [JsonIgnore] public int PathKey { get; set; } = -1;
+    [JsonIgnore] public PathScratch? PathScratch { get; set; }
+    [JsonIgnore] public bool[,]? PathNearWall { get; set; }
     [JsonIgnore] public int CoverKey { get; set; } = -1;
     [JsonIgnore] public int CoverCell { get; set; }
     /// <summary>戦闘のティックごとの索引(機体 Id → ユニット、64 m の空間格子)。保存しない。</summary>

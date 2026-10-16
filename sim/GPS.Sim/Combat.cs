@@ -157,15 +157,18 @@ public sealed class Squad
     /// <summary>練度 0〜100: 撃破と交戦した時間で上がる。命中に効く。</summary>
     public double Exp { get; set; }
     public bool FoughtHour { get; set; }   // この 1 時間に撃ったか(練度)。写しに残す(決定論)
+    /// <summary>経路(G21 第 7 節): 命令の目標向けと帰還先向け。写しに残す。</summary>
+    public PathCache Route { get; set; } = new();
+    public PathCache HomeRoute { get; set; } = new();
     public bool Aggregated { get; set; }   // 写しに残す(切り替わりの処理を読み込み後も同じにする)
-    [JsonIgnore] public double CX { get; set; }
-    [JsonIgnore] public double CY { get; set; }
+    public double CX { get; set; }   // 隊の中心(集約は置いた位置から保つ)。写しに残す(読み込み後に平均から求め直すと丸めで進行がずれる)
+    public double CY { get; set; }
     [JsonIgnore] public List<MechUnit> AliveBuf { get; } = new();
     [JsonIgnore] public List<MechUnit> FightBuf { get; } = new();
     [JsonIgnore] public List<MechUnit> RunBuf { get; } = new();   // 下がって帰っている生存機(事前走査)
     [JsonIgnore] public int AliveCache { get; set; }   // 集約の事前走査で数えた生存機(同じティックの中で撃破のたびに減らす)
     [JsonIgnore] public int FightCache { get; set; }   // 同じく戦う機体(下がっていない生存機)
-    [JsonIgnore] public bool CenterKept { get; set; }   // 集約が中心(CX/CY)を更新済み(次のティックの分類で機体を走査しない)
+    public bool CenterKept { get; set; }   // 集約が中心(CX/CY)を更新済み(次のティックの分類で機体を走査しない)。写しに残す
     [JsonIgnore] public int FieldIdx { get; set; }   // そのティックの出撃中の隊の並びの番号(配列の添字)
     [JsonIgnore] public List<Squad>? SelfUnit { get; set; }   // 軍に属さない隊の単位(自分 1 つ)
     [JsonIgnore] public bool LastFly { get; set; }
@@ -211,7 +214,7 @@ public static class Combat
 {
     public static void Tick(Factory f, GameData data, CombatData c, Rng rng, Simulation? sim = null)
     {
-        Ships.Step(f); RefreshCover(f, c); if (sim != null) RefreshHeights(sim);
+        Ships.Step(f); RefreshCover(f, c); if (sim != null) RefreshHeights(sim); Pathing.Refresh(f, sim?.CityData.MapSize ?? 0);
         var field = f.Squads.Where(s => s.State == SquadState.Field).ToList();
         StepTurrets(f, data, c, rng, field);
         if (field.Count == 0) return;
@@ -245,18 +248,18 @@ public static class Combat
                 var me = mechs[u.MechId];
                 double spd = MechStats.Speed(me, c) / Clock.TicksPerSecond;
                 (double tx, double ty)? goal = null;
-                if (u.Retreat != 0 || s.Order == SquadOrder.Retreat) { var hb = f.Get(s.HomeBuilding); if (hb != null) goal = (hb.X, hb.Y); }
-                else if (s.Order == SquadOrder.Move) goal = Slot(s, idx, s.OrderX, s.OrderY, c);
-                else if (s.Order == SquadOrder.Collect) { var lt = NearestLoot(f, s); if (lt != null) goal = Slot(s, idx, lt.X, lt.Y, c); }
+                if (u.Retreat != 0 || s.Order == SquadOrder.Retreat) { var hb = f.Get(s.HomeBuilding); if (hb != null) goal = Pathing.Waypoint(f, s.HomeRoute, s.Id, u.X, u.Y, hb.X, hb.Y, f.TickCount, s.HomeBuilding); }
+                else if (s.Order == SquadOrder.Move) { var (wx, wy) = Pathing.Waypoint(f, s.Route, s.Id, s.CX, s.CY, s.OrderX, s.OrderY, f.TickCount); goal = Slot(s, idx, wx, wy, c); }
+                else if (s.Order == SquadOrder.Collect) { var lt = NearestLoot(f, s); if (lt != null) { var (wx, wy) = Pathing.Waypoint(f, s.Route, s.Id, s.CX, s.CY, lt.X, lt.Y, f.TickCount); goal = Slot(s, idx, wx, wy, c); } }
                 else if (s.Order == SquadOrder.Attack && u.Engage != 0 && u.TargetMech >= 0)
                 {
                     var t = FindUnit(f, field, u.TargetMech); var w = c.Weapons[WeaponId(u, me, c)];
                     if (t != null && Dist(u, t) > w.Range * 0.8) goal = (t.X, t.Y);
                 }
-                else if (s.Order == SquadOrder.Attack && s.TargetSquad >= 0) { var ts = f.Squads.FirstOrDefault(x => x.Id == s.TargetSquad); if (ts != null && ts.Alive > 0) goal = Slot(s, idx, ts.X, ts.Y, c); }
-                else if (s.Order == SquadOrder.Attack && s.TargetBuilding >= 0) { var tb = f.Get(s.TargetBuilding); if (tb != null && !tb.Destroyed) { var (bx, by) = Center(tb); var w = c.Weapons[WeaponId(u, me, c)]; double dd = Math.Sqrt((bx - u.X) * (bx - u.X) + (by - u.Y) * (by - u.Y)); if (dd > w.Range * 0.7) goal = Slot(s, idx, bx, by - w.Range * 0.6, c); } }
+                else if (s.Order == SquadOrder.Attack && s.TargetSquad >= 0) { var ts = f.Squads.FirstOrDefault(x => x.Id == s.TargetSquad); if (ts != null && ts.Alive > 0) { var (wx, wy) = Pathing.Waypoint(f, s.Route, s.Id, s.CX, s.CY, ts.CX, ts.CY, f.TickCount); goal = Slot(s, idx, wx, wy, c); } }
+                else if (s.Order == SquadOrder.Attack && s.TargetBuilding >= 0) { var tb = f.Get(s.TargetBuilding); if (tb != null && !tb.Destroyed) { var (bx, by) = Center(tb); var w = c.Weapons[WeaponId(u, me, c)]; double dd = Math.Sqrt((bx - u.X) * (bx - u.X) + (by - u.Y) * (by - u.Y)); if (dd > w.Range * 0.7) { var (wx, wy) = Pathing.Waypoint(f, s.Route, s.Id, s.CX, s.CY, bx, by - w.Range * 0.6, f.TickCount); goal = Slot(s, idx, wx, wy, c); } } }
                 u.Flying = false;
-                if (goal is var (gx, gy)) { double dx = gx - u.X, dy = gy - u.Y, d = Math.Sqrt(dx * dx + dy * dy); if (me.Archetype == "fast" && d > c.FighterMinDist) { u.Flying = true; spd *= c.FighterSpeedMul; } if (d > 0.5) { double k = Math.Min(1, spd / d); u.X += dx * k; u.Y += dy * k; } }
+                if (goal is var (gx, gy)) { double dx = gx - u.X, dy = gy - u.Y, d = Math.Sqrt(dx * dx + dy * dy); if (me.Archetype == "fast" && d > c.FighterMinDist) { u.Flying = true; spd *= c.FighterSpeedMul; } if (d > 0.5) { double k = Math.Min(1, spd / d); (u.X, u.Y) = u.Flying ? (u.X + dx * k, u.Y + dy * k) : Pathing.Step(f, u.X, u.Y, dx * k, dy * k, gx, gy, u.Retreat != 0 || s.Order == SquadOrder.Retreat ? s.HomeBuilding : 0); } }   // 建物の床は避けて歩く(飛行中は越える)
                 idx++;
             }
             squadLevel:
@@ -451,6 +454,7 @@ public static class Combat
             else if (target != null) { if (td > w.Range * 0.8) goal = hasCenter[target.FieldIdx] ? center[target.FieldIdx] : (target.CX, target.CY); }
             else if (s.Order == SquadOrder.Attack && s.TargetSquad >= 0) { byId.TryGetValue(s.TargetSquad, out var ts); if (ts != null && ts.State == SquadState.Field && AliveOf(ts) > 0) goal = (ts.CX, ts.CY); }
             else if (s.Order == SquadOrder.Attack && s.TargetBuilding >= 0) { var tb = f.Get(s.TargetBuilding); if (tb != null && !tb.Destroyed) { var (bx, by) = Center(tb); double dd = Math.Sqrt((bx - cx) * (bx - cx) + (by - cy) * (by - cy)); if (dd > w.Range * 0.7) goal = (bx, by - w.Range * 0.6); } }
+            if (goal is var (ggx, ggy)) goal = Pathing.Waypoint(f, retreat ? s.HomeRoute : s.Route, s.Id, cx, cy, ggx, ggy, f.TickCount, retreat ? s.HomeBuilding : 0);   // 建物を避けて中継点をたどる(G21 第 7 節)
             double spd = MechStats.Speed(lead, c) / Clock.TicksPerSecond; bool fly = false;
             double nx = cx, ny = cy;
             if (goal is var (gx, gy)) { double dx = gx - cx, dy = gy - cy, d = Math.Sqrt(dx * dx + dy * dy); if (lead.Archetype == "fast" && d > c.FighterMinDist) { fly = true; spd *= c.FighterSpeedMul; } if (d > 0.5) { double k = Math.Min(1, spd / d); nx += dx * k; ny += dy * k; } }
@@ -466,7 +470,8 @@ public static class Combat
                 double ddx = nx - cx, ddy = ny - cy;
                 void RunHome(MechUnit u)
                 {   // 下がった機体は個々に帰る(個機と同じ)。塊の置き直しで引き戻さない
-                    double rx = hbU!.X - u.X, ry = hbU.Y - u.Y, rd = Math.Sqrt(rx * rx + ry * ry); if (rd > 0.5) { double rk = Math.Min(1, spd0 / rd); u.X += rx * rk; u.Y += ry * rk; }
+                    var (hx, hy) = Pathing.Waypoint(f, q.HomeRoute, q.Id, u.X, u.Y, hbU!.X, hbU.Y, f.TickCount, q.HomeBuilding);
+                    double rx = hx - u.X, ry = hy - u.Y, rd = Math.Sqrt(rx * rx + ry * ry); if (rd > 0.5) { double rk = Math.Min(1, spd0 / rd); u.X += rx * rk; u.Y += ry * rk; }
                     u.Flying = false; u.TargetMech = -1;
                 }
                 if (place || goal != null || orderRetreat || q.LastFly != fly)   // 止まっていて印も変わらない隊は機体に触らない(置き直しの 3 ティックに 1 回で揃う)
@@ -474,7 +479,7 @@ public static class Combat
                     {
                         if (!u.Alive) continue;
                         if (u.Retreat != 0 && hbU != null) { RunHome(u); continue; }
-                        if (place) { var (px, py) = Slot(q, i++, qx, qy, c, qalive); u.X = px; u.Y = py; } else if (goal != null) { u.X += ddx; u.Y += ddy; }
+                        if (place) { var (px, py) = Slot(q, i++, qx, qy, c, qalive); if (!fly) (px, py) = Pathing.Nudge(f, px, py, qx, qy, retreat ? q.HomeBuilding : 0); u.X = px; u.Y = py; } else if (goal != null) { u.X += ddx; u.Y += ddy; }
                         u.Flying = fly; u.TargetMech = -1; if (orderRetreat) u.Retreat = 1;
                     }
                 else if (hbU != null) foreach (var u in q.RunBuf) if (u.Alive) RunHome(u);   // 帰る機体だけ

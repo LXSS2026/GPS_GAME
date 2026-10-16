@@ -146,11 +146,11 @@ public partial class CityScreen : Node3D
                 _kb.Cyl(node, new Vector3(x + w / 2f, Y + 0.8f, z + d / 2f), 2.5f, 1.6f, _kb.PaintDark); _kb.Box(node, new Vector3(x + w / 2f, Y + 3f, z + d / 2f), new Vector3(1.2f, 4f, 1.2f), _kb.PaintDark);
                 h = 5; break;
             default:
-                if (b.Name.Contains("格納庫")) { _fm.Build(node, x, Y, z, MechHangar, 0); h = 9; }
+                if (b.Name.Contains("格納庫")) { _fm.Build(node, x + w / 2f, Y, z + d / 2f, MechHangar, 0); h = 9; }   // 階モジュールの原点は中心(計算と当たり判定は角)
                 else
                 {
                     string fam = b.Use == "residence" ? "res" : b.Use == "factory" ? "concrete" : "office";
-                    _fm.Build(node, x, Y, z, _fm.Plan(fam, w, d, floors, false), 0);
+                    _fm.Build(node, x + w / 2f, Y, z + d / 2f, _fm.Plan(fam, w, d, floors, false), 0);
                 }
                 break;
         }
