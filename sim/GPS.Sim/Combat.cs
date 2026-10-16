@@ -166,6 +166,10 @@ public sealed class Squad
     [JsonIgnore] public List<MechUnit> AliveBuf { get; } = new();
     [JsonIgnore] public List<MechUnit> FightBuf { get; } = new();
     [JsonIgnore] public List<MechUnit> RunBuf { get; } = new();   // 下がって帰っている生存機(事前走査)
+    [JsonIgnore] public List<MechUnit> BoardDue { get; } = new();   // このティックに制御基板を評価する機体(事前走査)
+    [JsonIgnore] public int ShootCache { get; set; }   // 戦う機体のうち交戦(engage)の機体
+    /// <summary>制御基板が自爆を出した機体がいる(集約では爆発を解かないので個機に戻す)。写しに残す。</summary>
+    public bool AnySelfDestruct { get; set; }
     [JsonIgnore] public int AliveCache { get; set; }   // 集約の事前走査で数えた生存機(同じティックの中で撃破のたびに減らす)
     [JsonIgnore] public int FightCache { get; set; }   // 同じく戦う機体(下がっていない生存機)
     public bool CenterKept { get; set; }   // 集約が中心(CX/CY)を更新済み(次のティックの分類で機体を走査しない)。写しに残す
@@ -222,7 +226,7 @@ public static class Combat
         // ティックごとの索引(10 万規模の計測で、線形探索が n² になっていたため): 機体 Id → ユニット、空間格子(64 m)
         // 注視範囲の外の隊は集約(隊どうしの式)で解く(G21 #3)。村(段階 1)と、自爆の命令は個機
         int stage = f.City?.Stage ?? 1;
-        foreach (var s in field) { if (s.CenterKept) s.CenterKept = false; else { double sx = 0, sy = 0; int n = 0; foreach (var u in s.Members) if (u.Alive) { sx += u.X; sy += u.Y; n++; } if (n > 0) { s.CX = sx / n; s.CY = sy / n; } else { s.CX = s.OrderX; s.CY = s.OrderY; } } bool was = s.Aggregated; s.Aggregated = stage >= 2 && f.FocusR > 0 && s.Order != SquadOrder.SelfDestruct && Math.Sqrt((s.CX - f.FocusX) * (s.CX - f.FocusX) + (s.CY - f.FocusY) * (s.CY - f.FocusY)) > f.FocusR; if (s.Aggregated && !was) foreach (var u in s.Members) { u.TargetMech = -1; u.Flying = false; } }   // 個機 → 集約の切り替わりで機体の目標を消す(集約は隊の目標で解く)
+        foreach (var s in field) { if (s.CenterKept) s.CenterKept = false; else { double sx = 0, sy = 0; int n = 0; foreach (var u in s.Members) if (u.Alive) { sx += u.X; sy += u.Y; n++; } if (n > 0) { s.CX = sx / n; s.CY = sy / n; } else { s.CX = s.OrderX; s.CY = s.OrderY; } } bool was = s.Aggregated; if (s.AnySelfDestruct && !was) s.AnySelfDestruct = s.Members.Any(u => u.Alive && u.SelfDestruct != 0); s.Aggregated = stage >= 2 && f.FocusR > 0 && s.Order != SquadOrder.SelfDestruct && !s.AnySelfDestruct && Math.Sqrt((s.CX - f.FocusX) * (s.CX - f.FocusX) + (s.CY - f.FocusY) * (s.CY - f.FocusY)) > f.FocusR; if (s.Aggregated && !was) foreach (var u in s.Members) { u.TargetMech = -1; u.Flying = false; } }   // 個機 → 集約の切り替わりで機体の目標を消す(集約は隊の目標で解く)
         var detail = field.Where(s => !s.Aggregated).ToList(); var agg = field.Where(s => s.Aggregated).ToList();
         f.CombatUnits.Clear(); f.CombatGrid.Clear();
         if (detail.Count > 0)   // 個機の索敵・目標の索引(個機の隊が無ければ要らない)
@@ -383,8 +387,13 @@ public static class Combat
         {
             var qa = q.AliveBuf; qa.Clear(); var qf = q.FightBuf; qf.Clear(); var qr = q.RunBuf; qr.Clear();
             bool hasBattery = Recharge(q.Members, qa, f, mechs, data);
-            foreach (var u in qa) if (u.Retreat == 0) qf.Add(u); else qr.Add(u);
-            q.AliveCache = qa.Count; q.FightCache = qf.Count; if (hasBattery) FieldCharge(qa, 0, qa.Count, f, mechs, data, c);
+            var qd = q.BoardDue; qd.Clear(); int shoot = 0;
+            foreach (var u in qa)
+            {
+                if (u.Retreat == 0) { qf.Add(u); if (u.Engage != 0) shoot++; } else qr.Add(u);
+                var prog = u.MechRef!.Program; if (prog != null && ++u.McuTimer >= Math.Max(1, prog.Interval)) { u.McuTimer = 0; qd.Add(u); }   // 制御基板は個機と同じ間隔で(G21 第 8 節)
+            }
+            q.AliveCache = qa.Count; q.FightCache = qf.Count; q.ShootCache = shoot; if (hasBattery) FieldCharge(qa, 0, qa.Count, f, mechs, data, c);
         }
         int nf = field.Count; for (int i = 0; i < nf; i++) field[i].FieldIdx = i;
         var units = f.AggUnits; units.Clear(); var unitOf = new List<Squad>?[nf]; var armyOf = new Army?[nf];
@@ -418,7 +427,7 @@ public static class Combat
             if (unit.Count == 1) { alive = s.AliveBuf; fighters = s.FightBuf; }
             else { alive = f.AggAlive; alive.Clear(); fighters = f.AggFight; fighters.Clear(); foreach (var q in unit) { alive.AddRange(q.AliveBuf); fighters.AddRange(q.FightBuf); } }
             if (alive.Count == 0) continue;
-            int fightCount = 0; foreach (var q in unit) fightCount += q.FightCache;
+            int fightCount = 0, shootCount = 0; foreach (var q in unit) { fightCount += q.FightCache; shootCount += q.ShootCache; }
             var lead = MechOf(alive[0], f, mechs);
             bool retreat = s.Order == SquadOrder.Retreat || fightCount == 0;
             // 索敵: 単位の中心どうし(索敵範囲は先頭機、ステルスは相手の世代、遮蔽と地形は中心どうしの射線 1 本)。3 ティックに 1 回、目標は保つ。周りに敵がいなければ飛ばす
@@ -445,6 +454,19 @@ public static class Combat
                 if (s.Order == SquadOrder.Attack && s.TargetSquad >= 0 && target == null) { byId.TryGetValue(s.TargetSquad, out var ts); if (ts != null && ts.State == SquadState.Field && AliveOf(ts) > 0) { double dd = Math.Sqrt((ts.CX - cx) * (ts.CX - cx) + (ts.CY - cy) * (ts.CY - cy)); if (dd <= Math.Max(search, c.VisualRange)) { target = ts; td = dd; } } }
             }
             foreach (var q in unit) q.AutoTarget = target?.Id ?? -1;
+            // 制御基板(集約): 機体の値はそのまま、敵の距離・数・世代は単位の索敵の値。退却・交戦・自爆の出力を使う(目標の優先・武器・索敵範囲は集約では効かない)
+            foreach (var q in unit)
+            {
+                if (q.BoardDue.Count == 0) continue;
+                int tAlive = 0; if (target != null) { var tu0 = unitOf[target.FieldIdx]; if (tu0 != null) foreach (var tq in tu0) tAlive += AliveOf(tq); else tAlive = AliveOf(target); }
+                foreach (var u in q.BoardDue)
+                {
+                    u.LastEnemyDist = target == null ? 1e9 : td; u.LastEnemyCount = tAlive; u.LastEnemyGen = target?.Generation ?? 0;
+                    int r0 = u.Retreat; RunBoard(q, u, u.MechRef!, f, data);
+                    if (u.Retreat != r0) { if (u.Retreat != 0) q.FightCache--; else q.FightCache++; }
+                    if (u.SelfDestruct != 0) q.AnySelfDestruct = true;
+                }
+            }
             // 移動: 単位の中心 1 点で動き、隊は軍の陣形、機体は隊の陣形の位置へ
             var w = c.Weapons[MechStats.Primary(lead, c)];
             (double gx, double gy)? goal = null;
@@ -489,7 +511,7 @@ public static class Combat
             }
             // 射撃: 発射数 = 戦う機体 × 発射率(端数は持ち越し)。資源は機体から順に。命中は平均、ダメージは相手の下がっていない先頭の機体へ
             if (retreat || target == null || td > w.Range * c.FarMul) continue;
-            s.FireAccum += (double)fightCount / w.Cooldown;
+            s.FireAccum += (double)shootCount / w.Cooldown;
             int shots = (int)s.FireAccum; s.FireAccum -= shots; if (shots > 0) foreach (var q in unit) q.FoughtHour = true;
             var tunit = unitOf[target.FieldIdx]; if (tunit == null) { tunit = target.SelfUnit ??= new List<Squad>(1); tunit.Clear(); tunit.Add(target); }   // 個機の隊が相手なら隊 1 つ
             MechUnit? nearRun = null; Squad nearRunSq = target; double nearD2 = 0, far2 = w.Range * c.FarMul * (w.Range * c.FarMul);
@@ -503,7 +525,7 @@ public static class Combat
             double cmdMul = Armies.CommandMul(f, s, army) * UnitMoraleMul(unit, c), dmg = w.Damage * MechStats.WeaponQuality(lead) / 70 * MechStats.GenMul(lead, c);
             for (int k = 0; k < shots; k++)
             {
-                while (si < fighters.Count && (fighters[si].Retreat != 0 || !fighters[si].Alive || !(beam ? fighters[si].Energy >= w.EnergyPerShot : w.AmmoPerShot == 0 || fighters[si].Ammo >= w.AmmoPerShot))) si++;
+                while (si < fighters.Count && (fighters[si].Retreat != 0 || !fighters[si].Alive || fighters[si].Engage == 0 || !(beam ? fighters[si].Energy >= w.EnergyPerShot : w.AmmoPerShot == 0 || fighters[si].Ammo >= w.AmmoPerShot))) si++;
                 if (si >= fighters.Count) break; var shooter = fighters[si];
                 if (beam) shooter.Energy -= w.EnergyPerShot; else shooter.Ammo -= w.AmmoPerShot;
                 // 目標: 個機の索敵(最も近い敵機)と同じ。塊の戦う機体は単位の距離で先頭から順(#2)、下がって帰る機体はその実距離。射程(farMul)の外は撃たない
