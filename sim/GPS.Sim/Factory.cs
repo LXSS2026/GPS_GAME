@@ -255,7 +255,14 @@ public sealed class Factory
     [JsonIgnore] public bool HeightGridBuilt { get; set; }
     Dictionary<int, Mech>? _mechIndex; int _mechIndexCount = -1;
     /// <summary>機体 Id → 機体。線形探索を避ける(格納庫の給電で 24,000 機 × 待機中の全機を走査して 1 ティック 100 ms になっていた)。機体の数が変わると作り直す。</summary>
-    public Dictionary<int, Mech> MechById() { if (_mechIndex == null || _mechIndexCount != Mechs.Count) { _mechIndex = Mechs.ToDictionary(m => m.Id); _mechIndexCount = Mechs.Count; } return _mechIndex; }
+    public Dictionary<int, Mech> MechById() { if (_mechIndex == null || _mechIndexCount != Mechs.Count) { _mechIndex = Mechs.ToDictionary(m => m.Id); _mechIndexCount = Mechs.Count; MechIndexVersion++; } return _mechIndex; }
+    [JsonIgnore] public int MechIndexVersion { get; private set; }
+    // 集約(StepAggregated)が毎ティック使う入れ物(10 万規模で確保し直さない)
+    [JsonIgnore] public List<List<Squad>> AggUnits { get; } = new();
+    [JsonIgnore] public Dictionary<long, List<Squad>> AggGrid { get; } = new();
+    [JsonIgnore] public Dictionary<long, int> AggCoarse { get; } = new();
+    [JsonIgnore] public List<MechUnit> AggAlive { get; } = new();
+    [JsonIgnore] public List<MechUnit> AggFight { get; } = new();
     [JsonIgnore] public Dictionary<int, MechUnit> CombatUnits { get; } = new();
     [JsonIgnore] public Dictionary<long, List<(MechUnit u, Squad s)>> CombatGrid { get; } = new();
 

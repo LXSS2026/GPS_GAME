@@ -8,6 +8,7 @@ public sealed class Army
     public int CommanderId { get; set; } = -1;
     public List<int> SquadIds { get; set; } = new();
     public Formation Formation { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore] public List<Squad> UnitBuf { get; } = new();   // 集約の単位(毎ティック詰め直す)
 }
 
 public static class Armies
