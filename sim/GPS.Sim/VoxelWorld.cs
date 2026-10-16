@@ -27,8 +27,12 @@ public sealed class VoxelWorld
     public byte Get(BlockPos p) => Get(p.X, p.Y, p.Z);
     public bool IsSolid(BlockPos p) => Get(p) != BlockRegistry.Air;
 
+    /// <summary>ブロックを置くたびに進む版。高さの格子など、地形から作る物の作り直しの合図。</summary>
+    public long Version { get; private set; }
+
     public void Set(int x, int y, int z, byte id)
     {
+        Version++;
         var cc = ChunkOf(new(x, y, z));
         if (!_chunks.TryGetValue(cc, out var c))
         {

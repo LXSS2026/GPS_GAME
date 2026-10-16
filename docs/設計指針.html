@@ -454,9 +454,13 @@ dotnet build game\GPS.csproj
   <tr><td>航空戦 第 1 段階</td><td>高速機は目標が 60 m より遠いと戦闘機モードで飛ぶ(速度 × 2、近接が当たらず、射撃と砲塔の命中 × 0.7)。砲塔は機体がいなければ射程内の戦争中の敵の建物を砲撃する(戦艦の砲撃戦。地上の砲塔も同じ)。都市の画面では飛行中の高速機を戦闘機モードの機体で高度 18 m に描く</td><td>Combat.cs(Flying、StepTurrets)、CityScreen.Diplomacy.cs</td></tr>
   <tr><td>AI 勢力の戦艦と戦艦どうしの砲撃戦</td><td>技術 L4 の勢力は国庫が足りれば小型戦艦を 1 隻(リアクターとビーム砲塔 2 基)建造し、戦争中は 1 時間ごとにプレイヤーの拠点の手前(砲塔の射程の 8 割)へ進んで砲撃、和平で拠点の隣へ戻る。建物は持ち主(OwnerPower)を持ち、砲塔は戦争中の相手の拠点・戦艦を最寄りから撃つ。小型どうし(砲塔 6 基 vs 2 基)は約 1 時間で決着(船体 294 万、1 基 135 / 秒)</td><td>Diplomacy.cs(Month、Hour)、Combat.cs(StepTurrets)、PowerShipTests.cs</td></tr>
   <tr><td>隊の代表機の描画(G2 の粒度)</td><td>段階が町以降は隊ごとに代表機 1 体だけ描き、名札に機数と隊の耐久の平均。村は全機(--all で常に全機)</td><td>CityScreen.Diplomacy.cs</td></tr>
+  <tr><td>規模の実測(G2「10 万の軍」)</td><td>交戦中の機体数と 1 ティックの所要(2026-10-16、索引と高さの格子の導入後): 240 機(20 隊)で 1.7〜2.0 ms(実時間の約 9 倍)、2,400 機(200 隊)で 38 ms(実時間の 0.4 倍)。個機の計算は 1,000 機前後まで。10 万規模は正典どおり G2 の粒度(町以降は分隊〜師団を 1 Unit として計算)で扱う = 次の設計項目。計測で見つけて直したもの: 機体の探索と索敵が線形探索で n² だった(機体 Id の索引と 64 m の空間格子に)、地形の高さを毎回ブロックから引いていた(4 m の格子に写し、平らなら判定を飛ばす。240 機で 53 ms → 2 ms)</td><td>ScalePerfTests.cs、Combat.cs(CombatUnits、CombatGrid、HeightGrid)</td></tr>
+  <tr><td>人物の似顔絵・公害の煙・住民</td><td>登用画面の候補に自前の線画の似顔絵(肌・髪・服の色と髪型は人物の Id と職から、野心が高いとつり目、不満が高いとへの字)。都市の画面では、レシピの付いた機械がある工場の屋上に灰色の煙(台数で量が変わる)、住居の周りに住民(人口 4 人に 1 体、1 時間ごとに歩き直す)</td><td>Portrait.cs、CityScreen.Diplomacy.cs(RefreshAmbient)</td></tr>
 </table>
 <img src="img/preview_flight.png" alt="都市の画面: 航空戦艦 ハヤテ から出撃した艦載 第 1 隊(高速機)が戦闘機モードで飛んでいる" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
 <p class="muted">航空戦艦 ハヤテ から出撃した艦載 第 1 隊(高速機 2 機)が、遠い目標へ戦闘機モードで飛んでいる(名札に「飛行」)。</p>
+<img src="img/preview_ambient.png" alt="都市の画面: 工場棟と工房の屋上に公害の煙" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
+<p class="muted">レシピの付いた機械がある工場棟と工房の屋上から公害の煙が上がる。</p>
 <img src="img/preview_hill.png" alt="見本の村の東の空き街区に置いた高さ 6 m の丘(地形の起伏)" style="width: 100%; max-width: 1400px; border: 1px solid var(--line)">
 <p class="muted">見本の村の東の空き街区に置いた高さ 6 m の丘。丘の向こうの機体は見えず、飛行中の機体は高度 18 m から見渡す。</p>
 </section>

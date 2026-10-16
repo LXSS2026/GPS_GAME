@@ -242,6 +242,13 @@ public sealed class Factory
     [JsonIgnore] public bool[,]? CoverGrid { get; set; }
     [JsonIgnore] public int CoverKey { get; set; } = -1;
     [JsonIgnore] public int CoverCell { get; set; }
+    /// <summary>戦闘のティックごとの索引(機体 Id → ユニット、64 m の空間格子)。保存しない。</summary>
+    /// <summary>地面の高さの格子(4 m)。平らなら null。保存しない。</summary>
+    [JsonIgnore] public byte[,]? HeightGrid { get; set; }
+    [JsonIgnore] public long HeightVersion { get; set; } = -1;
+    [JsonIgnore] public bool HeightGridBuilt { get; set; }
+    [JsonIgnore] public Dictionary<int, MechUnit> CombatUnits { get; } = new();
+    [JsonIgnore] public Dictionary<long, List<(MechUnit u, Squad s)>> CombatGrid { get; } = new();
 
     public void Tick(GameData data, Rng rng)
     {

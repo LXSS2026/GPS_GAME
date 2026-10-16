@@ -154,17 +154,20 @@ public static class Combat
 {
     public static void Tick(Factory f, GameData data, CombatData c, Rng rng, Simulation? sim = null)
     {
-        Ships.Step(f); RefreshCover(f, c);
+        Ships.Step(f); RefreshCover(f, c); if (sim != null) RefreshHeights(sim);
         var field = f.Squads.Where(s => s.State == SquadState.Field).ToList();
         StepTurrets(f, data, c, rng, field);
         if (field.Count == 0) return;
         var mechs = f.Mechs.ToDictionary(m => m.Id);
+        // ティックごとの索引(10 万規模の計測で、線形探索が n² になっていたため): 機体 Id → ユニット、空間格子(64 m)
+        f.CombatUnits.Clear(); f.CombatGrid.Clear();
+        foreach (var s in field) foreach (var u in s.Members) { f.CombatUnits[u.MechId] = u; if (u.Alive) { long k = CellKey(u.X, u.Y); if (!f.CombatGrid.TryGetValue(k, out var l)) f.CombatGrid[k] = l = new List<(MechUnit, Squad)>(); l.Add((u, s)); } }
         // 索敵と制御基板
         foreach (var s in field)
             foreach (var u in s.Members.Where(u => u.Alive))
             {
                 var me = mechs[u.MechId];
-                if ((f.TickCount + u.MechId) % c.SenseEvery == 0 || (u.TargetMech >= 0 && FindUnit(field, u.TargetMech) is not { Alive: true })) Sense(f, s, u, me, field, mechs, data, c);   // 索敵は間引く(遮蔽の射線が重いため)
+                if ((f.TickCount + u.MechId) % c.SenseEvery == 0 || (u.TargetMech >= 0 && FindUnit(f, field, u.TargetMech) is not { Alive: true })) Sense(f, s, u, me, field, mechs, data, c);   // 索敵は間引く(遮蔽の射線が重いため)
                 if (me.Program != null && ++u.McuTimer >= Math.Max(1, me.Program.Interval)) { u.McuTimer = 0; RunBoard(s, u, me, f, data); }
                 else if (me.Program == null) { u.Retreat = u.Hp < u.MaxHp * f.RetreatHp ? 1 : 0; u.Engage = 1; }
             }
@@ -183,7 +186,7 @@ public static class Combat
                 else if (s.Order == SquadOrder.Collect) { var lt = NearestLoot(f, s); if (lt != null) goal = Slot(s, idx, lt.X, lt.Y, c); }
                 else if (s.Order == SquadOrder.Attack && u.Engage != 0 && u.TargetMech >= 0)
                 {
-                    var t = FindUnit(field, u.TargetMech); var w = c.Weapons[WeaponId(u, me, c)];
+                    var t = FindUnit(f, field, u.TargetMech); var w = c.Weapons[WeaponId(u, me, c)];
                     if (t != null && Dist(u, t) > w.Range * 0.8) goal = (t.X, t.Y);
                 }
                 else if (s.Order == SquadOrder.Attack && s.TargetSquad >= 0) { var ts = f.Squads.FirstOrDefault(x => x.Id == s.TargetSquad); if (ts != null && ts.Alive > 0) goal = Slot(s, idx, ts.X, ts.Y, c); }
@@ -233,7 +236,7 @@ public static class Combat
                     if (tb.Hp <= 0) { tb.Destroyed = true; f.Events.Add(new FactoryEvent { Kind = "building_destroyed", Building = tb.Id, Power = s.Id }); if (tb.IsShip) Ships.Sunk(f, tb); else if (sim != null) DiplomacySim.BuildingFell(sim, tb, s); }
                     continue;
                 }
-                var t = FindUnit(field, u.TargetMech); if (t == null || !t.Alive) { u.TargetMech = -1; continue; }
+                var t = FindUnit(f, field, u.TargetMech); if (t == null || !t.Alive) { u.TargetMech = -1; continue; }
                 string wid = WeaponId(u, me, c); var w = c.Weapons[wid];
                 double dist = Dist(u, t);
                 if (dist > w.Range * c.FarMul) continue;
@@ -298,21 +301,28 @@ public static class Combat
     }
 
     static double Dist(MechUnit a, MechUnit b) { double dx = a.X - b.X, dy = a.Y - b.Y; return Math.Sqrt(dx * dx + dy * dy); }
-    static MechUnit? FindUnit(List<Squad> field, int mechId) => field.SelectMany(s => s.Members).FirstOrDefault(u => u.MechId == mechId);
+    const int GridCell = 64;   // 索引は工場(Factory)ごとに持つ(静的にすると複数の計算が混ざる)
+    static long CellKey(double x, double y) => ((long)Math.Floor(x / GridCell) << 32) ^ ((long)Math.Floor(y / GridCell) & 0xFFFFFFFFL);
+    static MechUnit? FindUnit(Factory f, List<Squad> field, int mechId) => f.CombatUnits.TryGetValue(mechId, out var u) ? u : field.SelectMany(s => s.Members).FirstOrDefault(x => x.MechId == mechId);
     static string WeaponId(MechUnit u, Mech me, CombatData c) => u.WeaponSel == 2 ? MechStats.Melee(me, c) : MechStats.Primary(me, c);
 
     static void Sense(Factory f, Squad s, MechUnit u, Mech me, List<Squad> field, Dictionary<int, Mech> mechs, GameData data, CombatData c)
     {
         double search = u.SearchOverride > 0 ? u.SearchOverride : MechStats.Search(me, c);
         var seen = new List<(MechUnit t, Mech tm, double d)>();
-        foreach (var es in field.Where(x => x.Faction != s.Faction))
-            foreach (var t in es.Members.Where(t => t.Alive))
+        double reach = Math.Max(search, c.VisualRange); int r = (int)Math.Ceiling(reach / GridCell), cx = (int)Math.Floor(u.X / GridCell), cy = (int)Math.Floor(u.Y / GridCell);
+        for (int gx = cx - r; gx <= cx + r; gx++) for (int gy = cy - r; gy <= cy + r; gy++)
+        {
+            if (!f.CombatGrid.TryGetValue(((long)gx << 32) ^ ((long)gy & 0xFFFFFFFFL), out var cell)) continue;
+            foreach (var (t, es) in cell)
             {
+                if (es.Faction == s.Faction || !t.Alive) continue;
                 var tm = mechs[t.MechId];
                 double d = Dist(u, t);
                 double range = search * c.StealthSearchMul.GetValueOrDefault(tm.Generation, 1.0);
                 if (d <= Math.Max(range, c.VisualRange) && (d <= c.CoverCloseRange || !LineBlocked(f, u.X, u.Y, t.X, t.Y, c) && !(f.Owner != null && TerrainBlocked(f.Owner, u.X, u.Y, u.Flying, t.X, t.Y, t.Flying)))) seen.Add((t, tm, d));   // 遮蔽: 近距離以外は射線が通るときだけ
             }
+        }
         u.LastEnemyCount = seen.Count; u.LastEnemyDist = seen.Count == 0 ? 1e9 : seen.Min(x => x.d);
         u.LastEnemyGen = seen.Count == 0 ? 0 : seen.OrderBy(x => x.d).First().tm.Generation;
         if (seen.Count == 0) { u.TargetMech = -1; return; }
@@ -436,13 +446,27 @@ public static class Combat
         return Dda(grid, cs, x0, y0, x1, y1, sx, sy, ex, ey);   // 記憶(セル対のキャッシュ)は計測で DDA 本体より高くついたので持たない
     }
     /// <summary>地面の最上段の高さ(y)。地形が無ければ 0。</summary>
+    const int HeightCell = 4;
+    /// <summary>地面の最上段の高さ(y)。ブロックを直接引く(格子を作るとき用)。地形が無ければ 0。</summary>
     public static int GroundHeight(Simulation sim, double x, double y) { int ix = (int)Math.Floor(x), iz = (int)Math.Floor(y); for (int h = 15; h >= 0; h--) if (sim.World.Get(ix, h, iz) != BlockRegistry.Air) return h; return 0; }
-    /// <summary>地形の起伏による遮蔽: 射線(目の高さ 2 m、飛行中は 18 m)より高い地面が 4 m ごとの標本にあれば遮られる。</summary>
+    /// <summary>地面の高さを 4 m の格子に写す(地図の大きさは建物と街区から)。地形が変わる(World.Version)と作り直す。起伏が無ければ空にして判定を飛ばす。</summary>
+    static void RefreshHeights(Simulation sim)
+    {
+        var f = sim.Factory; if (f.HeightVersion == sim.World.Version && f.HeightGridBuilt) return;
+        f.HeightVersion = sim.World.Version; f.HeightGridBuilt = true;
+        int n = Math.Max(sim.CityData.MapSize, 1); foreach (var b in f.Buildings) if (b.Floors.Count > 0) n = Math.Max(n, (int)Math.Max(b.X + b.Floors[0].W, b.Y + b.Floors[0].D));
+        int cells = n / HeightCell + 2; var grid = new byte[cells, cells]; byte min = 255, max = 0;
+        for (int gx = 0; gx < cells; gx++) for (int gy = 0; gy < cells; gy++) { byte h = (byte)GroundHeight(sim, gx * HeightCell + HeightCell / 2, gy * HeightCell + HeightCell / 2); grid[gx, gy] = h; if (h < min) min = h; if (h > max) max = h; }
+        f.HeightGrid = max > min ? grid : null;   // 平らなら判定しない
+    }
+    static int H(byte[,] g, double x, double y) { int gx = (int)(x / HeightCell), gy = (int)(y / HeightCell); return gx < 0 || gy < 0 || gx >= g.GetLength(0) || gy >= g.GetLength(1) ? 0 : g[gx, gy]; }
+    /// <summary>地形の起伏による遮蔽: 射線(目の高さ 2 m、飛行中は 18 m)より高い地面が 4 m ごとの標本にあれば遮られる。高さは格子から読む。</summary>
     public static bool TerrainBlocked(Simulation sim, double x0, double y0, bool fly0, double x1, double y1, bool fly1)
     {
-        double h0 = GroundHeight(sim, x0, y0) + (fly0 ? 18 : 2), h1 = GroundHeight(sim, x1, y1) + (fly1 ? 18 : 2);
-        double len = Math.Sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0)); int n = (int)(len / 4); if (n < 2) return false;
-        for (int i = 1; i < n; i++) { double t = (double)i / n; if (GroundHeight(sim, x0 + (x1 - x0) * t, y0 + (y1 - y0) * t) > h0 + (h1 - h0) * t) return true; }
+        var g = sim.Factory.HeightGrid; if (g == null) return false;
+        double h0 = H(g, x0, y0) + (fly0 ? 18 : 2), h1 = H(g, x1, y1) + (fly1 ? 18 : 2);
+        double len = Math.Sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0)); int n = (int)(len / HeightCell); if (n < 2) return false;
+        for (int i = 1; i < n; i++) { double t = (double)i / n; if (H(g, x0 + (x1 - x0) * t, y0 + (y1 - y0) * t) > h0 + (h1 - h0) * t) return true; }
         return false;
     }
 

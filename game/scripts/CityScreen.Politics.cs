@@ -73,12 +73,13 @@ public partial class CityScreen
         var right = new VBoxContainer(); right.AddThemeConstantOverride("separation", 6); right.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; body.AddChild(right);
         if (slot == null) { right.AddChild(Lbl("役職がありません")); return; }
         right.AddChild(Lbl($"{slot.Name} の候補({AbilityName(slot.Ability)} の高い順)", 14, Accent));
-        var grid = new GridContainer { Columns = 10 }; grid.AddThemeConstantOverride("h_separation", 14); grid.AddThemeConstantOverride("v_separation", 4); right.AddChild(grid);
-        foreach (var h in new[] { "名前", "統治", "生産", "指揮", "交渉", "忠誠", "野心", "不満", "現在", "" }) grid.AddChild(Lbl(h, 12, Line40));
+        var grid = new GridContainer { Columns = 11 }; grid.AddThemeConstantOverride("h_separation", 14); grid.AddThemeConstantOverride("v_separation", 4); right.AddChild(grid);
+        foreach (var h in new[] { "", "名前", "統治", "生産", "指揮", "交渉", "忠誠", "野心", "不満", "現在", "" }) grid.AddChild(Lbl(h, 12, Line40));
         var cands = c.Persons.Where(p => p.Office == null || p.Office == slot.Id).OrderByDescending(p => Ability(p, slot.Ability)).ThenByDescending(p => p.Loyalty).ToList();
         foreach (var p in cands)
         {
             bool sel = p.Id == _pickPerson, holder = p.Office == slot.Id;
+            grid.AddChild(new Portrait(p, 36));
             var nameBtn = Btn(p.Name + (holder ? "(現職)" : ""), () => { _pickPerson = p.Id; RefreshOverlay(true); }, sel); nameBtn.CustomMinimumSize = new Vector2(150, 26); nameBtn.Alignment = HorizontalAlignment.Left; grid.AddChild(nameBtn);
             foreach (var v in new[] { p.Govern, p.Produce, p.Command, p.Negotiate }) grid.AddChild(Lbl(v.ToString(), 13));
             grid.AddChild(Lbl(p.Loyalty.ToString(), 13, p.Loyalty <= 3 ? Warm : Text)); grid.AddChild(Lbl(p.Ambition.ToString(), 13, p.Ambition >= 7 ? Warm : Text)); grid.AddChild(Lbl($"{p.Discontent:0.0}", 13, p.Discontent >= 6 ? Red : Text));

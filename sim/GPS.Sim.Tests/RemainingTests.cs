@@ -91,7 +91,7 @@ public class TerrainTests
         Do(s, new FormSquad(1, 1, "a", new[] { 1 }, 1), new FormSquad(2, 2, "e", new[] { 11 }, 2), new FormSquad(3, 2, "f", new[] { 12 }, 2));
         Do(s, new Deploy(1, 60, 20), new Deploy(2, 140, 20), new OrderSquad(1, SquadOrder.Hold), new OrderSquad(2, SquadOrder.Hold));
         s.Run(6); Assert.Equal(-1, f.Squads[0].Members[0].TargetMech);   // 尾根の向こうは見えない
-        Do(s, new Deploy(2, 100, 20)); s.Run(6); Assert.Equal(11, f.Squads[0].Members[0].TargetMech);   // 尾根の上に立てば見える
+        Do(s, new Deploy(2, 91, 20)); s.Run(6); Assert.Equal(11, f.Squads[0].Members[0].TargetMech);   // 尾根の手前の縁に立てば見える(奥に立つと崖の縁に隠れる)
         Assert.Equal(8, Combat.GroundHeight(s, 100, 20)); Assert.Equal(0, Combat.GroundHeight(s, 60, 20));
     }
 }

@@ -15,6 +15,9 @@ public partial class CityScreen
     readonly List<(Node3D n, int life)> _fieldFx = new();
     readonly Dictionary<Loot, Node3D> _lootMarks = new();
     int _fxCursor;
+    readonly List<Node3D> _citizens = new();
+    readonly Dictionary<int, GpuParticles3D> _smoke = new();
+    long _ambientTick = -1;
 
     static string RelationName(string st) => st switch { "vassal" => "属国", "hostile" => "敵対", "wary" => "警戒", "friendly" => "友好", _ => "中立" };
     static string TreatyName(string k) => k switch { "trade" => "通商", "nonaggression" => "不可侵", "alliance" => "同盟", _ => k };
@@ -94,9 +97,41 @@ public partial class CityScreen
     }
 
     // ---------- 都市の画面: 出撃中の隊と射線 ----------
+    /// <summary>公害の煙(工場の建物の屋上。機械の台数で量が変わる)と住民(住居の周りを 1 時間ごとに歩き直す)。</summary>
+    void RefreshAmbient()
+    {
+        var f = _sim.Factory; var city = f.City; if (city == null) return;
+        if (_ambientTick >= 0 && _sim.Tick - _ambientTick < Clock.TicksPerHour) return; _ambientTick = _sim.Tick;
+        foreach (var b in f.Buildings)
+        {
+            int machines = b.Floors.Sum(fl => fl.Structures.OfType<Machine>().Count(m => m.Recipe != null));
+            if (!_smoke.TryGetValue(b.Id, out var ps))
+            {
+                if (machines == 0 || b.Floors.Count == 0) continue;
+                var mat = new ParticleProcessMaterial { EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Sphere, EmissionSphereRadius = 1.5f, Direction = new Vector3(0, 1, 0), Spread = 20f, InitialVelocityMin = 1f, InitialVelocityMax = 2f, Gravity = new Vector3(0.6f, 0.5f, 0), ScaleMin = 1.5f, ScaleMax = 3f, Color = new Color(0.35f, 0.35f, 0.38f, 0.5f) };
+                ps = new GpuParticles3D { Amount = 24, Lifetime = 6f, Preprocess = 4f, ProcessMaterial = mat, Position = new Vector3((float)b.X + b.Floors[0].W / 2f, Y + b.Floors.Count * 3f + 1f, (float)b.Y + b.Floors[0].D / 2f), DrawPass1 = new SphereMesh { Radius = 0.6f, Height = 1.2f, Material = new StandardMaterial3D { AlbedoColor = new Color(0.4f, 0.4f, 0.42f, 0.45f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded } } };
+                _cityRoot.AddChild(ps); _smoke[b.Id] = ps;
+            }
+            ps.Emitting = machines > 0 && !b.Destroyed; ps.Amount = Math.Clamp(8 + machines * 4, 8, 64);
+        }
+        // 住民: 人口 4 人に 1 体(上限 80)。住居の敷地の縁に置く
+        int want = (int)Math.Clamp(city.Population / 4, 0, 80);
+        var homes = f.Buildings.Where(b => b.Use == "residence" && b.Floors.Count > 0).ToList();
+        var rnd = new Random((int)(_sim.Tick / Clock.TicksPerHour));
+        while (_citizens.Count < want && homes.Count > 0) { var n = _fm.Character(_cityRoot, "citizen", 0, Y, 0, 0); _citizens.Add(n); }
+        for (int i = 0; i < _citizens.Count; i++)
+        {
+            bool show = i < want && homes.Count > 0; _citizens[i].Visible = show; if (!show) continue;
+            var h = homes[rnd.Next(homes.Count)]; int w = h.Floors[0].W, d = h.Floors[0].D; int side = rnd.Next(4);
+            float px = (float)h.X + (side == 0 ? -1.5f : side == 1 ? w + 1.5f : rnd.Next(w)), pz = (float)h.Y + (side == 2 ? -1.5f : side == 3 ? d + 1.5f : rnd.Next(d));
+            _citizens[i].Position = new Vector3(px, Y, pz); _citizens[i].RotationDegrees = new Vector3(0, rnd.Next(360), 0);
+        }
+    }
+
     void RefreshField()
     {
         var f = _sim.Factory;
+        RefreshAmbient();
         foreach (var l in f.Loot) if (!_lootMarks.ContainsKey(l))
         {
             var n = new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(2.4f, 0.8f, 2.4f) }, Position = new Vector3(l.X, Y + 0.4f, l.Y), MaterialOverride = new StandardMaterial3D { AlbedoColor = Warm, EmissionEnabled = true, Emission = Warm, EmissionEnergyMultiplier = 1.5f } };
