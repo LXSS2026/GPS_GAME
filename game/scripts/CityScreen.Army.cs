@@ -19,8 +19,8 @@ public partial class CityScreen
         var back = Btn("地図へ戻る", CloseOverlay); back.CustomMinimumSize = new Vector2(0, 28); head.AddChild(back); col.AddChild(head);
         var mine = f.Squads.Where(s => s.Faction == 1).ToList();
         if (mine.Count == 0) { col.AddChild(Lbl("隊がありません。機体を製造して格納庫で隊を編成します", 13, Warm)); return; }
-        var g = new GridContainer { Columns = 12 }; g.AddThemeConstantOverride("h_separation", 14); g.AddThemeConstantOverride("v_separation", 4); col.AddChild(g);
-        foreach (var h in new[] { "", "隊", "隊長", "軍", "系統", "世代", "機数", "耐久", "状態", "命令", "要員", "帰還先" }) g.AddChild(Lbl(h, 12, Line40));
+        var g = new GridContainer { Columns = 14 }; g.AddThemeConstantOverride("h_separation", 14); g.AddThemeConstantOverride("v_separation", 4); col.AddChild(g);
+        foreach (var h in new[] { "", "隊", "隊長", "軍", "系統", "世代", "機数", "耐久", "士気", "練度", "状態", "命令", "要員", "帰還先" }) g.AddChild(Lbl(h, 12, Line40));
         if (!mine.Any(s => s.Id == _armyPickSquad)) _armyPickSquad = mine[0].Id;
         foreach (var s in mine)
         {
@@ -31,6 +31,7 @@ public partial class CityScreen
             g.AddChild(Lbl(s.Archetype switch { "heavy" => "重装", "fast" => "高速", _ => "汎用" }, 13)); g.AddChild(Lbl($"第 {s.Generation}", 13)); g.AddChild(Lbl($"{s.Alive}/{s.Members.Count}", 13));
             double hp = s.Members.Where(u => u.Alive).Sum(u => u.Hp), max = s.Members.Where(u => u.Alive).Sum(u => u.MaxHp); int pct = max > 0 ? (int)Math.Round(hp / max * 100) : 0;
             g.AddChild(Lbl($"{pct}%", 13, pct < 30 ? Red : pct < 70 ? Warm : Green));
+            g.AddChild(Lbl($"{s.Morale:0}", 13, s.Morale < 30 ? Red : s.Morale < 60 ? Warm : Green)); g.AddChild(Lbl($"{s.Exp:0}", 13));
             g.AddChild(Lbl(s.State == SquadState.InHangar ? "格納庫" : "出撃中", 13));
             g.AddChild(Lbl(s.Order switch { SquadOrder.Attack => s.TargetBuilding >= 0 ? $"攻撃 建物 #{s.TargetBuilding}" : s.TargetSquad >= 0 ? $"攻撃 隊 #{s.TargetSquad}" : "攻撃", SquadOrder.Move => $"移動 ({s.OrderX:0}, {s.OrderY:0})", SquadOrder.Retreat => "帰還", SquadOrder.Collect => "回収", SquadOrder.SelfDestruct => "自爆", _ => "待機" }, 13));
             bool crew = CitySim.CanDeploy(f, s, cd); g.AddChild(Lbl(crew ? "充足" : "不足", 13, crew ? Green : Warm));

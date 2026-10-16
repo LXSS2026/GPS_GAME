@@ -38,6 +38,21 @@ public sealed class CombatData
     public int RepairPartsPerHour { get; set; } = 1;
     public List<string> RepairItems { get; set; } = new();
     public double DefaultRetreatHp { get; set; } = 0.25;
+    // 士気・練度(G21 第 6 節)。数値は combat.json の morale
+    public double MoraleStart { get; set; } = 70;
+    public double MoraleLossPerMech { get; set; } = 4;
+    public double MoraleKillGain { get; set; } = 2;
+    public double MoraleHangarRecover { get; set; } = 3;
+    public double MoraleFieldNoSupply { get; set; } = -2;
+    public double MoraleNoCommander { get; set; } = -1;
+    public double MoraleCommanderPerPoint { get; set; } = 0.2;
+    public double MoraleHitAt0 { get; set; } = 0.8;
+    public double MoraleHitAt100 { get; set; } = 1.1;
+    public double MoraleRetreatExtra { get; set; } = 0.25;
+    public double MoraleBreakBelow { get; set; } = 20;
+    public double ExpPerKill { get; set; } = 3;
+    public double ExpPerCombatHour { get; set; } = 1;
+    public double ExpHitBonus { get; set; } = 0.15;
     public int SquadMax { get; set; } = 12;
     public double FormationSpacing { get; set; } = 6;
 
@@ -67,6 +82,13 @@ public sealed class CombatData
         var fy = r.GetProperty("flight"); c.FighterMinDist = fy.GetProperty("fighterMinDist").GetDouble(); c.FighterSpeedMul = fy.GetProperty("speedMul").GetDouble(); c.FlyingHitMul = fy.GetProperty("hitMul").GetDouble();
         var wl = r.GetProperty("wall"); c.WallHpPerCell = wl.GetProperty("hpPerCell").GetDouble(); c.WallCostPerCell = wl.GetProperty("costPerCell").GetDouble(); c.WallMaxLevel = wl.GetProperty("maxLevel").GetInt32();
         var rp = r.GetProperty("repair"); c.RepairPerPart = rp.GetProperty("perPart").GetDouble(); c.RepairPartsPerHour = rp.GetProperty("partsPerHour").GetInt32(); c.RepairItems = rp.GetProperty("items").EnumerateArray().Select(e => e.GetString()!).ToList(); c.DefaultRetreatHp = r.GetProperty("defaultRetreatHp").GetDouble(); c.SquadMax = r.GetProperty("squadMax").GetInt32(); c.FormationSpacing = r.GetProperty("formationSpacing").GetDouble();
+        if (r.TryGetProperty("morale", out var mo))
+        {
+            c.MoraleStart = mo.GetProperty("start").GetDouble(); c.MoraleLossPerMech = mo.GetProperty("lossPerMech").GetDouble(); c.MoraleKillGain = mo.GetProperty("killGain").GetDouble();
+            c.MoraleHangarRecover = mo.GetProperty("hangarRecoverPerHour").GetDouble(); c.MoraleFieldNoSupply = mo.GetProperty("noSupplyPerHour").GetDouble(); c.MoraleNoCommander = mo.GetProperty("noCommanderPerHour").GetDouble(); c.MoraleCommanderPerPoint = mo.GetProperty("commanderPerPointPerHour").GetDouble();
+            c.MoraleHitAt0 = mo.GetProperty("hitAt0").GetDouble(); c.MoraleHitAt100 = mo.GetProperty("hitAt100").GetDouble(); c.MoraleRetreatExtra = mo.GetProperty("retreatExtraAt0").GetDouble(); c.MoraleBreakBelow = mo.GetProperty("breakBelow").GetDouble();
+            var ex = mo.GetProperty("exp"); c.ExpPerKill = ex.GetProperty("perKill").GetDouble(); c.ExpPerCombatHour = ex.GetProperty("perCombatHour").GetDouble(); c.ExpHitBonus = ex.GetProperty("hitBonusAt100").GetDouble();
+        }
         return c;
     }
 }
@@ -97,7 +119,7 @@ public sealed class MechUnit
     public double SearchOverride { get; set; }
     public int SelfDestruct { get; set; }
     public int McuTimer { get; set; }
-    [JsonIgnore] public bool Flying { get; set; }
+    public bool Flying { get; set; }   // 写しに残す(命中に効くので決定論に要る)
     [JsonIgnore] public Mech? MechRef { get; set; }   // 機体の設計への参照(索引の版が変わるまで有効。10 万件の辞書引きを避ける)
     [JsonIgnore] public int MechRefVersion { get; set; } = -1;
     [JsonIgnore] public byte PowerKind { get; set; }   // 1 = リアクター、2 = バッテリー(MechRef と一緒に更新)
@@ -130,11 +152,17 @@ public sealed class Squad
     /// <summary>集約の射撃の端数(G21 #2)。保存する(決定論)。</summary>
     public double FireAccum { get; set; }
     public int AutoTarget { get; set; } = -1;
-    [JsonIgnore] public bool Aggregated { get; set; }
+    /// <summary>士気 0〜100(G21 第 6 節): 損耗で下がり、撃破・格納庫・指揮官で上がる。命中と下がる閾値に効き、崩れると帰還。</summary>
+    public double Morale { get; set; } = 70;
+    /// <summary>練度 0〜100: 撃破と交戦した時間で上がる。命中に効く。</summary>
+    public double Exp { get; set; }
+    public bool FoughtHour { get; set; }   // この 1 時間に撃ったか(練度)。写しに残す(決定論)
+    public bool Aggregated { get; set; }   // 写しに残す(切り替わりの処理を読み込み後も同じにする)
     [JsonIgnore] public double CX { get; set; }
     [JsonIgnore] public double CY { get; set; }
     [JsonIgnore] public List<MechUnit> AliveBuf { get; } = new();
     [JsonIgnore] public List<MechUnit> FightBuf { get; } = new();
+    [JsonIgnore] public List<MechUnit> RunBuf { get; } = new();   // 下がって帰っている生存機(事前走査)
     [JsonIgnore] public int AliveCache { get; set; }   // 集約の事前走査で数えた生存機(同じティックの中で撃破のたびに減らす)
     [JsonIgnore] public int FightCache { get; set; }   // 同じく戦う機体(下がっていない生存機)
     [JsonIgnore] public bool CenterKept { get; set; }   // 集約が中心(CX/CY)を更新済み(次のティックの分類で機体を走査しない)
@@ -191,7 +219,7 @@ public static class Combat
         // ティックごとの索引(10 万規模の計測で、線形探索が n² になっていたため): 機体 Id → ユニット、空間格子(64 m)
         // 注視範囲の外の隊は集約(隊どうしの式)で解く(G21 #3)。村(段階 1)と、自爆の命令は個機
         int stage = f.City?.Stage ?? 1;
-        foreach (var s in field) { if (s.CenterKept) s.CenterKept = false; else { double sx = 0, sy = 0; int n = 0; foreach (var u in s.Members) if (u.Alive) { sx += u.X; sy += u.Y; n++; } if (n > 0) { s.CX = sx / n; s.CY = sy / n; } else { s.CX = s.OrderX; s.CY = s.OrderY; } } s.Aggregated = stage >= 2 && f.FocusR > 0 && s.Order != SquadOrder.SelfDestruct && Math.Sqrt((s.CX - f.FocusX) * (s.CX - f.FocusX) + (s.CY - f.FocusY) * (s.CY - f.FocusY)) > f.FocusR; }
+        foreach (var s in field) { if (s.CenterKept) s.CenterKept = false; else { double sx = 0, sy = 0; int n = 0; foreach (var u in s.Members) if (u.Alive) { sx += u.X; sy += u.Y; n++; } if (n > 0) { s.CX = sx / n; s.CY = sy / n; } else { s.CX = s.OrderX; s.CY = s.OrderY; } } bool was = s.Aggregated; s.Aggregated = stage >= 2 && f.FocusR > 0 && s.Order != SquadOrder.SelfDestruct && Math.Sqrt((s.CX - f.FocusX) * (s.CX - f.FocusX) + (s.CY - f.FocusY) * (s.CY - f.FocusY)) > f.FocusR; if (s.Aggregated && !was) foreach (var u in s.Members) { u.TargetMech = -1; u.Flying = false; } }   // 個機 → 集約の切り替わりで機体の目標を消す(集約は隊の目標で解く)
         var detail = field.Where(s => !s.Aggregated).ToList(); var agg = field.Where(s => s.Aggregated).ToList();
         f.CombatUnits.Clear(); f.CombatGrid.Clear();
         if (detail.Count > 0)   // 個機の索敵・目標の索引(個機の隊が無ければ要らない)
@@ -204,7 +232,7 @@ public static class Combat
                 var me = mechs[u.MechId];
                 if ((f.TickCount + u.MechId) % c.SenseEvery == 0 || (u.TargetMech >= 0 && FindUnit(f, field, u.TargetMech) is not { Alive: true })) Sense(f, s, u, me, field, mechs, data, c);   // 索敵は間引く(遮蔽の射線が重いため)
                 if (me.Program != null && ++u.McuTimer >= Math.Max(1, me.Program.Interval)) { u.McuTimer = 0; RunBoard(s, u, me, f, data); }
-                else if (me.Program == null) { u.Retreat = u.Hp < u.MaxHp * f.RetreatHp ? 1 : 0; u.Engage = 1; }
+                else if (me.Program == null) { u.Retreat = u.Hp < u.MaxHp * RetreatFrac(f, s, c) ? 1 : 0; u.Engage = 1; }
             }
         // 移動
         foreach (var s in field)
@@ -280,11 +308,11 @@ public static class Combat
                 double dist = Dist(u, t);
                 if (dist > w.Range * c.FarMul) continue;
                 if (w.Kind == "beam") { if (u.Energy < w.EnergyPerShot) continue; } else if (w.AmmoPerShot > 0) { if (u.Ammo < w.AmmoPerShot) continue; }
-                u.Cooldown = w.Cooldown;
+                u.Cooldown = w.Cooldown; s.FoughtHour = true;
                 if (w.Kind == "beam") u.Energy -= w.EnergyPerShot; else u.Ammo -= w.AmmoPerShot;
                 var tm = mechs[t.MechId];
                 if (t.Flying && w.Melee != null) continue;   // 飛んでいる相手に近接は届かない
-                double hit = w.Accuracy * (dist <= w.Range ? 1 : 1 - (dist - w.Range) / (w.Range * (c.FarMul - 1)) * (1 - c.FarHit)) * Math.Max(c.MinHit, 1 - MechStats.Speed(tm, c) / c.SpeedRef) * f.HitMulPct / 100.0 * (t.Flying ? c.FlyingHitMul : 1) * Armies.CommandMul(f, s);   // 軍の長の効果(G19)、飛行中は当たりにくい、隊長と司令官(G21)
+                double hit = w.Accuracy * (dist <= w.Range ? 1 : 1 - (dist - w.Range) / (w.Range * (c.FarMul - 1)) * (1 - c.FarHit)) * Math.Max(c.MinHit, 1 - MechStats.Speed(tm, c) / c.SpeedRef) * f.HitMulPct / 100.0 * (t.Flying ? c.FlyingHitMul : 1) * Armies.CommandMul(f, s) * MoraleMul(s, c);   // 軍の長の効果(G19)、飛行中は当たりにくい、隊長と司令官(G21)、士気と練度
                 if (w.Missile && tm.Generation >= 5)
                 {   // 誘導弾はステルスに当たらない(弾幕か偶然を除く)
                     int inbound = s.Members.Count(x => x.Alive && x.TargetMech == t.MechId && c.Weapons[WeaponId(x, mechs[x.MechId], c)].Missile);
@@ -296,7 +324,7 @@ public static class Combat
                 f.Events.Add(new FactoryEvent { Kind = landed ? "hit" : "miss", Building = s.Id, Floor = t.MechId, X = (int)u.X, Y = (int)u.Y, Power = (int)dmg, Radius = dist, Destroyed = landed ? 1 : 0 });
                 if (!landed) continue;
                 t.Hp -= dmg;
-                if (t.Hp <= 0) Kill(f, t, tm, c, field);
+                if (t.Hp <= 0) Kill(f, t, tm, c, field, null, s);
             }
         // 給電: 屋外では、撃っていないリアクター機がバッテリー機に給電。リアクター機は毎ティック回復
         foreach (var s in field)
@@ -350,9 +378,9 @@ public static class Combat
         // 隊ごとの事前走査(機体に触るのはここだけ): 生存機・戦う機体・生存数、リアクターの回復と給電
         foreach (var q in agg)
         {
-            var qa = q.AliveBuf; qa.Clear(); var qf = q.FightBuf; qf.Clear();
+            var qa = q.AliveBuf; qa.Clear(); var qf = q.FightBuf; qf.Clear(); var qr = q.RunBuf; qr.Clear();
             bool hasBattery = Recharge(q.Members, qa, f, mechs, data);
-            foreach (var u in qa) if (u.Retreat == 0) qf.Add(u);
+            foreach (var u in qa) if (u.Retreat == 0) qf.Add(u); else qr.Add(u);
             q.AliveCache = qa.Count; q.FightCache = qf.Count; if (hasBattery) FieldCharge(qa, 0, qa.Count, f, mechs, data, c);
         }
         int nf = field.Count; for (int i = 0; i < nf; i++) field[i].FieldIdx = i;
@@ -427,21 +455,29 @@ public static class Combat
             double nx = cx, ny = cy;
             if (goal is var (gx, gy)) { double dx = gx - cx, dy = gy - cy, d = Math.Sqrt(dx * dx + dy * dy); if (lead.Archetype == "fast" && d > c.FighterMinDist) { fly = true; spd *= c.FighterSpeedMul; } if (d > 0.5) { double k = Math.Min(1, spd / d); nx += dx * k; ny += dy * k; } }
             var army = armyOf[s.FieldIdx]; bool orderRetreat = s.Order == SquadOrder.Retreat;
+            var hbU = f.Get(s.HomeBuilding); double spd0 = MechStats.Speed(lead, c) / Clock.TicksPerSecond;
             double ax = 0, ay = 0;   // 軍の陣形の重心(陣形の並びは原点対称でないので、重心を単位の中心に合わせないと置くたびにずれる)
             if (army != null) { for (int qi = 0; qi < unit.Count; qi++) { var (ox, oy) = Armies.Slot(army, qi, 0, 0); ax += ox; ay += oy; } ax /= unit.Count; ay /= unit.Count; }
             for (int qi = 0; qi < unit.Count; qi++)
             {
-                var q = unit[qi]; var (qx, qy) = army != null ? Armies.Slot(army, qi, nx - ax, ny - ay) : (nx, ny); int i = 0, qalive = q.AliveCache; double sqx = qx, sqy = qy;
+                var q = unit[qi]; var (qx, qy) = army != null ? Armies.Slot(army, qi, nx - ax, ny - ay) : (nx, ny); int i = 0, qalive = q.FightCache; double sqx = qx, sqy = qy;   // 下がった機体は陣形に数えない(個々に帰る)
                 if (qalive > 0) { double mx = 0, my = 0; for (int j = 0; j < qalive; j++) { var (ox, oy) = Slot(q, j, 0, 0, c, qalive); mx += ox; my += oy; } qx -= mx / qalive; qy -= my / qalive; }   // 隊の陣形の重心
                 bool place = (f.TickCount + q.Id) % c.SenseEvery == 0 || goal != null && (Math.Abs(nx - cx) + Math.Abs(ny - cy)) < 1e-9;   // 位置の置き直しは 3 ティックに 1 回、他は動いた分だけずらす
                 double ddx = nx - cx, ddy = ny - cy;
+                void RunHome(MechUnit u)
+                {   // 下がった機体は個々に帰る(個機と同じ)。塊の置き直しで引き戻さない
+                    double rx = hbU!.X - u.X, ry = hbU.Y - u.Y, rd = Math.Sqrt(rx * rx + ry * ry); if (rd > 0.5) { double rk = Math.Min(1, spd0 / rd); u.X += rx * rk; u.Y += ry * rk; }
+                    u.Flying = false; u.TargetMech = -1;
+                }
                 if (place || goal != null || orderRetreat || q.LastFly != fly)   // 止まっていて印も変わらない隊は機体に触らない(置き直しの 3 ティックに 1 回で揃う)
                     foreach (var u in q.Members)
                     {
                         if (!u.Alive) continue;
+                        if (u.Retreat != 0 && hbU != null) { RunHome(u); continue; }
                         if (place) { var (px, py) = Slot(q, i++, qx, qy, c, qalive); u.X = px; u.Y = py; } else if (goal != null) { u.X += ddx; u.Y += ddy; }
                         u.Flying = fly; u.TargetMech = -1; if (orderRetreat) u.Retreat = 1;
                     }
+                else if (hbU != null) foreach (var u in q.RunBuf) if (u.Alive) RunHome(u);   // 帰る機体だけ
                 q.LastFly = fly;
                 if (place) { q.CX = sqx; q.CY = sqy; } else if (goal != null) { q.CX += ddx; q.CY += ddy; }   // 中心は置いた位置から分かる(次のティックの分類で走査しない)
                 q.CenterKept = true;
@@ -449,17 +485,27 @@ public static class Combat
             // 射撃: 発射数 = 戦う機体 × 発射率(端数は持ち越し)。資源は機体から順に。命中は平均、ダメージは相手の下がっていない先頭の機体へ
             if (retreat || target == null || td > w.Range * c.FarMul) continue;
             s.FireAccum += (double)fightCount / w.Cooldown;
-            int shots = (int)s.FireAccum; s.FireAccum -= shots;
+            int shots = (int)s.FireAccum; s.FireAccum -= shots; if (shots > 0) foreach (var q in unit) q.FoughtHour = true;
             var tunit = unitOf[target.FieldIdx]; if (tunit == null) { tunit = target.SelfUnit ??= new List<Squad>(1); tunit.Clear(); tunit.Add(target); }   // 個機の隊が相手なら隊 1 つ
+            MechUnit? nearRun = null; Squad nearRunSq = target; double nearD2 = 0, far2 = w.Range * c.FarMul * (w.Range * c.FarMul);
+            void FindRunner()
+            {   // 帰っている機体のうち最寄り(位置はこの単位の射撃の間は変わらない)
+                nearRun = null; nearD2 = far2;
+                foreach (var q in tunit) foreach (var u in q.RunBuf) { if (!u.Alive) continue; double rx = u.X - nx, ry = u.Y - ny, d2 = rx * rx + ry * ry; if (d2 < nearD2) { nearD2 = d2; nearRun = u; nearRunSq = q; } }
+            }
+            FindRunner(); int tqi = 0, tui = 0;
             bool beam = w.Kind == "beam"; int si = 0;   // 資源の尽きた機体は戻らないので先頭から順に進める
-            double cmdMul = Armies.CommandMul(f, s, army), dmg = w.Damage * MechStats.WeaponQuality(lead) / 70 * MechStats.GenMul(lead, c);
+            double cmdMul = Armies.CommandMul(f, s, army) * UnitMoraleMul(unit, c), dmg = w.Damage * MechStats.WeaponQuality(lead) / 70 * MechStats.GenMul(lead, c);
             for (int k = 0; k < shots; k++)
             {
                 while (si < fighters.Count && (fighters[si].Retreat != 0 || !fighters[si].Alive || !(beam ? fighters[si].Energy >= w.EnergyPerShot : w.AmmoPerShot == 0 || fighters[si].Ammo >= w.AmmoPerShot))) si++;
                 if (si >= fighters.Count) break; var shooter = fighters[si];
                 if (beam) shooter.Energy -= w.EnergyPerShot; else shooter.Ammo -= w.AmmoPerShot;
-                MechUnit? t = null; Squad tq = target; foreach (var q in tunit) { foreach (var u in q.Members) if (u.Alive && u.Retreat == 0) { t = u; tq = q; break; } if (t != null) break; }
-                if (t == null) foreach (var q in tunit) { foreach (var u in q.Members) if (u.Alive) { t = u; tq = q; break; } if (t != null) break; }
+                // 目標: 個機の索敵(最も近い敵機)と同じ。塊の戦う機体は単位の距離で先頭から順(#2)、下がって帰る機体はその実距離。射程(farMul)の外は撃たない
+                MechUnit? t = null; Squad tq = target;
+                while (tqi < tunit.Count) { var fb = tunit[tqi].FightBuf; while (tui < fb.Count && (!fb[tui].Alive || fb[tui].Retreat != 0)) tui++; if (tui < fb.Count) { t = fb[tui]; tq = tunit[tqi]; break; } tqi++; tui = 0; }   // 戦う機体は塊の位置(先頭から順 #2)
+                if (nearRun != null && !nearRun.Alive) FindRunner();
+                if (nearRun != null && (t == null || nearD2 < td * td)) { t = nearRun; tq = nearRunSq; }   // 帰る機体の方が近ければそちら(個機の最寄り索敵と同じ)
                 if (t == null) break;
                 var tm = MechOf(t, f, mechs);
                 if (w.Missile && tm.Generation >= 5 && fightCount < c.MissileBarrage && rng.Next(10_000) >= (int)(c.MissileLuck * 10_000)) { f.Events.Add(new FactoryEvent { Kind = "miss", Building = s.Id, Floor = t.MechId, X = (int)nx, Y = (int)ny, Power = t.MechId }); continue; }
@@ -468,9 +514,38 @@ public static class Combat
                 f.Events.Add(new FactoryEvent { Kind = landed ? "hit" : "miss", Building = s.Id, Floor = t.MechId, X = (int)shooter.X, Y = (int)shooter.Y, Power = (int)dmg, Radius = td, Destroyed = landed ? 1 : 0 });
                 if (!landed) continue;
                 t.Hp -= dmg;
-                if (t.Hp <= 0) { if (t.Retreat == 0) tq.FightCache--; tq.AliveCache--; Kill(f, t, tm, c, field); }
-                else if (t.Hp < t.MaxHp * f.RetreatHp && tm.Program == null && t.Retreat == 0) { t.Retreat = 1; tq.FightCache--; }   // 個機の既定と同じく 25% で下がる
+                if (t.Hp <= 0) { if (t.Retreat == 0) tq.FightCache--; tq.AliveCache--; Kill(f, t, tm, c, field, tq, s); foreach (var q in unit) if (q != s) { MoraleChange(f, q, c.MoraleKillGain, c); q.Exp = Math.Min(100, q.Exp + c.ExpPerKill); } }   // 軍は 1 つの単位で戦うので全隊に
+                else if (t.Hp < t.MaxHp * RetreatFrac(f, tq, c) && tm.Program == null && t.Retreat == 0) { t.Retreat = 1; tq.FightCache--; }   // 個機の既定と同じく 25% で下がる
             }
+        }
+    }
+    /// <summary>士気と練度の命中の倍率(G21 第 6 節): 士気 0 → hitAt0、100 → hitAt100、練度 100 で +hitBonus。</summary>
+    public static double MoraleMul(Squad s, CombatData c) => (c.MoraleHitAt0 + (c.MoraleHitAt100 - c.MoraleHitAt0) * Math.Clamp(s.Morale, 0, 100) / 100) * (1 + c.ExpHitBonus * Math.Clamp(s.Exp, 0, 100) / 100);
+    static double UnitMoraleMul(List<Squad> unit, CombatData c) { double m = 0; foreach (var q in unit) m += MoraleMul(q, c); return m / unit.Count; }
+    /// <summary>下がる耐久の閾値: 士気 50 未満で上がる(士気 0 で +retreatExtra。50 以上は既定のまま)。</summary>
+    public static double RetreatFrac(Factory f, Squad s, CombatData c) => f.RetreatHp + c.MoraleRetreatExtra * Math.Clamp((50 - s.Morale) / 50, 0, 1);
+    /// <summary>士気の増減。breakBelow を割った出撃中の隊は崩れて帰還する(命令は帰還に置き換わる)。</summary>
+    public static void MoraleChange(Factory f, Squad s, double delta, CombatData c)
+    {
+        s.Morale = Math.Clamp(s.Morale + delta, 0, 100);
+        if (s.Morale < c.MoraleBreakBelow && s.State == SquadState.Field && s.Order != SquadOrder.Retreat) { s.Order = SquadOrder.Retreat; f.Events.Add(new FactoryEvent { Kind = "broken", Building = s.Id, Power = (int)s.Morale }); }
+    }
+    /// <summary>1 時間ごと: 格納庫で回復、出撃中は補給切れと隊長不在で下がり、指揮官の指揮で増減。撃った隊は練度が上がる。</summary>
+    public static void MoraleHour(Factory f, CombatData c)
+    {
+        foreach (var s in f.Squads)
+        {
+            double d = 0;
+            if (s.State == SquadState.InHangar) d += c.MoraleHangarRecover;
+            else
+            {
+                if (f.City != null && s.Faction == 1 && Armies.Commander(f, s.CommanderId) == null) d += c.MoraleNoCommander;
+                int alive = 0, low = 0; foreach (var u in s.Members) if (u.Alive) { alive++; if (u.Energy < u.EnergyCap * 0.3 || u.Ammo < c.AmmoCapacity * 0.3) low++; }
+                if (alive > 0 && low * 2 > alive) d += c.MoraleFieldNoSupply;
+            }
+            var cmdr = Armies.Commander(f, s.CommanderId); if (cmdr != null) d += (cmdr.Command - 5) * c.MoraleCommanderPerPoint;
+            if (d != 0) MoraleChange(f, s, d, c);
+            if (s.FoughtHour) { s.Exp = Math.Min(100, s.Exp + c.ExpPerCombatHour); s.FoughtHour = false; }
         }
     }
     static int AliveOf(Squad q) => q.Aggregated ? q.AliveCache : q.Alive;   // 集約の隊は事前走査の値(機体を数え直さない)
@@ -707,10 +782,11 @@ public static class Combat
 
     static (double, double) Center(Building b) => b.Floors.Count == 0 ? (b.X, b.Y) : (b.X + b.Floors[0].W / 2.0, b.Y + b.Floors[0].D / 2.0);
 
-    static void Kill(Factory f, MechUnit t, Mech tm, CombatData c, List<Squad> field)
+    static void Kill(Factory f, MechUnit t, Mech tm, CombatData c, List<Squad> field, Squad? victim = null, Squad? shooter = null)
     {
         t.Alive = false; t.Hp = 0;
-        var sq = field.FirstOrDefault(s => s.Members.Contains(t)); if (sq != null) DiplomacySim.MechLost(f, sq.Faction);
+        var sq = victim ?? field.FirstOrDefault(s => s.Members.Contains(t)); if (sq != null) { DiplomacySim.MechLost(f, sq.Faction); MoraleChange(f, sq, -c.MoraleLossPerMech, c); }
+        if (shooter != null) { MoraleChange(f, shooter, c.MoraleKillGain, c); shooter.Exp = Math.Min(100, shooter.Exp + c.ExpPerKill); }
         int parts = (int)Math.Round(tm.Parts.Count * c.LootRate);
         f.Events.Add(new FactoryEvent { Kind = "destroyed", X = (int)t.X, Y = (int)t.Y, Power = tm.Id, Destroyed = parts });
         f.Loot.Add(new Loot { X = (int)t.X, Y = (int)t.Y, Parts = tm.Parts.OrderByDescending(p => p.Quality).Take(parts).Select(p => new MechPart { Item = p.Item, Quality = p.Quality }).ToList() });
@@ -776,9 +852,10 @@ public sealed record FormSquad(int Id, int Faction, string Name, IReadOnlyList<i
         if (s.Factory.Squads.Any(x => x.Id == Id) || MechIds.Count == 0) return;
         var mechs = MechIds.Select(id => s.Factory.Mechs.FirstOrDefault(m => m.Id == id)).ToList();
         if (mechs.Any(m => m == null) || s.Factory.Squads.Any(q => q.Members.Any(u => MechIds.Contains(u.MechId)))) return;
+
         var first = mechs[0]!;
         if (mechs.Any(m => m!.Archetype != first.Archetype || m.Generation != first.Generation) || mechs.Count > s.Combat.SquadMax) return;
-        var sq = new Squad { Id = Id, Faction = Faction, Name = Name, Archetype = first.Archetype, Generation = first.Generation, HomeBuilding = HomeBuilding, State = SquadState.InHangar };
+        var sq = new Squad { Id = Id, Faction = Faction, Name = Name, Archetype = first.Archetype, Generation = first.Generation, HomeBuilding = HomeBuilding, State = SquadState.InHangar, Morale = s.Combat.MoraleStart };
         var hb = s.Factory.Get(HomeBuilding);
         foreach (var m in mechs)
         {

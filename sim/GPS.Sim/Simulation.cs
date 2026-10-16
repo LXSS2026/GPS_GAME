@@ -118,7 +118,7 @@ public sealed class Simulation
         Factory.Owner = this;
         Factory.Tick(Data, Rng);
         GPS.Sim.Combat.Tick(Factory, Data, Combat, Rng, this);
-        if (Tick % Clock.TicksPerHour == 0) { CitySim.RefreshRoads(this); GPS.Sim.Combat.RepairHour(Factory, Combat); }
+        if (Tick % Clock.TicksPerHour == 0) { CitySim.RefreshRoads(this); GPS.Sim.Combat.RepairHour(Factory, Combat); GPS.Sim.Combat.MoraleHour(Factory, Combat); }
         CitySim.Tick(this);
         Tick++;
     }
