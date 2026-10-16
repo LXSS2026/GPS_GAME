@@ -92,7 +92,7 @@ public static class DiplomacySim
     }
 
     /// <summary>戦力 = Σ 生存機 × (1 + 0.1 × 世代) × 品質 / 70(G20 #7)。AI は台帳の残り戦力も足す。</summary>
-    public static double PlayerStrength(Factory f) => f.Squads.Where(s => s.Faction == 1).SelectMany(s => s.Members.Where(u => u.Alive).Select(u => (u, s))).Sum(x => { var m = f.Mechs.FirstOrDefault(mm => mm.Id == x.u.MechId); return m == null ? 0 : (1 + 0.1 * m.Generation) * m.Quality / 70.0; });
+    public static double PlayerStrength(Factory f) => f.Squads.Where(s => s.Faction == 1).SelectMany(s => s.Members.Where(u => u.Alive).Select(u => (u, s))).Sum(x => { var m = f.MechById().GetValueOrDefault(x.u.MechId); return m == null ? 0 : (1 + 0.1 * m.Generation) * m.Quality / 70.0; });
     public static double PowerStrength(Factory f, Power p) => p.Vassal ? 0 : p.Strength * (1 + 0.1 * p.Tech) + f.Squads.Where(s => s.Faction == p.Faction).Sum(s => s.Alive * (1 + 0.1 * s.Generation));
     /// <summary>兵力比 = 相手 / 自分(G7 の表示)。</summary>
     public static double Ratio(Factory f, Power p) { double mine = PlayerStrength(f); return mine <= 0 ? 99 : PowerStrength(f, p) / mine; }

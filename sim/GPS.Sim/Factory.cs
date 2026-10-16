@@ -221,6 +221,12 @@ public sealed class Factory
     public List<Squad> Squads { get; set; } = new();
     public int NextSquadId { get; set; } = 1;
     public List<Loot> Loot { get; set; } = new();
+    public List<Army> Armies { get; set; } = new();
+    public int NextArmyId { get; set; } = 1;
+    /// <summary>注視範囲(G21 #3)。半径 0 なら全て個機で解く。</summary>
+    public double FocusX { get; set; }
+    public double FocusY { get; set; }
+    public double FocusR { get; set; }
     public City? City { get; set; }
     public Politics? Politics { get; set; }
     public Diplomacy? Diplomacy { get; set; }
@@ -247,6 +253,9 @@ public sealed class Factory
     [JsonIgnore] public byte[,]? HeightGrid { get; set; }
     [JsonIgnore] public long HeightVersion { get; set; } = -1;
     [JsonIgnore] public bool HeightGridBuilt { get; set; }
+    Dictionary<int, Mech>? _mechIndex; int _mechIndexCount = -1;
+    /// <summary>機体 Id → 機体。線形探索を避ける(格納庫の給電で 24,000 機 × 待機中の全機を走査して 1 ティック 100 ms になっていた)。機体の数が変わると作り直す。</summary>
+    public Dictionary<int, Mech> MechById() { if (_mechIndex == null || _mechIndexCount != Mechs.Count) { _mechIndex = Mechs.ToDictionary(m => m.Id); _mechIndexCount = Mechs.Count; } return _mechIndex; }
     [JsonIgnore] public Dictionary<int, MechUnit> CombatUnits { get; } = new();
     [JsonIgnore] public Dictionary<long, List<(MechUnit u, Squad s)>> CombatGrid { get; } = new();
 

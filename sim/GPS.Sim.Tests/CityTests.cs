@@ -137,7 +137,7 @@ public class CityTests
         Assert.Equal(SquadState.InHangar, s.Factory.Squads[0].State); Assert.Contains(s.Factory.Events, e => e.Kind == "no_crew");
         Do(s, new SetConscriptionRate(0.5)); Hours(s, 1);   // 12 × 50% = 6 人 × 0.75(自警団長が空席 = 能力 0 扱い、G19 #2)
         Assert.Equal(4.5, c.Conscripts, 6);
-        s.Factory.City!.Persons.Add(new Person { Id = 1, Name = "a", Command = 5, Loyalty = 5, Ambition = 5 }); Do(s, new Appoint("military", 1)); Hours(s, 1);
+        s.Factory.City!.Persons.Add(new Person { Id = 1, Name = "a", Command = 5, Loyalty = 5, Ambition = 5 }); s.Factory.City.Persons.Add(new Person { Id = 2, Name = "隊長", Command = 5, Loyalty = 5, Ambition = 5 }); s.Factory.City.NextPersonId = 3; Do(s, new Appoint("military", 1), new AssignCommander("squad", 1, 2)); Hours(s, 1);   // 隊長がいないと出撃できない(G21)
         Assert.Equal(6, c.Conscripts, 6);
         Do(s, new Deploy(1, 70, 0)); Assert.Equal(SquadState.Field, s.Factory.Squads[0].State);
         // 要員の引き当て: 労働人口の残り(12 − 6 = 6 人)まで

@@ -109,6 +109,7 @@ public class DiplomacyTests
         f.Diplomacy!.Powers.RemoveAll(p => p.Id != 1);   // 勢力はミナトだけ(制覇の判定用)
         double scrap = m.Scrap; Assert.True(scrap > 0);
         f.City!.Population = 200; f.City.ConscriptionRate = 0.5; Hours(s, 1);   // 隊の要員(6 機 × 3 人)を徴兵で満たす
+        f.City.Persons.Add(new Person { Id = 800, Name = "隊長", Command = 5, Loyalty = 5, Ambition = 5 }); f.City.NextPersonId = 801; Do(s, new AssignCommander("squad", 1, 800));   // 隊長(G21)
         Do(s, new DeclareWar(1), new Deploy(1, 90, 0), new OrderSquad(1, SquadOrder.Attack, TargetBuilding: 40));
         Assert.Equal(SquadState.Field, f.Squads[0].State);
         for (int i = 0; i < 80 && !m.Vassal; i++) s.Run(60 * 30);   // 汎用機のビームは電力で撃ち続けられる

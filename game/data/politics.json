@@ -7,8 +7,7 @@
     { "kind": "negotiate", "ability": "negotiate", "names": [ "交渉役", "交渉役", "外交官", "外務大臣" ], "fromStage": 1 },
     { "kind": "engineer",  "ability": "produce",   "names": [ "ロボット技師", "ロボット技師", "ロボット技師", "ロボット技師" ], "fromStage": 1, "requiresMech": true },
     { "kind": "marshal",   "ability": "command",   "names": [ "", "", "", "元帥" ], "fromStage": 4 },
-    { "kind": "district",  "ability": "govern",    "names": [ "", "区長", "区長", "区長" ], "fromStage": 2, "perResidences": 10 },
-    { "kind": "captain",   "ability": "command",   "names": [ "", "隊長", "隊長", "隊長" ], "fromStage": 2, "perSquads": 3 }
+    { "kind": "district",  "ability": "govern",    "names": [ "", "区長", "区長", "区長" ], "fromStage": 2, "perResidences": 10 }
   ],
   "effects": {
     "head":      { "supportPerPoint": 2.0, "taxPerPoint": 0.03 },
@@ -17,8 +16,7 @@
     "negotiate": { "pricePerPoint": 0.02 },
     "engineer":  { "highQualityPerPoint": 0.1 },
     "marshal":   { "hitPerPoint": 0.01 },
-    "district":  { "supportPerSlot": 0.5 },
-    "captain":   { "hitPerSlot": 0.01 }
+    "district":  { "supportPerSlot": 0.5 }
   },
   "jobs": { "farmer": "農民", "worker": "工場労働者", "militia": "自警団員", "artisan": "職人", "merchant": "商人" },
   "strata": {

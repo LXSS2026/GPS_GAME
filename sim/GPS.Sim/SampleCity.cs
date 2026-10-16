@@ -85,6 +85,6 @@ public static class SampleCity
         var city = s.Factory.City!;
         foreach (var (name, g, p, c, n, loy, amb, job) in new[] { ("ハルカ", 6, 3, 2, 5, 7, 3, "farmer"), ("コウタ", 3, 7, 2, 3, 6, 4, "artisan"), ("タケル", 3, 2, 8, 4, 6, 7, "militia"), ("ミオ", 5, 3, 6, 5, 9, 2, "farmer"), ("ゲン", 2, 6, 5, 2, 7, 3, "artisan"), ("サクラ", 4, 4, 3, 8, 5, 6, "merchant") })
         { city.Persons.Add(new Person { Id = city.NextPersonId, Name = $"{name} #{city.NextPersonId}", Govern = g, Produce = p, Command = c, Negotiate = n, Loyalty = loy, Ambition = amb, Job = job, Age = 25 + city.NextPersonId * 3 }); city.NextPersonId++; }
-        s.Enqueue(new Appoint("head", 1)); s.Enqueue(new Appoint("factory", 2)); s.Step();   // 村長 ハルカ、工場長 コウタ。自警団長と交渉役は空席
+        s.Enqueue(new Appoint("head", 1)); s.Enqueue(new Appoint("factory", 2)); s.Enqueue(new AssignCommander("squad", 1, 3)); s.Enqueue(new AssignCommander("squad", 2, 4)); s.Step();   // 村長 ハルカ、工場長 コウタ、隊長 タケル(自警団)・ミオ(艦載)。自警団長と交渉役は空席
     }
 }

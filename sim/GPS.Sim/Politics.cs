@@ -132,6 +132,8 @@ public static class PoliticsSim
     public static void Hour(Simulation sim)
     {
         var f = sim.Factory; var city = f.City; if (city == null) return;
+        foreach (var sq in f.Squads.Where(q => q.CommanderId >= 0 && q.Alive == 0).ToList()) DismissCommander.Do(f, "squad", sq.Id);   // 全滅した隊の隊長は候補に戻る(G21 #1)
+        foreach (var p in city.Persons.Where(p => p.Office != null && p.Office.Contains(':'))) { var parts = p.Office!.Split(':'); int id = int.Parse(parts[1]); bool ok = parts[0] == "squad" ? f.Squads.Any(q => q.Id == id && q.CommanderId == p.Id) : f.Armies.Any(a => a.Id == id && a.CommanderId == p.Id); if (!ok) p.Office = null; }
         var pd = sim.PoliticsData; var pol = Of(f);
         var slots = Slots(f, pd); var persons = city.Persons.ToDictionary(p => p.Id);
         // 消えた枠・人物の役職を外す
@@ -144,7 +146,7 @@ public static class PoliticsSim
         pol.TaxMul = Math.Clamp(1 + head * E("head", "taxPerPoint"), 0.5, 1.5);
         pol.FailureMul = Math.Clamp(1 - fac * E("factory", "failurePerPoint"), 0.5, 1.5);
         pol.SpeedMul = Math.Clamp(1 + fac * E("factory", "speedPerPoint"), 0.5, 1.5);
-        pol.HitMul = Math.Clamp(1 + mil * E("military", "hitPerPoint") + mar * E("marshal", "hitPerPoint") + SlotNet("captain") * E("captain", "hitPerSlot"), 0.5, 1.5);
+        pol.HitMul = Math.Clamp(1 + mil * E("military", "hitPerPoint") + mar * E("marshal", "hitPerPoint"), 0.5, 1.5);   // 隊長・司令官は隊と軍への任命(G21)で、ここでは国の係数だけ
         pol.RetreatHp = Math.Clamp(sim.Combat.DefaultRetreatHp - mil * E("military", "retreatPerPoint"), 0.05, 0.6);
         pol.ConscriptionMul = Math.Clamp(1 + mil * E("military", "conscriptionPerPoint"), 0.5, 1.5) * MilitaryMul(pd, pol.Military);
         pol.PriceMul = Math.Clamp(1 + neg * E("negotiate", "pricePerPoint"), 0.5, 1.5);
@@ -190,7 +192,7 @@ public static class PoliticsSim
         // 不満
         foreach (var p in city.Persons)
         {
-            bool inOffice = pol.Offices.ContainsValue(p.Id);
+            bool inOffice = pol.Offices.ContainsValue(p.Id) || p.Office != null;   // 隊長・司令官も役職
             double d = band.Id == "low" ? dc["lowPerDay"] : lowBand ? dc["dangerPerDay"] : 0;
             if (!inOffice && p.Ambition >= dc["ambitiousMin"]) d += dc["ambitiousIdlePerDay"];
             if (inOffice && okBand) d -= dc["officeCalmPerDay"];
@@ -200,7 +202,7 @@ public static class PoliticsSim
         foreach (var p in city.Persons)
         {
             if (pol.Factions.Count >= fc["max"]) break;
-            if (pol.Factions.Any(x => x.LeaderId == p.Id) || pol.Offices.ContainsValue(p.Id)) continue;
+            if (pol.Factions.Any(x => x.LeaderId == p.Id) || pol.Offices.ContainsValue(p.Id) || p.Office != null) continue;
             if (p.Loyalty > fc["loyaltyMax"] || p.Ambition < fc["ambitionMin"] || p.Discontent < fc["discontentMin"]) continue;
             string demand = WorstDemand(sim, city, pol);
             double layer = p.Job switch { "farmer" => pol.Strata.GetValueOrDefault("farmer")?.Count ?? 0, "worker" or "artisan" => pol.Strata.GetValueOrDefault("worker")?.Count ?? 0, "militia" => pol.Strata.GetValueOrDefault("military")?.Count ?? 0, _ => pol.Strata.GetValueOrDefault("other")?.Count ?? 0 };
@@ -255,7 +257,7 @@ public static class PoliticsSim
             if (--d.DaysLeft <= 0) pol.Decrees.Remove(d);
         }
         // 候補の入れ替わり(役職に就いていない候補は一定日数で去る)
-        city.Persons.RemoveAll(p => !pol.Offices.ContainsValue(p.Id) && city.Days - p.AppearedDay >= pd.CandidateExpireDays && !pol.Factions.Any(x => x.LeaderId == p.Id));
+        city.Persons.RemoveAll(p => !pol.Offices.ContainsValue(p.Id) && p.Office == null && city.Days - p.AppearedDay >= pd.CandidateExpireDays && !pol.Factions.Any(x => x.LeaderId == p.Id));
     }
 
     /// <summary>1 か月ごと: 不満が高い人物の忠誠が下がる。</summary>
@@ -331,7 +333,7 @@ public sealed record Appoint(string Office, int PersonId) : ICommand
     {
         var f = s.Factory; var city = f.City; if (city == null) return; var pol = PoliticsSim.Of(f);
         var slot = PoliticsSim.Slots(f, s.PoliticsData).FirstOrDefault(x => x.Id == Office); if (slot == null) return;
-        var p = city.Persons.FirstOrDefault(x => x.Id == PersonId); if (p == null || pol.Offices.ContainsValue(PersonId)) return;
+        var p = city.Persons.FirstOrDefault(x => x.Id == PersonId); if (p == null || pol.Offices.ContainsValue(PersonId) || p.Office != null) return;   // 隊長・司令官との掛け持ちも不可(G21)
         if (pol.Offices.TryGetValue(Office, out var prev)) Dismiss.Do(s, Office, prev);
         pol.Offices[Office] = PersonId; p.Office = Office;
         pol.JobHoles[p.Job] = pol.JobHoles.GetValueOrDefault(p.Job) + 1;
