@@ -40,14 +40,22 @@ public partial class CityScreen : Node3D
     readonly List<string> _notices = new();
     long _sideTick = -1;
 
+    /// <summary>保存(F5)と読み込み(F9)。読み込みは場面を作り直す(見た目を全部組み直すのが確実)。</summary>
+    static string? PendingLoad; string? _loadedFrom;
+    static string SavePath => System.IO.Path.Combine(OS.GetUserDataDir(), "save1.json");
+    void SaveTo(string path) { System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path)!); System.IO.File.WriteAllText(path, Save.Snapshot(_sim), new System.Text.UTF8Encoding(false)); }
+    void SaveGame() { SaveTo(SavePath); Notice("保存した(F9 で読み込み)"); }
+    void LoadGame() { if (!System.IO.File.Exists(SavePath)) { Notice("保存が無い"); return; } PendingLoad = SavePath; GetTree().ReloadCurrentScene(); }
     static string? Arg(string name) { var a = OS.GetCmdlineUserArgs(); int i = Array.IndexOf(a, name); return i < 0 ? null : (i + 1 < a.Length ? a[i + 1] : ""); }
 
     public override void _Ready()
     {
         Engine.PhysicsTicksPerSecond = Clock.TicksPerSecond;
         _data = GameData.Load(ProjectSettings.GlobalizePath("res://data"));
-        _sim = new Simulation(BlockRegistry.FromJson(FileAccess.GetFileAsString("res://data/blocks.json")), _data, 1);
-        SampleCity.Build(_sim);
+        var blocks = BlockRegistry.FromJson(FileAccess.GetFileAsString("res://data/blocks.json"));
+        string? loadPath = PendingLoad ?? Arg("--load"); PendingLoad = null;
+        if (loadPath != null && System.IO.File.Exists(loadPath)) { _sim = Save.Load(System.IO.File.ReadAllText(loadPath, System.Text.Encoding.UTF8), blocks, _data); _loadedFrom = loadPath; }
+        else { _sim = new Simulation(blocks, _data, 1); SampleCity.Build(_sim); }
         if (Arg("--war") is string wr) { _sim.Enqueue(new DeclareWar(int.Parse(wr))); _sim.Step(); }
         if (Arg("--hours") is string hs) _sim.Run(Clock.TicksPerHour * int.Parse(hs));
         if (Arg("--move") is string mvs)
@@ -69,6 +77,7 @@ public partial class CityScreen : Node3D
         if (Arg("--ticks") is string tk) _sim.Run(long.Parse(tk));
         if (Arg("--road") is string rd) { var a = rd.Split(','); _sim.Enqueue(new BuildRoad(int.Parse(a[0]), int.Parse(a[1]), int.Parse(a[2]), int.Parse(a[3]))); _sim.Step(); }
         if (Arg("--build") is string bl) { var a = bl.Split(','); _sim.Enqueue(new BuildBuilding(0, $"{a[0]} 新", a[0], int.Parse(a[1]), int.Parse(a[2]), int.Parse(a[3]), int.Parse(a[4]))); _sim.Step(); }
+        if (Arg("--save") is string sv) { SaveTo(sv); GetTree().Quit(); return; }   // 検証用: ここまでの状態を書いて終わる
         _kb = new KitBash(11); _fm = new FloorModules(_kb, 9); _mb = new MechBuilder(_fm);
         _cityRoot = new Node3D { Name = "city" }; AddChild(_cityRoot);
         var tr = new TerrainRenderer(); _cityRoot.AddChild(tr); tr.Init(_sim.World, _sim.Blocks); tr.BuildAll(); _terrain = tr;
@@ -83,6 +92,7 @@ public partial class CityScreen : Node3D
         _cam = new Camera3D { Fov = 40, Far = 3000 }; _cityRoot.AddChild(_cam); PlaceCamera();
         BuildHud();
         if (Arg("--select") is string sel) Select(int.Parse(sel));
+        if (_loadedFrom != null) { _seenEvents = _sim.Factory.Events.Count; Notice("読み込んだ"); }   // 写しの中の古い事象は通知し直さない
         if (Arg("--all") != null) _drawAll = true;
         if (Arg("--mode") is string md) { SetBuildMode(md == "place" ? BuildMode.Place : md == "road" ? BuildMode.Road : BuildMode.Demolish); if (md == "place") UpdateGhost(Arg("--ghost") is string gh ? _cam.UnprojectPosition(new Vector3(float.Parse(gh.Split(',')[0]), Y, float.Parse(gh.Split(',')[1]))) : GetViewport().GetVisibleRect().Size / 2); }
         if (Arg("--office") is string of) _pickOffice = of;
@@ -383,7 +393,7 @@ public partial class CityScreen : Node3D
         _side = new VBoxContainer(); _side.AddThemeConstantOverride("separation", 6);
         _sidePanel = Panel(_side); _sidePanel.AnchorLeft = 1; _sidePanel.AnchorRight = 1; _sidePanel.OffsetLeft = -420; _sidePanel.OffsetRight = -16; _sidePanel.OffsetTop = 72; _sidePanel.Visible = false; root.AddChild(_sidePanel);
         BuildPalette(root);
-        var keys = Lbl("左クリック 建物を選ぶ   右ドラッグ / WASD 移動   中ドラッグ 回転   ホイール 距離   Space 停止・再開   1〜4 速度   Esc 閉じる", 12, Line40); var kp = Panel(keys); kp.AnchorTop = 1; kp.AnchorBottom = 1; kp.OffsetTop = -52; kp.OffsetBottom = -16; kp.OffsetLeft = 16; root.AddChild(kp);
+        var keys = Lbl("左クリック 建物を選ぶ   右ドラッグ / WASD 移動   中ドラッグ 回転   ホイール 距離   Space 停止・再開   1〜4 速度   F5 保存   F9 読み込み   Esc 閉じる", 12, Line40); var kp = Panel(keys); kp.AnchorTop = 1; kp.AnchorBottom = 1; kp.OffsetTop = -52; kp.OffsetBottom = -16; kp.OffsetLeft = 16; root.AddChild(kp);
     }
 
     HSlider Slider(VBoxContainer parent, string name, double value, double max, Action<double> onChange)
@@ -450,6 +460,8 @@ public partial class CityScreen : Node3D
         {
             if (key.Keycode == Key.Space) _speed = _speed == 0 ? Math.Max(1, _lastSpeed) : 0;
             else if (key.Keycode is >= Key.Key1 and <= Key.Key4) _speed = key.Keycode switch { Key.Key1 => 1, Key.Key2 => 2, Key.Key3 => 4, _ => 8 };
+            else if (key.Keycode == Key.F5) SaveGame();
+            else if (key.Keycode == Key.F9) LoadGame();
             else if (key.Keycode == Key.Escape) { if (_overlayKind != "") CloseOverlay(); else if (_buildMode != BuildMode.None) SetBuildMode(BuildMode.None); else Select(-1); }
         }
         if (ev is InputEventMouseButton mb && mb.Pressed)

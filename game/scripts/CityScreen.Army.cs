@@ -95,6 +95,7 @@ public partial class CityScreen
                 AAct("出撃", () => _sim.Enqueue(new DeployArmy(aid, (hb0?.X ?? 0) + 20, (hb0?.Y ?? 0) + 10)), ac != null);
                 foreach (var e in f.Squads.Where(q => q.Faction != 1 && q.State == SquadState.Field && q.Alive > 0).Take(2)) { int eid = e.Id; AAct($"攻撃 → {e.Name}", () => _sim.Enqueue(new OrderArmy(aid, SquadOrder.Attack, TargetSquad: eid)), ac != null); }
                 foreach (var p in (f.Diplomacy?.Powers ?? new()).Where(p => p.AtWar && !p.Vassal)) { int tb = p.HomeBuilding; AAct($"攻撃 → {p.Name} の拠点", () => _sim.Enqueue(new OrderArmy(aid, SquadOrder.Attack, TargetBuilding: tb)), ac != null); }
+                AAct("移動先を地図でクリック", () => { _armyMoving = aid; SetBuildMode(BuildMode.ArmyMove); CloseOverlay(); }, ac != null);
                 AAct("帰還", () => _sim.Enqueue(new OrderArmy(aid, SquadOrder.Retreat)), ac != null);
                 AAct("解散", () => _sim.Enqueue(new DisbandArmy(aid)));
             }

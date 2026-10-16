@@ -50,4 +50,37 @@ public sealed class VoxelWorld
         if (lz == 0) Dirty.Add(cc with { Z = cc.Z - 1 }); else if (lz == Chunk.Mask) Dirty.Add(cc with { Z = cc.Z + 1 });
     }
     public void Set(BlockPos p, byte id) => Set(p.X, p.Y, p.Z, id);
+
+    /// <summary>保存用: チャンクごとに [個数, 種類, 個数, 種類, ...] の連長圧縮(地形は同じブロックが並ぶので小さい)。</summary>
+    public List<ChunkData> Export()
+    {
+        var list = new List<ChunkData>();
+        foreach (var (c, ch) in _chunks)
+        {
+            var rle = new List<int>(); int run = 0; byte cur = ch.Blocks[0];
+            foreach (var b in ch.Blocks) { if (b == cur) { run++; continue; } rle.Add(run); rle.Add(cur); cur = b; run = 1; }
+            rle.Add(run); rle.Add(cur);
+            if (rle.Count == 2 && cur == BlockRegistry.Air) continue;   // 空のチャンクは書かない
+            list.Add(new ChunkData { X = c.X, Y = c.Y, Z = c.Z, Rle = rle });
+        }
+        return list;
+    }
+    public void Import(List<ChunkData> data)
+    {
+        _chunks.Clear(); Dirty.Clear(); Version++;
+        foreach (var d in data)
+        {
+            var ch = new Chunk(); int i = 0;
+            for (int k = 0; k + 1 < d.Rle.Count; k += 2) { byte id = (byte)d.Rle[k + 1]; for (int n = 0; n < d.Rle[k]; n++) ch.Blocks[i++] = id; }
+            var c = new BlockPos(d.X, d.Y, d.Z); _chunks[c] = ch; Dirty.Add(c);
+        }
+    }
+}
+
+public sealed class ChunkData
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+    public List<int> Rle { get; set; } = new();
 }

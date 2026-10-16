@@ -16,15 +16,17 @@ public static class Save
         public ulong RngState { get; set; }
         public Factory Factory { get; set; } = new();
         public List<CommandEntry> Log { get; set; } = new();
+        public List<ChunkData>? World { get; set; }   // 地形(街路の敷設で変わるので写しに含める)
     }
 
-    public static string Snapshot(Simulation sim) => JsonSerializer.Serialize(new File { Seed = sim.Seed, Tick = sim.Tick, RngState = sim.Rng.State, Factory = sim.Factory, Log = sim.Log }, Opt);
+    public static string Snapshot(Simulation sim) => JsonSerializer.Serialize(new File { Seed = sim.Seed, Tick = sim.Tick, RngState = sim.Rng.State, Factory = sim.Factory, Log = sim.Log, World = sim.World.Export() }, Opt);
 
     public static Simulation Load(string json, BlockRegistry blocks, GameData data)
     {
         var f = JsonSerializer.Deserialize<File>(json, Opt) ?? throw new InvalidDataException("empty save");
         var sim = new Simulation(blocks, data, f.Seed);
         sim.Restore(f.Factory, new Rng(1) { State = f.RngState }, f.Tick, f.Log);
+        if (f.World != null) sim.World.Import(f.World);
         return sim;
     }
 
