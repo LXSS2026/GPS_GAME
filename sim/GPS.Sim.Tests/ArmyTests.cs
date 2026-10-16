@@ -95,6 +95,22 @@ public class ArmyTests
         var loaded = Save.Load(Save.Snapshot(s), Blocks(), Data); loaded.Factory.Creative = true; s.Run(300); loaded.Run(300); Assert.Equal(Save.StateHash(s), Save.StateHash(loaded));
     }
 
+    /// <summary>集約の置き直しで単位がずれない(縦列は重心が先頭にないので、平均位置を基準に置き直すと毎回ずれていた)。隊と軍の両方。</summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Aggregated_HoldingUnitDoesNotDrift(bool inArmy)
+    {
+        var s = Field(8, 2); var f = s.Factory; Do(s, new SetBattleFocus(-5000, -5000, 10));
+        Do(s, new Deploy(1, 100, 0), new Deploy(2, 100, 40), new OrderSquad(1, SquadOrder.Hold, Formation: Formation.Column), new OrderSquad(2, SquadOrder.Hold, Formation: Formation.Column));
+        if (inArmy) { f.City!.Persons.Add(new Person { Id = 950, Name = "司令官", Command = 5, Loyalty = 5, Ambition = 5 }); Do(s, new FormArmy(1, "第 1 軍", new[] { 1, 2 }), new AssignCommander("army", 1, 950), new OrderArmy(1, SquadOrder.Hold, Formation: Formation.Column)); }
+        s.Run(30); Assert.True(f.Squads[0].Aggregated);
+        double x0 = f.Squads[0].X, y0 = f.Squads[0].Y, x1 = f.Squads[1].X, y1 = f.Squads[1].Y;
+        s.Run(300);
+        Assert.InRange(Math.Abs(f.Squads[0].X - x0) + Math.Abs(f.Squads[0].Y - y0), 0, 1);
+        Assert.InRange(Math.Abs(f.Squads[1].X - x1) + Math.Abs(f.Squads[1].Y - y1), 0, 1);
+    }
+
     [Theory]
     [InlineData(100)]
     [InlineData(500)]
@@ -102,8 +118,24 @@ public class ArmyTests
     {
         var s = Field(5, squadsPerSide); Do(s, new SetBattleFocus(-5000, -5000, 100)); DeployAll(s, squadsPerSide, 100);
         s.Run(60);
-        var sw = Stopwatch.StartNew(); s.Run(300); sw.Stop(); double perTick = sw.Elapsed.TotalMilliseconds / 300;
+        int n = squadsPerSide >= 2000 ? 120 : 300; var sw = Stopwatch.StartNew(); s.Run(n); sw.Stop(); double perTick = sw.Elapsed.TotalMilliseconds / n;
         _out.WriteLine($"aggregated mechs {squadsPerSide * 24} (squads {squadsPerSide * 2}): {perTick:F2} ms/tick, realtime x{1000.0 / 60 / perTick:F1}; events {s.Factory.Events.Count}");
-        Assert.True(perTick < 1000.0 / 60, $"実時間に追いつかない: {perTick:F2} ms/tick");
+        Assert.True(perTick < 1000.0 / 60 || squadsPerSide >= 2000, $"実時間に追いつかない: {perTick:F2} ms/tick");   // 10 万規模は計測のみ
+    }
+
+    /// <summary>10 万規模の計測(96,000 機)。数分かかるので環境変数 GPS_SCALE=1 のときだけ: dotnet test --filter Aggregated_HundredThousand</summary>
+    [Fact]
+    public void Aggregated_HundredThousand() { if (Environment.GetEnvironmentVariable("GPS_SCALE") != "1") return; Aggregated_TickCost(4000); }
+
+    /// <summary>軍に束ねた 10 万規模(12 隊 = 1 軍、両陣営): 単位が軍になるので 隊 × 敵隊 が 軍 × 敵軍 に減る。GPS_SCALE=1 のときだけ。</summary>
+    [Fact]
+    public void Aggregated_HundredThousand_InArmies()
+    {
+        if (Environment.GetEnvironmentVariable("GPS_SCALE") != "1") return;
+        int n = 4000; var s = Field(6, n); Do(s, new SetBattleFocus(-5000, -5000, 100));
+        int aid = 1; for (int side = 0; side < 2; side++) for (int q = 0; q < n; q += 12) { var ids = Enumerable.Range(side * n + q + 1, Math.Min(12, n - q)).ToList(); s.Enqueue(new FormArmy(aid++, $"a{aid}", ids)); }
+        s.Step(); DeployAll(s, n, 100); s.Run(60);
+        var sw = Stopwatch.StartNew(); s.Run(120); sw.Stop(); double perTick = sw.Elapsed.TotalMilliseconds / 120;
+        _out.WriteLine($"armies: mechs {n * 24} (armies {s.Factory.Armies.Count}): {perTick:F2} ms/tick, realtime x{1000.0 / 60 / perTick:F1}; events {s.Factory.Events.Count}");
     }
 }

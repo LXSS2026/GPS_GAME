@@ -599,6 +599,9 @@ public sealed class Mech
     public int Building { get; set; }
     public long MadeTick { get; set; }
     public List<MechPart> Parts { get; set; } = new();
+    [JsonIgnore] public Dictionary<string, double>? QualityCache { get; set; }
+    [JsonIgnore] public int QualityCacheParts { get; set; } = -1;
+    [JsonIgnore] public int ReactorKwCache { get; set; } = -1;
     /// <summary>制御基板(索敵・戦闘のプログラム)。評価は戦闘の実装時。</summary>
     public Program? Program { get; set; }
 }

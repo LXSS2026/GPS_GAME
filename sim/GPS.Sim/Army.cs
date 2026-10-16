@@ -15,12 +15,13 @@ public static class Armies
     public static Person? Commander(Factory f, int personId) => personId < 0 ? null : f.City?.Persons.FirstOrDefault(p => p.Id == personId);
     public static Army? ArmyOf(Factory f, Squad s) => f.Armies.FirstOrDefault(a => a.SquadIds.Contains(s.Id));
     /// <summary>指揮官の効果: 隊長の指揮 ±2% / 点、司令官 ±1% / 点(G21 #1)。都市が無ければ 1。</summary>
-    public static double CommandMul(Factory f, Squad s)
+    public static double CommandMul(Factory f, Squad s) => CommandMul(f, s, f.City == null || s.Faction != 1 ? null : ArmyOf(f, s));
+    public static double CommandMul(Factory f, Squad s, Army? a)
     {
         if (f.City == null || s.Faction != 1) return 1;
         double m = 1;
         var c = Commander(f, s.CommanderId); if (c != null) m *= 1 + (c.Command - 5) * 0.02;
-        var a = ArmyOf(f, s); var ac = a == null ? null : Commander(f, a.CommanderId); if (ac != null) m *= 1 + (ac.Command - 5) * 0.01;
+        var ac = a == null ? null : Commander(f, a.CommanderId); if (ac != null) m *= 1 + (ac.Command - 5) * 0.01;
         return Math.Clamp(m, 0.5, 1.5);
     }
     public static bool HasCommander(Factory f, Squad s) => f.City == null || s.Faction != 1 || Commander(f, s.CommanderId) != null;
@@ -69,7 +70,8 @@ public sealed record FormArmy(int Id, string Name, IReadOnlyList<int> SquadIds) 
     public void Apply(Simulation s)
     {
         var f = s.Factory; if (f.Armies.Any(a => a.Id == Id) || SquadIds.Count == 0) return;
-        var ids = SquadIds.Where(id => f.Squads.Any(q => q.Id == id && q.Faction == 1)).Distinct().ToList(); if (ids.Count == 0) return;
+        var first = f.Squads.FirstOrDefault(q => q.Id == SquadIds[0]); if (first == null) return;
+        var ids = SquadIds.Where(id => f.Squads.Any(q => q.Id == id && q.Faction == first.Faction)).Distinct().ToList(); if (ids.Count == 0) return;   // 先頭の隊と同じ陣営だけ
         foreach (var a in f.Armies) a.SquadIds.RemoveAll(ids.Contains);
         f.Armies.RemoveAll(a => a.SquadIds.Count == 0);
         f.Armies.Add(new Army { Id = Id, Name = Name, SquadIds = ids }); f.NextArmyId = Math.Max(f.NextArmyId, Id + 1);
