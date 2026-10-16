@@ -92,6 +92,7 @@ public partial class CityScreen : Node3D
         _cam = new Camera3D { Fov = 40, Far = 3000 }; _cityRoot.AddChild(_cam); PlaceCamera();
         BuildHud();
         if (Arg("--select") is string sel) Select(int.Parse(sel));
+        if (Arg("--squad") is string sqa) SelectSquad(int.Parse(sqa));
         if (_loadedFrom != null) { _seenEvents = _sim.Factory.Events.Count; Notice("読み込んだ"); }   // 写しの中の古い事象は通知し直さない
         if (Arg("--all") != null) _drawAll = true;
         if (Arg("--mode") is string md) { SetBuildMode(md == "place" ? BuildMode.Place : md == "road" ? BuildMode.Road : BuildMode.Demolish); if (md == "place") UpdateGhost(Arg("--ghost") is string gh ? _cam.UnprojectPosition(new Vector3(float.Parse(gh.Split(',')[0]), Y, float.Parse(gh.Split(',')[1]))) : GetViewport().GetVisibleRect().Size / 2); }
@@ -230,6 +231,7 @@ public partial class CityScreen : Node3D
 
     void RefreshSide()
     {
+        if (_selectedSquad >= 0) { RefreshSquadSide(); return; }
         if (_selected < 0 || _sim.Tick == _sideTick) return;
         if (_sim.Tick - _sideTick < 60 && _sideTick >= 0) return;
         _sideTick = _sim.Tick;
@@ -322,6 +324,7 @@ public partial class CityScreen : Node3D
 
     void RefreshMarks()
     {
+        RefreshSquadMark();
         foreach (var (mid, n) in _idleMechs) { var sq = _sim.Factory.Squads.FirstOrDefault(s => s.Members.Any(u => u.MechId == mid)); n.Visible = sq == null || sq.State == SquadState.InHangar; }
         foreach (var (box, id) in _hit)
         {
@@ -335,7 +338,7 @@ public partial class CityScreen : Node3D
         }
     }
 
-    void Select(int id) { _selected = id; _sideTick = -1; SetFocus(); }
+    void Select(int id) { _selected = id; _selectedSquad = -1; _sideTick = -1; SetFocus(); }
     /// <summary>注視範囲(G21 #3): 選んだ建物か隊の周り 300 m。無ければ拠点。町以降でだけ意味を持つ。</summary>
     void SetFocus(double? x = null, double? y = null)
     {
@@ -372,7 +375,7 @@ public partial class CityScreen : Node3D
         // 上の帯
         var top = new HBoxContainer(); top.AddThemeConstantOverride("separation", 16);
         _top = Lbl("", 14); top.AddChild(_top);
-        foreach (var (t, sp) in new[] { ("停止", 0), ("1x", 1), ("2x", 2), ("4x", 4), ("8x", 8) }) { int s = sp; var bt = Btn(t, () => _speed = s); bt.CustomMinimumSize = new Vector2(0, 28); top.AddChild(bt); }
+        foreach (var (t, sp) in new[] { ("停止", 0), ("1x", 1), ("2x", 2), ("4x", 4), ("8x", 8), ("32x", 32) }) { int s = sp; var bt = Btn(t, () => _speed = s); bt.CustomMinimumSize = new Vector2(0, 28); top.AddChild(bt); }
         top.AddChild(new VSeparator());
         foreach (var (t, k) in new[] { ("登用", "recruit"), ("政治", "politics"), ("軍", "army") }) { string kk = k; var bt = Btn(t, () => { if (_overlayKind == kk) CloseOverlay(); else OpenOverlay(kk); }); bt.CustomMinimumSize = new Vector2(0, 28); top.AddChild(bt); }
         var topPanel = Panel(top); topPanel.Position = new Vector2(16, 16); root.AddChild(topPanel);
@@ -393,7 +396,7 @@ public partial class CityScreen : Node3D
         _side = new VBoxContainer(); _side.AddThemeConstantOverride("separation", 6);
         _sidePanel = Panel(_side); _sidePanel.AnchorLeft = 1; _sidePanel.AnchorRight = 1; _sidePanel.OffsetLeft = -420; _sidePanel.OffsetRight = -16; _sidePanel.OffsetTop = 72; _sidePanel.Visible = false; root.AddChild(_sidePanel);
         BuildPalette(root);
-        var keys = Lbl("左クリック 建物を選ぶ   右ドラッグ / WASD 移動   中ドラッグ 回転   ホイール 距離   Space 停止・再開   1〜4 速度   F5 保存   F9 読み込み   Esc 閉じる", 12, Line40); var kp = Panel(keys); kp.AnchorTop = 1; kp.AnchorBottom = 1; kp.OffsetTop = -52; kp.OffsetBottom = -16; kp.OffsetLeft = 16; root.AddChild(kp);
+        var keys = Lbl("左クリック 建物・隊を選ぶ   右クリック 選んだ隊に移動・攻撃   右ドラッグ / WASD 移動   中ドラッグ / Q E 回転   ホイール 距離\nSpace 停止・再開   1〜5 速度   F5 保存   F9 読み込み   Esc 閉じる", 12, Line40); var kp = Panel(keys); kp.AnchorTop = 1; kp.AnchorBottom = 1; kp.OffsetTop = -68; kp.OffsetBottom = -16; kp.OffsetLeft = 16; root.AddChild(kp);   // 2 行(右下の建設の板と重ねない)
     }
 
     HSlider Slider(VBoxContainer parent, string name, double value, double max, Action<double> onChange)
@@ -441,6 +444,7 @@ public partial class CityScreen : Node3D
         if (Input.IsKeyPressed(Key.A) || Input.IsKeyPressed(Key.Left)) dx -= 1; if (Input.IsKeyPressed(Key.D) || Input.IsKeyPressed(Key.Right)) dx += 1;
         if (Input.IsKeyPressed(Key.W) || Input.IsKeyPressed(Key.Up)) dy += 1; if (Input.IsKeyPressed(Key.S) || Input.IsKeyPressed(Key.Down)) dy -= 1;
         if (dx != 0 || dy != 0) Pan(dx, dy, (float)delta * _dist * 0.6f);
+        if (Input.IsKeyPressed(Key.Q)) { _yaw += (float)delta * 1.5f; PlaceCamera(); } if (Input.IsKeyPressed(Key.E)) { _yaw -= (float)delta * 1.5f; PlaceCamera(); }   // 回転(中ボタンが無いマウス向け)
         if (_speed > 0) _lastSpeed = _speed;
     }
     void PlaceCamera()
@@ -453,13 +457,14 @@ public partial class CityScreen : Node3D
     {
         if (_micro != null) return;
         if (ev is InputEventMouseMotion mv) UpdateGhost(mv.Position);
-        if (ev is InputEventMouseButton mb0 && mb0.Pressed && HandleBuildClick(mb0)) return;
+        if (ev is InputEventMouseButton mb0 && mb0.Pressed && HandleBuildClick(mb0)) { if (mb0.ButtonIndex == MouseButton.Right) _rightDragged = true; return; }   // 建設のモードを右クリックでやめたときは、離したときの命令を出さない
+        if (ev is InputEventMouseButton rb && rb.ButtonIndex == MouseButton.Right) { if (rb.Pressed) { _rightDown = rb.Position; _rightDragged = false; } else if (!_rightDragged && rb.Position.DistanceTo(_rightDown) < 6) RightClickOrder(rb.Position); }   // 右クリック(ドラッグでない)= 選んだ隊への命令
         if (ev is InputEventMouseMotion mm && (mm.ButtonMask & MouseButtonMask.Middle) != 0) { _yaw -= mm.Relative.X * 0.005f; _elev = Mathf.Clamp(_elev + mm.Relative.Y * 0.005f, 0.2f, 1.5f); PlaceCamera(); }
-        if (ev is InputEventMouseMotion mr && (mr.ButtonMask & MouseButtonMask.Right) != 0) Pan(-mr.Relative.X, -mr.Relative.Y, _dist * 0.0015f);   // 右ドラッグで地面をつかんで動かす
+        if (ev is InputEventMouseMotion mr && (mr.ButtonMask & MouseButtonMask.Right) != 0) { if (mr.Position.DistanceTo(_rightDown) >= 6) _rightDragged = true; if (_rightDragged) Pan(-mr.Relative.X, -mr.Relative.Y, _dist * 0.0015f); }   // 右ドラッグで地面をつかんで動かす(6 px 未満はクリック扱い)
         if (ev is InputEventKey key && key.Pressed && !key.Echo)
         {
             if (key.Keycode == Key.Space) _speed = _speed == 0 ? Math.Max(1, _lastSpeed) : 0;
-            else if (key.Keycode is >= Key.Key1 and <= Key.Key4) _speed = key.Keycode switch { Key.Key1 => 1, Key.Key2 => 2, Key.Key3 => 4, _ => 8 };
+            else if (key.Keycode is >= Key.Key1 and <= Key.Key5) _speed = key.Keycode switch { Key.Key1 => 1, Key.Key2 => 2, Key.Key3 => 4, Key.Key4 => 8, _ => 32 };
             else if (key.Keycode == Key.F5) SaveGame();
             else if (key.Keycode == Key.F9) LoadGame();
             else if (key.Keycode == Key.Escape) { if (_overlayKind != "") CloseOverlay(); else if (_buildMode != BuildMode.None) SetBuildMode(BuildMode.None); else Select(-1); }
@@ -474,6 +479,7 @@ public partial class CityScreen : Node3D
 
     void Pick(Vector2 screen)
     {
+        int sqid = PickSquad(screen, out _); if (sqid >= 0) { SelectSquad(sqid); return; }   // 機体の近くなら隊
         var from = _cam.ProjectRayOrigin(screen); var dir = _cam.ProjectRayNormal(screen);
         int best = -1; float bestT = float.MaxValue;
         foreach (var (box, id) in _hit)

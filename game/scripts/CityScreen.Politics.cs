@@ -27,7 +27,7 @@ public partial class CityScreen
         if (_overlay == null) return;
         _overlay.QueueFree(); _overlay = null; _overlayKind = "";
         foreach (var n in _ui.GetChild<Control>(0).GetChildren().OfType<PanelContainer>()) n.Visible = true;
-        _sidePanel.Visible = _selected >= 0;
+        _sidePanel.Visible = _selected >= 0 || _selectedSquad >= 0;
     }
 
     void RefreshOverlay(bool force = false)

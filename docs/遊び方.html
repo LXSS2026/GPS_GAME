@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>GPS 遊び方(試遊版)</title>
+<style>
+  :root { --fg: #222; --bg: #fff; --line: #ccc; --muted: #666; --head: #f3f3f3; --bar: #f7f7f7; --sel: #dde8f5; }
+  @media (prefers-color-scheme: dark) { :root { --fg: #ddd; --bg: #1e1e1e; --line: #444; --muted: #999; --head: #2a2a2a; --bar: #252525; --sel: #33445a; } }
+  * { box-sizing: border-box; }
+  body { font-family: "Yu Gothic UI", "Meiryo", sans-serif; color: var(--fg); background: var(--bg); margin: 0; line-height: 1.7; display: flex; min-height: 100vh; }
+  body > nav { width: 240px; flex: none; background: var(--bar); border-right: 1px solid var(--line); padding: 16px 0; position: sticky; top: 0; height: 100vh; overflow: auto; }
+  body > nav h1 { font-size: 1.1em; margin: 0 16px 12px; }
+  body > nav a { display: block; padding: 6px 16px; color: var(--fg); text-decoration: none; }
+  body > nav a.sel { background: var(--sel); font-weight: bold; }
+  body > nav a .no { display: inline-block; width: 2.4em; color: var(--muted); }
+  main { flex: 1; padding: 24px 32px; max-width: 1400px; }
+  .mock { overflow: hidden; border: 1px solid var(--line); margin: 12px 0; background: #ffffff; color: #1f1f1f; }
+  .mock * { box-sizing: border-box; }
+  .page { display: none; }
+  .page.sel { display: block; }
+  h2 { font-size: 1.5em; border-bottom: 2px solid var(--line); padding-bottom: 6px; margin-top: 0; }
+  h3 { font-size: 1.15em; margin-top: 2em; border-left: 5px solid var(--line); padding-left: 10px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+  th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--head); }
+  code { background: var(--head); padding: 1px 5px; border-radius: 3px; }
+  pre { background: var(--head); padding: 10px 14px; overflow: auto; }
+  .muted { color: var(--muted); }
+  @media (max-width: 720px) { body { display: block; } body > nav { width: auto; height: auto; position: static; } main { padding: 16px; } }
+</style>
+</head>
+<body>
+<nav>
+  <h1>GPS 遊び方</h1>
+  <a href="#P1"><span class="no">P1</span>起動と画面</a>
+  <a href="#P2"><span class="no">P2</span>操作</a>
+  <a href="#P3"><span class="no">P3</span>最初の 30 分</a>
+  <a href="#P4"><span class="no">P4</span>村を育てる</a>
+  <a href="#P5"><span class="no">P5</span>人物と政治</a>
+  <a href="#P6"><span class="no">P6</span>軍と戦闘</a>
+  <a href="#P7"><span class="no">P7</span>外交と戦争</a>
+  <a href="#P8"><span class="no">P8</span>工場と機体</a>
+  <a href="#P9"><span class="no">P9</span>保存と制約</a>
+</nav>
+<main>
+<section class="page" id="P1">
+<h2>P1 起動と画面</h2>
+<p class="muted">GPS 試遊版の遊び方。設計の正典(設計指針.html)とは別に、遊ぶ人向けに操作と進め方だけを書く。2026-10-16 作成。</p>
+<h3>1. 起動</h3>
+<p>次のバッチを実行する。C# をビルドしてから Godot で都市の画面が開く(初回は 1 分ほど)。窓は最大化で開く。</p>
+<pre>E:\VSC_Git\GPS\遊ぶ.bat</pre>
+<h3>2. 画面の見方</h3>
+<img src="img/preview_play.png" alt="都市の画面" style="width: 100%; max-width: 1600px; border: 1px solid var(--line)">
+<table>
+  <tr><th>場所</th><th>内容</th></tr>
+  <tr><td>上の帯</td><td>段階と村の名前、人口、食料と水の充足、支持率(帯の名前)、国庫、日時、速度。速度のボタン(停止 / 1x / 2x / 4x / 8x / 32x)と、登用・政治・軍の画面を開くボタン</td></tr>
+  <tr><td>左の板「都市」</td><td>雇用と要員、支持率と目標、税収と維持費、インフラの充足(「有る / 要る」。未解放は段階が上がると使える)、段階の昇格の条件、登用の候補。下に政策のスライダー(税率・徴兵率)と通知(出来事が新しいものから)。板が長いときは中でスクロールする</td></tr>
+  <tr><td>右の板</td><td>選んだもの。建物なら用途・街路の接続・耐久と防御壁・供給と要員・工場なら階ごとの状態と「編集」・格納庫の隊。隊なら機数・耐久・士気・練度・命令と、命令のボタン</td></tr>
+  <tr><td>右下「建設」</td><td>用途・床面積・階数を選んで「建てる」。街路を敷く / 外す、撤去、戦艦の建造、都市を置く</td></tr>
+  <tr><td>下の帯</td><td>操作の一覧(P2)</td></tr>
+  <tr><td>地図</td><td>建物、街路(暗い帯)、畑(縞)、丘、出撃中の機体(名札に隊の名前と耐久 %)。赤い名札は他の勢力の拠点や隊</td></tr>
+</table>
+<p>時間は 1 日 = 現実の 2 時間(1x)。様子を見るときは 8x か 32x にする。何か起きると左の板の「通知」に出る。</p>
+</section>
+<section class="page" id="P2">
+<h2>P2 操作</h2>
+<h3>1. 地図</h3>
+<table>
+  <tr><th>操作</th><th>働き</th></tr>
+  <tr><td>左クリック</td><td>建物か隊を選ぶ(機体の近くをクリックするとその隊)。右の板に中身が出る</td></tr>
+  <tr><td>右クリック</td><td>自軍の隊を選んでいるとき、その隊に命令する。地面 = そこへ移動、敵の機体 = その隊を攻撃、敵の建物 = その建物を攻撃。格納庫にいる隊なら、出撃してその地点へ向かう</td></tr>
+  <tr><td>右ドラッグ / W A S D / 矢印</td><td>視点の平行移動(地面をつかんで動かす)</td></tr>
+  <tr><td>中ドラッグ / Q E</td><td>視点の回転(中ドラッグは上下で仰角も)</td></tr>
+  <tr><td>ホイール</td><td>距離(30〜900 m)</td></tr>
+  <tr><td>Space</td><td>停止と再開(再開は直前の速度)</td></tr>
+  <tr><td>1 2 3 4 5</td><td>速度 1x 2x 4x 8x 32x</td></tr>
+  <tr><td>F5 / F9</td><td>保存 / 読み込み(1 枠。読み込みは場面を作り直す)</td></tr>
+  <tr><td>Esc</td><td>開いている画面を閉じる → 建設のモードをやめる → 選択を外す、の順</td></tr>
+</table>
+<h3>2. 建設</h3>
+<table>
+  <tr><th>操作</th><th>働き</th></tr>
+  <tr><td>建てる</td><td>右下で用途・床面積・階数を選び「建てる」を押してから、地面をクリック。半透明の箱が下描きで、青なら建てられ、赤なら建てられない(街路に接していない、他の建物と重なる、国庫が足りない)。右クリックでやめる</td></tr>
+  <tr><td>街路を敷く / 外す</td><td>始点をクリック、終点をクリック(幅 4 m)。建物は街路に接していないと働かない</td></tr>
+  <tr><td>撤去</td><td>建物をクリック(拠点・格納庫・他勢力の拠点は撤去できない)</td></tr>
+  <tr><td>戦艦を建造(小) / 都市を置く</td><td>国家の段階 / 都市の段階から。試遊版の見本の村では使えない</td></tr>
+</table>
+<img src="img/manual_build.png" alt="建設の下描き" style="width: 100%; max-width: 1600px; border: 1px solid var(--line)">
+<p class="muted">建てるモード。畑の上に置こうとしているので下描きが赤い(建てられない)。</p>
+<h3>3. 画面(登用・政治・軍)</h3>
+<p>上の帯のボタンで開き、「地図へ戻る」か Esc で閉じる。開いている間も時間は進む(止めたいときは Space)。</p>
+</section>
+<section class="page" id="P3">
+<h2>P3 最初の 30 分</h2>
+<p>見本の村「アカネ」(人口 48、国庫 5,000)から始まる。周りに AI の勢力が 3 つ(村 ミナト = 通商型、村 クロガネ、山賊団)いる。</p>
+<ol>
+  <li><b>速度を上げる。</b> 4 (8x) を押す。上の帯の日時が進み、左の板の支持率が目標へ寄っていく。支持率は人口の増減と段階の昇格に効く。</li>
+  <li><b>建物を見る。</b> 格納庫(左上の、機体が前に並ぶ建物)をクリック。右の板に階ごとの状態と、隊「自警団 第 1 隊」が出る。</li>
+  <li><b>役職を埋める。</b> 「登用」を開く。左の役職から空席(橙)を選び、右の候補の名前を押すと任命される。自警団長(指揮)・交渉役(交渉)・ロボット技師(生産)が空いている。人物は市民から現れ、登用されないまま 12 か月で去る。</li>
+  <li><b>住居と食料・水。</b> 左の板の「住居の上限」が人口の上限。「建設」で住居(10 m 角 1 階、費用 200)を街路に接した空き地に建てる。食料・水の「要る」が増えてきたら畑と井戸を足す。</li>
+  <li><b>政治と予算。</b> 「政治」を開く。税率を上げると国庫が増え支持率の目標が下がる。徴兵率は軍の要員(隊を出撃させるのに要る)。軍事費が 50 未満だと弾薬の補給が止まる。布告(配給・減税・祭り)は支持率を一時的に上げる。見込みの行に、今の政策で来月どうなるかが出る。</li>
+  <li><b>隊を出す。</b> 「軍」を開く。隊に隊長がいないと出撃できない(候補から「隊長に任命」)。要員が「不足」なら左の板の徴兵率を上げる(試遊版の見本は 50% にしてある)。「出撃」を押すと格納庫の前に出る。</li>
+  <li><b>地図で動かす。</b> 出撃した機体をクリックして隊を選び、地面を右クリックすると移動、敵の機体を右クリックすると攻撃。建物は避けて歩く。帰すときは右の板の「帰還」。</li>
+  <li><b>保存。</b> F5。読み込みは F9(閉じると消えるので、やめる前に F5)。</li>
+</ol>
+<img src="img/manual_squad.png" alt="隊を選んだところ" style="width: 100%; max-width: 1600px; border: 1px solid var(--line)">
+<p class="muted">出撃中の隊を選んだところ。足元に輪が出て、右の板に隊の中身と命令のボタンが出る。</p>
+</section>
+<section class="page" id="P4">
+<h2>P4 村を育てる</h2>
+<h3>1. 段階</h3>
+<table>
+  <tr><th>段階</th><th>昇格の条件</th><th>できるようになること</th></tr>
+  <tr><td>村</td><td>(開始)</td><td>建物 20 m 角 2 階まで。役職は 村長・工場長・自警団長・交渉役・ロボット技師</td></tr>
+  <tr><td>町</td><td>人口 100 以上 かつ 支持率 60% 以上 を 30 日</td><td>建物 30 m 角 4 階。区長(住居 10 棟ごと)。下水処理などのインフラが解放。戦闘は注視している所だけ個機で解く</td></tr>
+  <tr><td>都市</td><td>同様に人口と支持率の条件(左の板に出る)</td><td>建物 50 m 角 8 階。新しい都市を置ける(住居・食料・水は都市ごと)</td></tr>
+  <tr><td>国家</td><td>同様</td><td>建物 100 m 角 12 階。元帥。航空戦艦。食料・水・電力を国全体で融通</td></tr>
+</table>
+<h3>2. 支持率</h3>
+<p>層ごと(農民・軍の要員・工場労働者・失業・その他)に目標があり、全体の支持率がそこへ寄っていく。政治の画面の「不満の原因」に、目標を下げている項目(治安の不足、税率、徴兵率など)が出る。支持率の帯が「危険」「失脚の危機」まで下がると暴動(生産効率 70%)や反乱が起き、失脚の危機が続くと敗北。</p>
+<h3>3. インフラ</h3>
+<p>左の板の「インフラの充足」は 有る / 要る。食料は畑、水は井戸、電力は工場のリアクター、治安は警察、医療・教育・公園・下水・廃棄物はそれぞれの用途の建物。建物の用途は右の板の「用途」で変えられる。要員(働く人)が要る用途は、人口が足りないと働かない。</p>
+<h3>4. 国庫</h3>
+<p>税収(人口 × 税率)が日ごとに入り、維持費と給与が出る。建設と布告と贈り物と修復に使う。政治の画面の「見込み」で来月の増減が分かる。</p>
+</section>
+<section class="page" id="P5">
+<h2>P5 人物と政治</h2>
+<img src="img/manual_recruit.png" alt="登用の画面" style="width: 100%; max-width: 1600px; border: 1px solid var(--line)">
+<h3>1. 登用</h3>
+<p>左が役職(空席は橙)、右がその役職に向く順に並んだ候補。能力は 統治・生産・指揮・交渉(1〜10)、性格は 忠誠・野心。役職の効果は (能力 − 5) × 係数 で、5 が普通、空席は 0 扱い。名前を押すと任命、「解任」で外す。人物は 1 人 1 役(役職・隊長・司令官のどれか 1 つ)。</p>
+<table>
+  <tr><th>役職</th><th>効く所</th></tr>
+  <tr><td>村長(町長・市長・国家元首)</td><td>統治: 支持率</td></tr>
+  <tr><td>工場長(産業大臣)</td><td>生産: 工場の効率</td></tr>
+  <tr><td>自警団長(隊長・将軍・軍事大臣)</td><td>指揮: 隊の命中</td></tr>
+  <tr><td>交渉役(外交官・外務大臣)</td><td>交渉: 外交の提案の成功率(交渉 5 以上で相手の詳細が見える)</td></tr>
+  <tr><td>ロボット技師</td><td>生産: 機体(格納庫に機体があるとき)</td></tr>
+  <tr><td>区長(町から、住居 10 棟ごと)、元帥(国家)</td><td>統治 / 指揮</td></tr>
+</table>
+<img src="img/manual_politics.png" alt="政治の画面" style="width: 100%; max-width: 1600px; border: 1px solid var(--line)">
+<h3>2. 政治</h3>
+<table>
+  <tr><th>項目</th><th>内容</th></tr>
+  <tr><td>支持率の内訳</td><td>層ごとの人数と目標値。「不満の原因」は目標を下げている項目</td></tr>
+  <tr><td>派閥</td><td>忠誠が低く野心の高い人物は、不満が溜まると派閥を作る。放っておくと反乱の種になる(解任か、不満の原因を減らす)</td></tr>
+  <tr><td>予算と政策</td><td>税率(上限 50%)・徴兵率(上限 50%)・インフラ投資(供給能力の係数と維持費)・軍事費(徴兵の充足と給与・弾薬補給。50 未満で補給が止まる)・製造ロボットの導入率(設備の要員のうち製造ロボットにしてよい上限)</td></tr>
+  <tr><td>布告</td><td>配給(30 日、人口 × 5 / 日)、減税の布告(30 日、支持 +5)、祭り(即時、人口 × 20、支持 +5)</td></tr>
+  <tr><td>見込み</td><td>今の政策での来月の支持率・国庫・要員。税率と徴兵率を変えたときの見込みも並ぶ</td></tr>
+  <tr><td>外交</td><td>P7</td></tr>
+</table>
+</section>
+<section class="page" id="P6">
+<h2>P6 軍と戦闘</h2>
+<img src="img/preview_army_morale.png" alt="軍の画面" style="width: 100%; max-width: 1600px; border: 1px solid var(--line)">
+<h3>1. 隊と軍</h3>
+<table>
+  <tr><th>項目</th><th>内容</th></tr>
+  <tr><td>隊</td><td>同じ系統・同じ世代の機体 1〜12 機。見本の村には 自警団 第 1 隊(汎用 第 2 世代 2 機、格納庫)と 艦載 第 1 隊(高速 第 3 世代 2 機、航空戦艦 ハヤテ)がいる</td></tr>
+  <tr><td>隊長</td><td>隊に 1 人。いないと出撃できない。指揮 1 点につき命中 ±2%</td></tr>
+  <tr><td>軍</td><td>隊の束。軍の画面で隊に印を付けて「軍を編成」。司令官(指揮 1 点につき配下の全隊に ±1%)がいないと軍としての命令を受けない。軍には「出撃」「攻撃」「移動先を地図でクリック」「帰還」</td></tr>
+  <tr><td>要員</td><td>機体 1 機に人が要る。徴兵率 × 人口。「不足」の隊は出撃できない</td></tr>
+  <tr><td>士気(0〜100)</td><td>機体を失うと下がり、撃破すると上がる。格納庫で回復、出撃中に補給切れや隊長不在だと下がる。低いと命中が落ち、早く下がり、20 を割ると崩れて帰還する</td></tr>
+  <tr><td>練度(0〜100)</td><td>撃破と交戦した時間で上がる。命中が上がる</td></tr>
+</table>
+<h3>2. 命令</h3>
+<table>
+  <tr><th>命令</th><th>働き</th></tr>
+  <tr><td>出撃</td><td>格納庫の前に出る(地図で右クリックした地点へ向かわせることもできる)</td></tr>
+  <tr><td>移動</td><td>地図で右クリックした地点へ。建物は避けて歩く</td></tr>
+  <tr><td>攻撃 → 隊 / 拠点</td><td>相手の隊を追って撃つ。建物なら射程の手前で止まって撃つ(壁と砲塔のある拠点は固い)</td></tr>
+  <tr><td>待機</td><td>その場で、射程に入った敵を撃つ</td></tr>
+  <tr><td>部品を回収</td><td>戦場に落ちた部品(撃破された機体の 3 割)を拾って格納庫へ持ち帰る。修理に使う</td></tr>
+  <tr><td>帰還</td><td>格納庫へ戻る。格納庫では建物の電力で充電し、荷下ろし場の部品で修理する(1 時間に 1 個、1 個で 25%)</td></tr>
+  <tr><td>自爆</td><td>リアクターを過負荷にして爆発(周りの敵味方に被害)</td></tr>
+</table>
+<h3>3. 戦闘の仕組み(知っておくとよいこと)</h3>
+<ul>
+  <li>撃たれて耐久が 25% を切った機体は勝手に下がって帰る(士気が低いともっと早く)。全機が下がると隊が帰還する。</li>
+  <li>建物の陰は射線が通らない。丘も同じ。高速の系統は距離があると飛んで越える(飛行中は当たりにくい)。</li>
+  <li>町以降は、選んでいる建物や隊の周り 300 m だけ 1 機ずつ細かく計算し、外は隊ごとのまとめた計算になる(見た目は代表機 1 体)。結果はほぼ同じ。</li>
+  <li>拠点(見本では格納庫)には防御壁と砲塔が付けられる(右の板)。砲塔は荷下ろし場の弾薬を使う。</li>
+  <li>機体は工場の階で作る。製造や制御基板(機体ごとの退却・交戦の判断)は工場の「編集」から(P8)。</li>
+</ul>
+</section>
+<section class="page" id="P7">
+<h2>P7 外交と戦争</h2>
+<h3>1. 勢力</h3>
+<p>同じ地図に AI の勢力がいる(見本では 村 ミナト・村 クロガネ・山賊団)。政治の画面の「外交」に、関係(−100〜+100)・状態(友好 / 中立 / 警戒 / 敵対)・条約・兵力比が出る。交渉役の交渉が 5 以上だと相手の人口・技術・残りの戦力・蓄えが見える。</p>
+<table>
+  <tr><th>行動</th><th>内容</th></tr>
+  <tr><td>通商を提案</td><td>成功すると国庫の収入が増える。成功率は関係と交渉役の交渉で変わる(ボタンに %)</td></tr>
+  <tr><td>不可侵 / 同盟を提案</td><td>攻められにくくなる / 一緒に戦う。同盟は関係が高くないと通らない</td></tr>
+  <tr><td>贈り物</td><td>国庫から渡して関係を上げる</td></tr>
+  <tr><td>威圧</td><td>兵力比が高いと相手が譲歩する。失敗すると関係が下がる</td></tr>
+  <tr><td>宣戦</td><td>戦争になる。相手の襲撃隊が来るようになり、こちらから拠点を攻められる</td></tr>
+</table>
+<h3>2. 申し出</h3>
+<p>相手からの申し出(通商・同盟・従属の要求・講和など)は通知に出て、政治の画面に「受ける / 断る」のボタンが出る。期限内に答えないと断ったことになる。</p>
+<h3>3. 戦争</h3>
+<ul>
+  <li>相手の兵力が増えると「侵攻の恐れ」の通知が出る。襲撃隊が来たら、隊を出撃させて迎え撃つ(隊を選んで敵の機体を右クリック)。拠点が落ちると征服される(敗北)。</li>
+  <li>攻めるときは、隊か軍に「攻撃 → 相手の拠点」。拠点を落とすと相手は属国になり、スクラップがこちらの拠点の荷下ろし場に入る(右の板から工場の箱へ移せば工場で使える)。</li>
+  <li>負けが込むと相手から講和の申し出が来る。講和で都市の割譲が起きることがある。</li>
+</ul>
+<h3>4. 終わり方</h3>
+<p>勝ち: 全ての勢力を属国にする(制覇)か、属国でない全ての勢力と同盟を結ぶ(同盟網)。負け: 拠点が落ちる(征服)か、支持率が「失脚の危機」のまま一定の日数が過ぎる(失脚)。試遊版では通知が出るだけで、計算は続く。</p>
+</section>
+<section class="page" id="P8">
+<h2>P8 工場と機体</h2>
+<img src="img/preview_city_micro.png" alt="工場の階の編集" style="width: 100%; max-width: 1600px; border: 1px solid var(--line)">
+<p>工場を選んで右の板の階の「編集」を押すと、その階の地図(ミクロ)に切り替わる。設備(機械・箱・リアクター・制御基板など)を置いたり外したりでき、「地図へ戻る」で都市の画面に戻る。試遊版では見本の工場に設備が置いてあるので、まずは眺めるだけでよい。</p>
+<table>
+  <tr><th>項目</th><th>内容</th></tr>
+  <tr><td>電力</td><td>右の板の「電力 供給 / 需要」。リアクターの出力が設備の需要を下回ると設備が止まる</td></tr>
+  <tr><td>荷下ろし場</td><td>回収した部品や、落とした拠点のスクラップが入る。箱へ移すと工場で使える。砲塔の弾薬と機体の修理の部品もここから</td></tr>
+  <tr><td>製造ロボット</td><td>人間と同じ大きさの作業ロボット。設備の要員の代わりになる(政治の画面の導入率が上限)。戦闘ロボット(機体)とは別物</td></tr>
+  <tr><td>機体</td><td>世代(第 1〜6)と系統(汎用・重装・高速)と品質。制御基板を付けると、耐久や敵の数に応じた退却・交戦・自爆を機体が自分で判断する</td></tr>
+</table>
+</section>
+<section class="page" id="P9">
+<h2>P9 保存と制約</h2>
+<h3>1. 保存</h3>
+<p>F5 で保存、F9 で読み込み。枠は 1 つで、場所は次のとおり。</p>
+<pre>%APPDATA%\Godot\app_userdata\GPS\save1.json</pre>
+<h3>2. 試遊版の制約</h3>
+<table>
+  <tr><th>項目</th><th>状態</th></tr>
+  <tr><td>開始の場面</td><td>見本の村「アカネ」固定。地形や勢力の選択は無い</td></tr>
+  <tr><td>AI 勢力の工場</td><td>概算(侵攻して落とした際のスクラップは入る)</td></tr>
+  <tr><td>戦艦の建造・都市を置く</td><td>国家 / 都市の段階から。村では使えない</td></tr>
+  <tr><td>終了</td><td>勝敗は通知だけで、計算は続く</td></tr>
+  <tr><td>保存の枠</td><td>1 枠(F5 で上書き)</td></tr>
+</table>
+<h3>3. 困ったとき</h3>
+<table>
+  <tr><th>症状</th><th>見る所</th></tr>
+  <tr><td>隊が出撃できない</td><td>軍の画面: 隊長がいるか、要員が「充足」か(徴兵率を上げる)</td></tr>
+  <tr><td>建てられない</td><td>下描きが赤: 街路に接していない、重なっている、国庫が足りない。通知に理由が出る</td></tr>
+  <tr><td>建物が働かない</td><td>右の板: 「街路に接していない」なら街路を敷く。要員が足りないなら人口を増やす</td></tr>
+  <tr><td>支持率が下がり続ける</td><td>政治の画面の「不満の原因」。治安(警察)、税率、徴兵率が多い</td></tr>
+  <tr><td>何も起きない</td><td>速度を 8x か 32x に。1 日は 1x で現実の 2 時間</td></tr>
+  <tr><td>落ちた・おかしい</td><td>ログ: %APPDATA%\Godot\app_userdata\GPS\logs</td></tr>
+</table>
+</section>
+</main>
+<script>
+  function show() {
+    var id = (location.hash || '#G1').slice(1);
+    document.querySelectorAll('.page').forEach(function (p) { p.classList.toggle('sel', p.id === id); });
+    document.querySelectorAll('body > nav a').forEach(function (a) { a.classList.toggle('sel', a.getAttribute('href') === '#' + id); });
+    window.scrollTo(0, 0);
+  }
+  window.addEventListener('hashchange', show);
+  show();
+</script>
+</body>
+</html>
