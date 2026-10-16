@@ -28,7 +28,7 @@ public partial class CityScreen : Node3D
     CanvasLayer _ui = null!;
     Vector3 _pivot = new(SampleCity.N / 2f, Y, SampleCity.N / 2f);
     float _dist = 260, _yaw = 0.6f, _elev = 0.8f;
-    int _speed = 1, _frame, _selected = -1, _seenEvents;
+    int _speed = 1, _lastSpeed = 1, _frame, _selected = -1, _seenEvents;
     readonly List<(Aabb box, int id)> _hit = new();
     readonly Dictionary<int, Node3D> _marks = new();
     readonly Dictionary<int, Node3D> _idleMechs = new();
@@ -164,6 +164,7 @@ public partial class CityScreen : Node3D
 
     public override void _Process(double delta)
     {
+        PollKeys(delta);
         if (_micro == null) { RefreshTop(); RefreshCity(); RefreshSide(); RefreshMarks(); SyncShips(); RefreshField(); RefreshOverlay(); }
         var ev = _sim.Factory.Events;
         for (; _seenEvents < ev.Count; _seenEvents++)
@@ -361,26 +362,28 @@ public partial class CityScreen : Node3D
         // 上の帯
         var top = new HBoxContainer(); top.AddThemeConstantOverride("separation", 16);
         _top = Lbl("", 14); top.AddChild(_top);
-        foreach (var (t, sp) in new[] { ("停止", 0), ("1x", 1), ("2x", 2), ("4x", 4) }) { int s = sp; var bt = Btn(t, () => _speed = s); bt.CustomMinimumSize = new Vector2(0, 28); top.AddChild(bt); }
+        foreach (var (t, sp) in new[] { ("停止", 0), ("1x", 1), ("2x", 2), ("4x", 4), ("8x", 8) }) { int s = sp; var bt = Btn(t, () => _speed = s); bt.CustomMinimumSize = new Vector2(0, 28); top.AddChild(bt); }
         top.AddChild(new VSeparator());
         foreach (var (t, k) in new[] { ("登用", "recruit"), ("政治", "politics"), ("軍", "army") }) { string kk = k; var bt = Btn(t, () => { if (_overlayKind == kk) CloseOverlay(); else OpenOverlay(kk); }); bt.CustomMinimumSize = new Vector2(0, 28); top.AddChild(bt); }
         var topPanel = Panel(top); topPanel.Position = new Vector2(16, 16); root.AddChild(topPanel);
         // 左: 都市の板
         var left = new VBoxContainer(); left.AddThemeConstantOverride("separation", 6);
         left.AddChild(Lbl("都市", 15, Accent));
-        _city = Lbl("", 12); left.AddChild(_city);
+        _city = Lbl("", 12); _city.AddThemeConstantOverride("line_spacing", -7); left.AddChild(_city);   // 行間を詰めて板を 1 画面に収める
         left.AddChild(Lbl("政策", 13, Line40));
         var c = _sim.Factory.City!;
         _tax = Slider(left, "税率", c.TaxRate, _sim.CityData.MaxTaxRate, v => { _sim.Enqueue(new SetTaxRate(v)); _sim.Step(); });
         _draft = Slider(left, "徴兵率", c.ConscriptionRate, _sim.CityData.MaxConscriptionRate, v => { _sim.Enqueue(new SetConscriptionRate(v)); _sim.Step(); });
         left.AddChild(Lbl("通知", 13, Line40));
         _notice = Lbl("", 12); left.AddChild(_notice);
-        var leftPanel = Panel(left); leftPanel.Position = new Vector2(16, 72); leftPanel.CustomMinimumSize = new Vector2(540, 0); root.AddChild(leftPanel);
+        left.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        var scroll = new ScrollContainer { CustomMinimumSize = new Vector2(540, 730), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; scroll.AddChild(left);   // 板が画面より高くなったら中でスクロール(下の操作ヒントに重ねない)
+        var leftPanel = Panel(scroll); leftPanel.Position = new Vector2(16, 72); root.AddChild(leftPanel);
         // 右: 選択した建物
         _side = new VBoxContainer(); _side.AddThemeConstantOverride("separation", 6);
         _sidePanel = Panel(_side); _sidePanel.AnchorLeft = 1; _sidePanel.AnchorRight = 1; _sidePanel.OffsetLeft = -420; _sidePanel.OffsetRight = -16; _sidePanel.OffsetTop = 72; _sidePanel.Visible = false; root.AddChild(_sidePanel);
         BuildPalette(root);
-        var keys = Lbl("左クリック 建物を選ぶ   中ドラッグ 回転   ホイール 距離", 12, Line40); var kp = Panel(keys); kp.AnchorTop = 1; kp.AnchorBottom = 1; kp.OffsetTop = -52; kp.OffsetBottom = -16; kp.OffsetLeft = 16; root.AddChild(kp);
+        var keys = Lbl("左クリック 建物を選ぶ   右ドラッグ / WASD 移動   中ドラッグ 回転   ホイール 距離   Space 停止・再開   1〜4 速度   Esc 閉じる", 12, Line40); var kp = Panel(keys); kp.AnchorTop = 1; kp.AnchorBottom = 1; kp.OffsetTop = -52; kp.OffsetBottom = -16; kp.OffsetLeft = 16; root.AddChild(kp);
     }
 
     HSlider Slider(VBoxContainer parent, string name, double value, double max, Action<double> onChange)
@@ -415,6 +418,21 @@ public partial class CityScreen : Node3D
     static PanelContainer Panel(Control inner) { var p = new PanelContainer(); p.AddChild(inner); return p; }
 
     // ---------- 視点と入力 ----------
+    /// <summary>視点の平行移動: 画面の右と上の向きを地面に落として動かす(高さは変えない)。</summary>
+    void Pan(float dx, float dy, float scale)
+    {
+        var right = new Vector3(Mathf.Cos(_yaw), 0, -Mathf.Sin(_yaw)); var fwd = new Vector3(-Mathf.Sin(_yaw), 0, -Mathf.Cos(_yaw));
+        _pivot += (right * dx + fwd * dy) * scale; PlaceCamera();
+    }
+    void PollKeys(double delta)
+    {
+        if (_micro != null || _overlayKind != "") return;
+        float dx = 0, dy = 0;
+        if (Input.IsKeyPressed(Key.A) || Input.IsKeyPressed(Key.Left)) dx -= 1; if (Input.IsKeyPressed(Key.D) || Input.IsKeyPressed(Key.Right)) dx += 1;
+        if (Input.IsKeyPressed(Key.W) || Input.IsKeyPressed(Key.Up)) dy += 1; if (Input.IsKeyPressed(Key.S) || Input.IsKeyPressed(Key.Down)) dy -= 1;
+        if (dx != 0 || dy != 0) Pan(dx, dy, (float)delta * _dist * 0.6f);
+        if (_speed > 0) _lastSpeed = _speed;
+    }
     void PlaceCamera()
     {
         _cam.Position = _pivot + new Vector3(Mathf.Cos(_elev) * Mathf.Sin(_yaw), Mathf.Sin(_elev), Mathf.Cos(_elev) * Mathf.Cos(_yaw)) * _dist;
@@ -427,6 +445,13 @@ public partial class CityScreen : Node3D
         if (ev is InputEventMouseMotion mv) UpdateGhost(mv.Position);
         if (ev is InputEventMouseButton mb0 && mb0.Pressed && HandleBuildClick(mb0)) return;
         if (ev is InputEventMouseMotion mm && (mm.ButtonMask & MouseButtonMask.Middle) != 0) { _yaw -= mm.Relative.X * 0.005f; _elev = Mathf.Clamp(_elev + mm.Relative.Y * 0.005f, 0.2f, 1.5f); PlaceCamera(); }
+        if (ev is InputEventMouseMotion mr && (mr.ButtonMask & MouseButtonMask.Right) != 0) Pan(-mr.Relative.X, -mr.Relative.Y, _dist * 0.0015f);   // 右ドラッグで地面をつかんで動かす
+        if (ev is InputEventKey key && key.Pressed && !key.Echo)
+        {
+            if (key.Keycode == Key.Space) _speed = _speed == 0 ? Math.Max(1, _lastSpeed) : 0;
+            else if (key.Keycode is >= Key.Key1 and <= Key.Key4) _speed = key.Keycode switch { Key.Key1 => 1, Key.Key2 => 2, Key.Key3 => 4, _ => 8 };
+            else if (key.Keycode == Key.Escape) { if (_overlayKind != "") CloseOverlay(); else if (_buildMode != BuildMode.None) SetBuildMode(BuildMode.None); else Select(-1); }
+        }
         if (ev is InputEventMouseButton mb && mb.Pressed)
         {
             if (mb.ButtonIndex == MouseButton.WheelUp) { _dist = Mathf.Max(30, _dist * 0.9f); PlaceCamera(); }
