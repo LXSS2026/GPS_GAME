@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>G2 軍の規模の扱い | GPS 設計指針</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap">
+<link rel="stylesheet" href="_doc.css"></head>
+<body>
+<nav><script src="_nav.js"></script></nav>
+<main>
+<section class="page" id="G2">
+<h2>G2 軍の規模の扱い</h2>
+<p class="muted">要件は確定(2026-10-14)。設計方向は案(承認待ち)。実装は手順5。</p>
+
+<h3>1. 要件</h3>
+<ul>
+  <li>最終的に 10 万規模の軍を率いる可能性がある。</li>
+  <li>最初から集団単位だけで計算すると小規模戦が大味になる。規模に応じて扱いを変える。</li>
+  <li>プレイヤーは神・王の視点で自分のランクは持たない。規模は国の成長段階(村 → 町 → 都市 → 国家、G3)で決まり、指揮官は登用した人物が務める。</li>
+</ul>
+
+<h3>2. 設計方向(案)</h3>
+<p>計算の単位を一つに統一し、その「粒度」を国の段階で変える。</p>
+<table>
+  <tr><th>要素</th><th>内容</th></tr>
+  <tr><td>単位(Unit)</td><td>戦闘の計算単位。人数(Count)と平均状態(体力・士気・装備世代・品質)を持つ。人数 1 の Unit は個人そのもの。</td></tr>
+  <tr><td>粒度</td><td>国の段階が決める。村の自警団は人数 1 の Unit(個人ごとに計算)。町以降は分隊や小隊が 1 つの Unit になり、人数は数十から数千になる。</td></tr>
+  <tr><td>戦闘解決</td><td>命中・損耗・士気の式は Unit 同士で一つだけ持ち、人数を係数として掛ける。個人戦(Count 1)と大軍(Count 1000)が同じ式で解決されるので、規模で計算経路が分かれない。</td></tr>
+  <tr><td>指揮の階層</td><td>プレイヤーは最上位の指揮官(自警団長 → 隊長 → 将軍 → 元帥)を登用して命令を出す。その下は AI が受け持つ。登用した人物の指揮能力が Unit の練度と士気に効く。</td></tr>
+  <tr><td>移動</td><td>経路探索は Unit ごとに 1 回。個人単位の階層でも群れ移動(フローフィールド)で 1 グループ 1 回の計算に収める。</td></tr>
+  <tr><td>描画</td><td>人数分の小立方体をインスタンス描画。10 万体でも 1 ノード。描画は計算に影響しない(計算は Unit 数で決まる)。</td></tr>
+</table>
+
+<h3>3. 段階と戦場規模(案)</h3>
+<table>
+  <tr><th>国の段階</th><th>登用する指揮官</th><th>Unit の人数</th><th>戦場の概ねの規模</th></tr>
+  <tr><td>村</td><td>自警団長</td><td>1</td><td>数十人</td></tr>
+  <tr><td>町</td><td>隊長</td><td>約 10</td><td>数百人</td></tr>
+  <tr><td>都市</td><td>将軍</td><td>約 30 から 150</td><td>数千人</td></tr>
+  <tr><td>複数都市</td><td>将軍・師団長</td><td>約 500</td><td>1 万人台</td></tr>
+  <tr><td>国家</td><td>元帥</td><td>約 1 万</td><td>10 万人</td></tr>
+</table>
+<p>数字はデータ(json)に持ち、調整はコードを触らずに行う。</p>
+
+<h3>4. ロボットとの関係</h3>
+<p>人型ロボットも同じ Unit として扱い、世代と品質が装備世代・品質の欄に入る。工場で作った物がそのまま軍の性能差になる。</p>
+<h3>5. 戦艦(案 → 第 1 段階を 2026-10-16 に実装。G16 第 9 節)</h3>
+<p>戦艦は空中に浮かぶ移動基地(航空戦艦。2026-10-14 決定)。船体は建物と同じ「階を持つ器」で、内部に工場・格納庫・兵舎・砲を組む。人型ロボットは戦艦か地上施設の格納庫から出撃し、出撃元が補給と帰還先になる。戦闘では戦艦自体が 1 つの大型 Unit(装甲・火力・搭載数)で、搭載ロボットは配下の Unit として展開する。</p>
+</section>
+</main>
+<script src="_doc.js"></script>
+</body></html>

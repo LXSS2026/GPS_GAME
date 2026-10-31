@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>G22 試遊版: 起動と遊び方 | GPS 設計指針</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap">
+<link rel="stylesheet" href="_doc.css"></head>
+<body>
+<nav><script src="_nav.js"></script></nav>
+<main>
+<section class="page" id="G22">
+<h2>G22 試遊版: 起動と遊び方</h2>
+<p class="muted">2026-10-16 作成。今あるものをそのまま触って試すための版。遊ぶ人向けの操作と進め方は別の資料 <a href="../遊び方.html">遊び方.html</a>(P1〜P9)にまとめ、ここには実装の記録と制約だけを残す。</p>
+<h3>1. 起動</h3>
+<pre>E:\VSC_Git\GPS\遊ぶ.bat</pre>
+<p>C# をビルドしてから Godot で都市の画面を開く。窓は最大化、UI は 1600x900 を基準に拡大(2D のみ。3D は実解像度)。ログは %APPDATA%\Godot\app_userdata\GPS\logs。</p>
+<h3>2. 実装の記録</h3>
+<table>
+  <tr><th>日付</th><th>内容</th><th>ファイル</th></tr>
+  <tr><td>2026-10-16</td><td>起動バッチ、視点の平行移動(右ドラッグ / WASD)、Space・1〜4・Esc・F5 / F9、窓の設定と UI の拡大、都市の板のスクロール、保存に地形を含める、軍の移動先の地図クリック</td><td>遊ぶ.bat、project.godot、CityScreen.cs</td></tr>
+  <tr><td>2026-10-16</td><td>操作の見直し: 地図で機体をクリックすると隊が選べ(足元に輪、右の板に中身と命令)、右クリックで 地面 = 移動 / 敵の機体 = 攻撃 / 敵の建物 = 攻撃(格納庫の隊は出撃してその地点へ)。右ドラッグとの区別は 6 px。Q E で回転、速度 32x(キー 5)、操作ヒントを 2 行に。遊び方の資料を独立(遊び方.html)</td><td>CityScreen.Squad.cs、CityScreen.cs</td></tr>
+</table>
+<h3>3. 制約</h3>
+<table>
+  <tr><th>項目</th><th>状態</th></tr>
+  <tr><td>開始の場面</td><td>見本の村(アカネ)固定。新規の地形や設定の選択は無い</td></tr>
+  <tr><td>AI 勢力の工場</td><td>概算(G19 #1 の決定どおり。侵攻した際のスクラップは入る)</td></tr>
+  <tr><td>終了</td><td>勝敗(制覇・同盟網・征服・失脚)は通知だけで、計算は続く</td></tr>
+  <tr><td>保存の枠</td><td>1 枠だけ(F5 で上書き)。複数枠と名前付けは無い</td></tr>
+  <tr class="muted"><td>保存と読み込み</td><td>完了(2026-10-16)。F5 / F9。写しに地形(チャンクの連長圧縮、見本の村で 136 KB)を足し、街路を敷いた地形ごと復元して同じ状態で進むことを検査(SaveWorldTests)</td></tr>
+  <tr class="muted"><td>軍の移動先の指定</td><td>完了(2026-10-16)。軍の画面に「移動先を地図でクリック」(隊には元からあった)</td></tr>
+  <tr class="muted"><td>士気・練度・経路探索</td><td>入れた(G21 第 6・7 節)。隊は建物を避けて歩く。士気と練度は軍の画面に列</td></tr>
+</table>
+</section>
+</main>
+<script src="_doc.js"></script>
+</body></html>
